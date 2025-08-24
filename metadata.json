@@ -1,0 +1,6 @@
+{
+  "name": "Diner Theater Reserveringen",
+  "description": "Een widget om reserveringen voor een dinertheater te boeken en te beheren, met capaciteitsbeheer, een wachtlijst en een AI-gestuurde admin-samenvatting.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
