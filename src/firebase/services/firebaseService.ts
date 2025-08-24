@@ -30,7 +30,10 @@ import {
   Customer,
   TheaterVoucher,
   BookingApproval,
-  WaitlistEntry
+  WaitlistEntry,
+  Table,
+  MenuItem,
+  MerchItem
 } from '../../types/types';
 
 // 🎭 SHOW EVENTS SERVICE
@@ -71,16 +74,25 @@ export class ShowEventsService {
     }
   }
 
-  async addShow(show: Omit<ShowEvent, 'id'>): Promise<string> {
+  async addShow(show: Omit<ShowEvent, 'id'>): Promise<ShowEvent> {
     try {
+      console.log('🔥 Firebase: Adding show to Firestore:', show);
       const docRef = await addDoc(this.collection, {
         ...show,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-      return docRef.id;
+      console.log('🔥 Firebase: Show added with ID:', docRef.id);
+      
+      // Return the complete show object with the new ID
+      const savedShow: ShowEvent = {
+        ...show,
+        id: docRef.id
+      };
+      
+      return savedShow;
     } catch (error) {
-      console.error('Error adding show:', error);
+      console.error('🔥 Firebase Error adding show:', error);
       throw new Error('Failed to add show');
     }
   }
@@ -181,17 +193,24 @@ export class ReservationsService {
 
   async getAllReservations(): Promise<Reservation[]> {
     try {
+      console.log('🔥 Firebase: Fetching all reservations from Firestore');
       const snapshot = await getDocs(query(this.collection, orderBy('createdAt', 'desc')));
-      return snapshot.docs.map(doc => {
+      console.log('🔥 Firebase: Found', snapshot.docs.length, 'reservation documents');
+      
+      const reservations = snapshot.docs.map(doc => {
         const data = doc.data();
+        console.log('🔥 Firebase: Processing reservation doc:', doc.id, data);
         return {
           ...data,
-          id: parseInt(data.id) || Date.now(),
+          id: doc.id, // Use Firestore document ID as string
           createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt
         } as unknown as Reservation;
       });
+      
+      console.log('✅ Firebase: Processed reservations:', reservations);
+      return reservations;
     } catch (error) {
-      console.error('Error fetching reservations:', error);
+      console.error('❌ Firebase: Error fetching reservations:', error);
       throw new Error('Failed to fetch reservations');
     }
   }
@@ -216,20 +235,22 @@ export class ReservationsService {
     }
   }
 
-  async addReservation(reservation: Omit<Reservation, 'id'>): Promise<number> {
+  async addReservation(reservation: Omit<Reservation, 'id'>): Promise<Reservation> {
     try {
       console.log('🔥 Firebase: Adding reservation to Firestore:', reservation);
-      const id = Date.now();
-      const docData = {
+      const docRef = await addDoc(this.collection, {
         ...reservation,
-        id,
         createdAt: serverTimestamp()
-      };
-      console.log('🔥 Firebase: Document data to save:', docData);
+      });
+      console.log('✅ Firebase: Reservation added successfully with document ID:', docRef.id);
       
-      const docRef = await addDoc(this.collection, docData);
-      console.log('✅ Firebase: Reservation added successfully with document ID:', docRef.id, 'and ID:', id);
-      return id;
+      // Return the complete reservation object with the new ID
+      const savedReservation: Reservation = {
+        ...reservation,
+        id: docRef.id
+      };
+      
+      return savedReservation;
     } catch (error) {
       console.error('❌ Firebase: Error adding reservation:', error);
       throw new Error('Failed to add reservation');
@@ -314,29 +335,46 @@ export class WaitingListService {
 
   async getAllWaitingList(): Promise<WaitingListEntry[]> {
     try {
+      console.log('🔥 Firebase: Fetching all waiting list entries from Firestore');
       const snapshot = await getDocs(query(this.collection, orderBy('addedAt', 'asc')));
-      return snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: parseInt(doc.data().id) || Date.now(),
-        addedAt: doc.data().addedAt?.toDate?.() || undefined
-      })) as WaitingListEntry[];
+      console.log('🔥 Firebase: Found', snapshot.docs.length, 'waiting list documents');
+      
+      const waitingList = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('🔥 Firebase: Processing waiting list doc:', doc.id, data);
+        return {
+          ...data,
+          id: doc.id, // Use Firestore document ID as string
+          addedAt: data.addedAt?.toDate?.() || undefined
+        } as unknown as WaitingListEntry;
+      });
+      
+      console.log('✅ Firebase: Processed waiting list entries:', waitingList);
+      return waitingList;
     } catch (error) {
-      console.error('Error fetching waiting list:', error);
+      console.error('❌ Firebase: Error fetching waiting list:', error);
       throw new Error('Failed to fetch waiting list');
     }
   }
 
-  async addWaitingListEntry(entry: Omit<WaitingListEntry, 'id'>): Promise<number> {
+  async addWaitingListEntry(entry: Omit<WaitingListEntry, 'id'>): Promise<WaitingListEntry> {
     try {
-      const id = Date.now();
-      await addDoc(this.collection, {
+      console.log('🔥 Firebase: Adding waiting list entry to Firestore:', entry);
+      const docRef = await addDoc(this.collection, {
         ...entry,
-        id,
         addedAt: serverTimestamp()
       });
-      return id;
+      console.log('✅ Firebase: Waiting list entry added successfully with document ID:', docRef.id);
+      
+      // Return the complete waiting list entry with the new ID
+      const savedEntry: WaitingListEntry = {
+        ...entry,
+        id: docRef.id
+      };
+      
+      return savedEntry;
     } catch (error) {
-      console.error('Error adding waiting list entry:', error);
+      console.error('❌ Firebase: Error adding waiting list entry:', error);
       throw new Error('Failed to add waiting list entry');
     }
   }
@@ -1000,6 +1038,276 @@ export class AdminLogsService {
   }
 }
 
+// 🍽️ TABLES SERVICE
+export class TablesService {
+  private collection = collection(db, 'tables');
+
+  async getAllTables(): Promise<Table[]> {
+    try {
+      const snapshot = await getDocs(query(this.collection, orderBy('number', 'asc')));
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Table));
+    } catch (error) {
+      console.error('Error fetching tables:', error);
+      throw new Error('Failed to fetch tables');
+    }
+  }
+
+  async getTableById(id: string): Promise<Table | null> {
+    try {
+      const docSnap = await getDoc(doc(this.collection, id));
+      if (!docSnap.exists()) return null;
+      
+      return {
+        id: docSnap.id,
+        ...docSnap.data()
+      } as Table;
+    } catch (error) {
+      console.error('Error fetching table:', error);
+      throw new Error('Failed to fetch table');
+    }
+  }
+
+  async addTable(table: Omit<Table, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(this.collection, {
+        ...table,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding table:', error);
+      throw new Error('Failed to add table');
+    }
+  }
+
+  async updateTable(id: string, updates: Partial<Table>): Promise<void> {
+    try {
+      await updateDoc(doc(this.collection, id), {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating table:', error);
+      throw new Error('Failed to update table');
+    }
+  }
+
+  async deleteTable(id: string): Promise<void> {
+    try {
+      await deleteDoc(doc(this.collection, id));
+    } catch (error) {
+      console.error('Error deleting table:', error);
+      throw new Error('Failed to delete table');
+    }
+  }
+}
+
+// 🍝 MENU ITEMS SERVICE
+export class MenuItemsService {
+  private collection = collection(db, 'menuItems');
+
+  async getAllMenuItems(): Promise<MenuItem[]> {
+    try {
+      const snapshot = await getDocs(query(this.collection, orderBy('category', 'asc'), orderBy('name', 'asc')));
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as MenuItem));
+    } catch (error) {
+      console.error('Error fetching menu items:', error);
+      throw new Error('Failed to fetch menu items');
+    }
+  }
+
+  async getMenuItemById(id: string): Promise<MenuItem | null> {
+    try {
+      const docSnap = await getDoc(doc(this.collection, id));
+      if (!docSnap.exists()) return null;
+      
+      return {
+        id: docSnap.id,
+        ...docSnap.data()
+      } as MenuItem;
+    } catch (error) {
+      console.error('Error fetching menu item:', error);
+      throw new Error('Failed to fetch menu item');
+    }
+  }
+
+  async getMenuItemsByCategory(category: string): Promise<MenuItem[]> {
+    try {
+      const snapshot = await getDocs(
+        query(this.collection, where('category', '==', category), orderBy('name', 'asc'))
+      );
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as MenuItem));
+    } catch (error) {
+      console.error('Error fetching menu items by category:', error);
+      throw new Error('Failed to fetch menu items by category');
+    }
+  }
+
+  async addMenuItem(menuItem: Omit<MenuItem, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(this.collection, {
+        ...menuItem,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding menu item:', error);
+      throw new Error('Failed to add menu item');
+    }
+  }
+
+  async updateMenuItem(id: string, updates: Partial<MenuItem>): Promise<void> {
+    try {
+      await updateDoc(doc(this.collection, id), {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating menu item:', error);
+      throw new Error('Failed to update menu item');
+    }
+  }
+
+  async deleteMenuItem(id: string): Promise<void> {
+    try {
+      await deleteDoc(doc(this.collection, id));
+    } catch (error) {
+      console.error('Error deleting menu item:', error);
+      throw new Error('Failed to delete menu item');
+    }
+  }
+}
+
+// 🛍️ MERCHANDISE SERVICE
+export class MerchandiseService {
+  private collection = collection(db, 'merchandise');
+
+  async getAllMerchItems(): Promise<MerchItem[]> {
+    try {
+      const snapshot = await getDocs(query(this.collection, orderBy('category', 'asc'), orderBy('name', 'asc')));
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
+        updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
+      } as MerchItem));
+    } catch (error) {
+      console.error('Error fetching merch items:', error);
+      throw new Error('Failed to fetch merch items');
+    }
+  }
+
+  async getMerchItemById(id: string): Promise<MerchItem | null> {
+    try {
+      const docSnap = await getDoc(doc(this.collection, id));
+      if (!docSnap.exists()) return null;
+      
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+      } as MerchItem;
+    } catch (error) {
+      console.error('Error fetching merch item:', error);
+      throw new Error('Failed to fetch merch item');
+    }
+  }
+
+  async getMerchItemsByCategory(category: string): Promise<MerchItem[]> {
+    try {
+      const snapshot = await getDocs(
+        query(this.collection, where('category', '==', category), orderBy('name', 'asc'))
+      );
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
+        updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
+      } as MerchItem));
+    } catch (error) {
+      console.error('Error fetching merch items by category:', error);
+      throw new Error('Failed to fetch merch items by category');
+    }
+  }
+
+  async getFeaturedMerchItems(): Promise<MerchItem[]> {
+    try {
+      const snapshot = await getDocs(
+        query(this.collection, where('isFeatured', '==', true), where('isActive', '==', true))
+      );
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
+        updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
+      } as MerchItem));
+    } catch (error) {
+      console.error('Error fetching featured merch items:', error);
+      throw new Error('Failed to fetch featured merch items');
+    }
+  }
+
+  async addMerchItem(merchItem: Omit<MerchItem, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(this.collection, {
+        ...merchItem,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding merch item:', error);
+      throw new Error('Failed to add merch item');
+    }
+  }
+
+  async updateMerchItem(id: string, updates: Partial<MerchItem>): Promise<void> {
+    try {
+      await updateDoc(doc(this.collection, id), {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating merch item:', error);
+      throw new Error('Failed to update merch item');
+    }
+  }
+
+  async updateMerchItemStock(id: string, stockChange: number): Promise<void> {
+    try {
+      await updateDoc(doc(this.collection, id), {
+        stock: increment(stockChange),
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating merch item stock:', error);
+      throw new Error('Failed to update merch item stock');
+    }
+  }
+
+  async deleteMerchItem(id: string): Promise<void> {
+    try {
+      await deleteDoc(doc(this.collection, id));
+    } catch (error) {
+      console.error('Error deleting merch item:', error);
+      throw new Error('Failed to delete merch item');
+    }
+  }
+}
+
 // 🚀 FIREBASE SERVICE FACTORY
 export class FirebaseService {
   public shows: ShowEventsService;
@@ -1014,6 +1322,9 @@ export class FirebaseService {
   public promoCodes: PromoCodesService;
   public notifications: NotificationsService;
   public adminLogs: AdminLogsService;
+  public tables: TablesService;
+  public menuItems: MenuItemsService;
+  public merchandise: MerchandiseService;
 
   constructor() {
     this.shows = new ShowEventsService();
@@ -1028,6 +1339,9 @@ export class FirebaseService {
     this.promoCodes = new PromoCodesService();
     this.notifications = new NotificationsService();
     this.adminLogs = new AdminLogsService();
+    this.tables = new TablesService();
+    this.menuItems = new MenuItemsService();
+    this.merchandise = new MerchandiseService();
   }
 
   // Helper method for batch operations
@@ -1067,3 +1381,50 @@ export class FirebaseService {
 
 // Export singleton instance
 export const firebaseService = new FirebaseService();
+
+// =====================================
+// LEGACY FUNCTION-BASED API WRAPPERS
+// (For backwards compatibility)
+// =====================================
+
+// Shows
+export const getShows = () => firebaseService.shows.getAllShows();
+export const addShow = (data: Omit<ShowEvent, 'id'>) => firebaseService.shows.addShow(data);
+export const updateShow = (id: string, data: Partial<ShowEvent>) => firebaseService.shows.updateShow(id, data);
+export const deleteShow = (id: string) => firebaseService.shows.deleteShow(id);
+
+// Reservations
+export const getReservations = () => firebaseService.reservations.getAllReservations();
+export const addReservation = (data: Omit<Reservation, 'id'>) => firebaseService.reservations.addReservation(data);
+export const updateReservation = (id: string, data: Partial<Reservation>) => firebaseService.reservations.updateReservation(id, data);
+export const deleteReservation = (id: string) => firebaseService.reservations.deleteReservation(id);
+
+// Waitlist
+export const getWaitlistEntries = () => firebaseService.waitingList.getAllWaitingList();
+export const addWaitlistEntry = (data: Omit<WaitingListEntry, 'id'>) => firebaseService.waitingList.addWaitingListEntry(data);
+export const updateWaitlistEntry = (id: string, data: Partial<WaitingListEntry>) => firebaseService.waitingList.updateWaitingListEntry(id, data);
+export const deleteWaitlistEntry = (id: string) => firebaseService.waitingList.deleteWaitingListEntry(id);
+
+// Internal Events
+export const getInternalEvents = () => firebaseService.internalEvents.getAllInternalEvents();
+export const addInternalEvent = (data: Omit<InternalEvent, 'id'>) => firebaseService.internalEvents.addInternalEvent(data);
+export const updateInternalEvent = (id: string, data: Partial<InternalEvent>) => firebaseService.internalEvents.updateInternalEvent(id, data);
+export const deleteInternalEvent = (id: string) => firebaseService.internalEvents.deleteInternalEvent(id);
+
+// Tables
+export const getTables = () => firebaseService.tables.getAllTables();
+export const addTable = (data: Omit<Table, 'id'>) => firebaseService.tables.addTable(data);
+export const updateTable = (id: string, data: Partial<Table>) => firebaseService.tables.updateTable(id, data);
+export const deleteTable = (id: string) => firebaseService.tables.deleteTable(id);
+
+// Menu Items
+export const getMenuItems = () => firebaseService.menuItems.getAllMenuItems();
+export const addMenuItem = (data: Omit<MenuItem, 'id'>) => firebaseService.menuItems.addMenuItem(data);
+export const updateMenuItem = (id: string, data: Partial<MenuItem>) => firebaseService.menuItems.updateMenuItem(id, data);
+export const deleteMenuItem = (id: string) => firebaseService.menuItems.deleteMenuItem(id);
+
+// Merchandise
+export const getMerchItems = () => firebaseService.merchandise.getAllMerchItems();
+export const addMerchItem = (data: Omit<MerchItem, 'id'>) => firebaseService.merchandise.addMerchItem(data);
+export const updateMerchItem = (id: string, data: Partial<MerchItem>) => firebaseService.merchandise.updateMerchItem(id, data);
+export const deleteMerchItem = (id: string) => firebaseService.merchandise.deleteMerchItem(id);

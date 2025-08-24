@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo, useCallback, ReactNode, Fragment, useRef, createContext, useContext } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
@@ -44,37 +42,16 @@ import type {
     ShopConfiguration,
     AppConfig
 } from './src/types/types';
-
 // Import configuration
 import { i18n, defaultConfig } from './src/config/config';
-
 // Import components
 import { Icon } from './src/components/UI/Icon';
 import { Header } from './src/components/UI/Header';
 import { ToastProvider, useToast } from './src/components/providers/ToastProvider';
 import { ConfirmationProvider, useConfirmation } from './src/components/providers/ConfirmationProvider';
 import { BookingView } from './src/components/views/BookingView';
-
 // Import hooks
-import { useMediaQuery } from './src/hooks';
-
-// Import Firebase services
-import { firebaseService } from './src/firebase/services/firebaseService';
-
-// 🔥 TEST: Firebase Connection Test
-const testFirebaseConnection = async () => {
-    console.log('🧪 Testing Firebase connection...');
-    try {
-        // Test Firestore connection by trying to read shows
-        const shows = await firebaseService.shows.getAllShows();
-        console.log('✅ Firebase connection SUCCESS - Shows:', shows.length);
-        return true;
-    } catch (error) {
-        console.error('❌ Firebase connection FAILED:', error);
-        return false;
-    }
-};
-
+import { useMediaQuery, usePersistentState } from './src/hooks';
 // Import utilities
 import { 
     getDaysInMonth, formatDateToNL, formatDate, slugify, sanitizeInput,
@@ -83,7 +60,6 @@ import {
     validateVoucherForUse, extendVoucherExpiry, debounce, throttle, getShowTimes,
     generateShowTypeCSS
 } from './src/utils/utilities';
-
 import { 
     BarChart3, 
     DollarSign, 
@@ -110,102 +86,12 @@ import {
     Pie, 
     Cell 
 } from 'recharts';
-
 // --- I1N (Internationalization) - Dutch ---
 // --- UTILITY FUNCTIONS & HOOKS ---
-
 // --- NOTIFICATION & CONFIRMATION CONTEXT ---
-
-
-
-
 // --- NOTIFICATION & CONFIRMATION CONTEXT ---
-
-// ❌ DEPRECATED: usePersistentState replaced by Firebase integration in Step 4
-// This function is no longer used - all data now comes from Firestore
-const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
-    const [state, setState] = useState<T>(() => {
-        try {
-            const storedValue = localStorage.getItem(key);
-            if (storedValue) {
-                let parsed = JSON.parse(storedValue);
-
-                if (Array.isArray(defaultValue)) {
-                    return Array.isArray(parsed) ? parsed : defaultValue;
-                }
-                
-                // MIGRATION LOGIC for pricing model
-                if (key === 'appConfig' && parsed.prices && parsed.prices.weekend && parsed.showTypes && !parsed.showTypes[0].priceStandard) {
-                    parsed.showTypes = parsed.showTypes.map((type: any) => {
-                        let prices = parsed.prices.weekday; // default to weekday
-                        if (type.name.includes('Weekend')) prices = parsed.prices.weekend;
-                        if (type.name.includes('Zorgzame')) prices = parsed.prices.zorgHeld;
-                        
-                        return {
-                            ...type,
-                            priceStandard: prices ? prices.standard : 70,
-                            pricePremium: prices ? prices.premium : 85
-                        };
-                    });
-                    // Remove old price structure after migration
-                    delete parsed.prices.weekend;
-                    delete parsed.prices.weekday;
-                    delete parsed.prices.zorgHeld;
-                }
-
-                 const deepMerge = (target: any, source: any): any => {
-                    const output = { ...target };
-                    const isObject = (item: any) => item && typeof item === 'object' && !Array.isArray(item);
-
-                    if (isObject(target) && isObject(source)) {
-                        Object.keys(source).forEach(key => {
-                            const targetValue = target[key];
-                            const sourceValue = source[key];
-                            if (isObject(targetValue) && isObject(sourceValue)) {
-                                output[key] = deepMerge(targetValue, sourceValue);
-                            } else {
-                                output[key] = sourceValue !== undefined ? sourceValue : targetValue;
-                            }
-                        });
-                        Object.keys(target).forEach(key => {
-                             if(source[key] === undefined) {
-                                output[key] = target[key];
-                             }
-                        });
-                    }
-                    return output;
-                };
-
-                return deepMerge(defaultValue, parsed);
-            }
-            return defaultValue;
-        } catch (error) {
-            console.error(`Error reading localStorage key “${key}”:`, error);
-            return defaultValue;
-        }
-    });
-
-    useEffect(() => {
-        try {
-            localStorage.setItem(key, JSON.stringify(state));
-        } catch (error) {
-            console.error(`Error setting localStorage key “${key}”:`, error);
-        }
-    }, [key, state]);
-
-    return [state, setState];
-};
-
-// --- NOTIFICATION & CONFIRMATION CONTEXT ---
-
-
-
-
-
 // --- COMPONENTS ---
-
 // --- COMPONENTS ---
-
 const CalendarPopover = ({ data, view, config }: { 
     data: { event: ShowEvent, guests: number, element: HTMLElement } | null, 
     view?: View,
@@ -213,15 +99,12 @@ const CalendarPopover = ({ data, view, config }: {
 }) => {
     const popoverRef = useRef<HTMLDivElement>(null);
     const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
-
-    useEffect(() => {
         if (data && popoverRef.current) {
             const rect = data.element.getBoundingClientRect();
             const popoverRect = popoverRef.current.getBoundingClientRect();
             
             let top = rect.top - popoverRect.height - 8;
             let left = rect.left + (rect.width / 2) - (popoverRect.width / 2);
-
             if (top < 0) {
                 top = rect.bottom + 8;
             }
@@ -231,23 +114,18 @@ const CalendarPopover = ({ data, view, config }: {
             if (left + popoverRect.width > window.innerWidth) {
                 left = window.innerWidth - popoverRect.width - 5;
             }
-
             setStyle({
                 position: 'fixed',
                 top: `${top}px`,
                 left: `${left}px`,
                 opacity: 1,
             });
-        }
     }, [data]);
-
     if (!data) return null;
-
     // Find the show type configuration to get pricing
     const showTypeConfig = config?.showTypes.find(type => type.name === data.event.type || type.id === data.event.type);
     const standardPrice = showTypeConfig?.priceStandard;
     const premiumPrice = showTypeConfig?.pricePremium;
-
     // Get the correct show times based on date and show type
     const eventDate = new Date(data.event.date + 'T12:00:00');
     const showTimes = getShowTimes(eventDate, data.event.type);
@@ -266,7 +144,6 @@ const CalendarPopover = ({ data, view, config }: {
         statusMessage = '✅ Beschikbaar';
         statusClass = 'status-available';
     }
-
     return (
         <div className="calendar-popover" ref={popoverRef} style={style}>
             <div className="popover-title">{data.event.name}</div>
@@ -293,8 +170,6 @@ const CalendarPopover = ({ data, view, config }: {
             </div>
         </div>
     );
-};
-
 const Calendar = React.memo(({ month, onMonthChange, onDateClick, events, guestCountMap, selectedDate, view, isMultiSelectMode, multiSelectedDates, onMultiDateToggle, onDayHover, config }: {
     month: Date;
     onMonthChange: (newMonth: Date) => void;
@@ -317,9 +192,7 @@ const Calendar = React.memo(({ month, onMonthChange, onDateClick, events, guestC
     const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
     const europeanFirstDay = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1; // Converteer naar Europese week
     const paddingDays = Array(europeanFirstDay).fill(null);
-
     const eventMap = useMemo(() => new Map(events.map(event => [event.date, event])), [events]);
-
     const handlePrevMonth = () => onMonthChange(new Date(year, monthIndex - 1, 1));
     const handleNextMonth = () => onMonthChange(new Date(year, monthIndex + 1, 1));
     
@@ -328,7 +201,6 @@ const Calendar = React.memo(({ month, onMonthChange, onDateClick, events, guestC
         if (isFull) return i18n.fullyBooked;
         return event.name;
     };
-
     return (
         <div className="calendar-container">
             <div className="calendar-header">
@@ -360,7 +232,6 @@ const Calendar = React.memo(({ month, onMonthChange, onDateClick, events, guestC
                         // Nieuwe kleurklasse gebaseerd op show eigenschappen
                         colorClass = getShowColorClass(event, config, guests);
                     }
-
                     let dayClassName = `calendar-day ${day.getMonth() !== monthIndex ? 'other-month' : ''} ${event ? 'has-event' : ''} ${event?.isClosed ? 'is-closed' : ''} ${isFull ? 'full-event' : ''} ${dateStr === selectedDate ? 'selected' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isClickable ? 'clickable' : ''} ${capacityClass} ${typeClass} ${colorClass}`;
                     
                     const handleDayClick = () => {
@@ -370,32 +241,27 @@ const Calendar = React.memo(({ month, onMonthChange, onDateClick, events, guestC
                             onDateClick(dateStr);
                         }
                     };
-
                     const handleKeyDown = (e: React.KeyboardEvent) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             handleDayClick();
                         }
                     };
-
                     const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
                         if (event && onDayHover) {
                             onDayHover({ event, guests, element: e.currentTarget });
                         }
                     };
-
                     const handleMouseLeave = () => {
                         if (onDayHover) {
                             onDayHover(null);
                         }
                     };
-
                     // Determine indicator type and color
                     const getShowIndicator = () => {
                         // Geen puntje meer nodig - kleuren worden nu via CSS classes getoond
                         return null;
                     };
-
                     return (
                         <div 
                             key={dateStr}
@@ -418,7 +284,6 @@ const Calendar = React.memo(({ month, onMonthChange, onDateClick, events, guestC
         </div>
     );
 });
-
 const CalendarLegend = ({ events, config }: { events: ShowEvent[], config: AppConfig }) => {
     const legendItems = getShowLegend(config);
     
@@ -438,25 +303,17 @@ const CalendarLegend = ({ events, config }: { events: ShowEvent[], config: AppCo
             </div>
         </div>
     );
-};
-
 const AddShowModal = ({ onClose, onAdd, config, dates }: { onClose: () => void, onAdd: (event: Omit<ShowEvent, 'id'>, dates: string[]) => void, config: AppConfig, dates: string[] }) => {
     const activeShowNames = useMemo(() => config.showNames.filter(s => !s.archived), [config.showNames]);
     const activeShowTypes = useMemo(() => config.showTypes.filter(s => !s.archived), [config.showTypes]);
-
     const [name, setName] = useState(activeShowNames[0]?.name || '');
     const [type, setType] = useState(activeShowTypes[0]?.name || '');
     const [capacity, setCapacity] = useState(activeShowTypes[0]?.defaultCapacity || 240);
     const [singleDate, setSingleDate] = useState(dates[0] || formatDate(new Date()));
-
-    useEffect(() => {
         const selectedType = activeShowTypes.find(t => t.name === type);
         if (selectedType) {
             setCapacity(selectedType.defaultCapacity);
-        }
     }, [type, activeShowTypes]);
-
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const targetDates = dates.length > 0 ? dates : [singleDate];
@@ -466,7 +323,6 @@ const AddShowModal = ({ onClose, onAdd, config, dates }: { onClose: () => void, 
     };
     
     const isMultiMode = dates.length > 0;
-
     return (
         <div className="modal-backdrop" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -501,8 +357,6 @@ const AddShowModal = ({ onClose, onAdd, config, dates }: { onClose: () => void, 
             </div>
         </div>
     );
-};
-
 const WaitingListForm = ({ show, date, onAddToWaitingList, onClose }: { show: ShowEvent, date: string, onAddToWaitingList: (entry: Omit<WaitingListEntry, 'id'>) => void, onClose: () => void }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -523,7 +377,6 @@ const WaitingListForm = ({ show, date, onAddToWaitingList, onClose }: { show: Sh
           onClose();
         }, 3000);
     };
-
     const dateObj = new Date(date + 'T00:00:00');
     const formattedDate = i18n.showInfo
         .replace('{dayOfWeek}', dateObj.toLocaleDateString('nl-NL', { weekday: 'long' }))
@@ -549,7 +402,6 @@ const WaitingListForm = ({ show, date, onAddToWaitingList, onClose }: { show: Sh
         </div>
     )
 }
-
 // Functie om speciale show kenmerken te bepalen
 const getShowColorClass = (event: ShowEvent, config: AppConfig, guests: number) => {
     const eventDate = new Date(event.date + 'T12:00:00');
@@ -571,7 +423,6 @@ const getShowColorClass = (event: ShowEvent, config: AppConfig, guests: number) 
         const standardPrice = 70; // Basis prijs
         if (showTypeConfig.priceStandard > standardPrice || showTypeConfig.pricePremium > 95) {
             return 'show-premium';
-        }
     }
     
     // Speciale tijden (bijvoorbeeld Matinee of late shows)
@@ -595,8 +446,6 @@ const getShowColorClass = (event: ShowEvent, config: AppConfig, guests: number) 
     
     // Standaard show
     return 'show-normal';
-};
-
 // Legenda data voor kleuren - dynamisch gebaseerd op configuratie
 const getShowLegend = (config: AppConfig) => {
     const legendItems = [];
@@ -618,16 +467,12 @@ const getShowLegend = (config: AppConfig) => {
     );
     
     return legendItems;
-};
-
 // Functie om dynamische CSS te genereren voor show type kleuren
 // Component om dynamische CSS styles te injecteren
 const DynamicStyles = ({ config }: { config: AppConfig }) => {
     const css = generateShowTypeCSS(config);
     
     return css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null;
-};
-
 const QuantityStepper = ({ value, onChange, min = 0, max = 99, disabled = false }: { 
     value: number, 
     onChange: (newValue: number) => void, 
@@ -637,7 +482,6 @@ const QuantityStepper = ({ value, onChange, min = 0, max = 99, disabled = false 
 }) => {
     const handleIncrement = () => !disabled && onChange(Math.min(max, value + 1));
     const handleDecrement = () => !disabled && onChange(Math.max(min, value - 1));
-
     return (
         <div className={`quantity-stepper ${disabled ? 'disabled' : ''}`}>
             <button type="button" onClick={handleDecrement} disabled={value <= min || disabled} aria-label="Minder"><Icon id="remove" /></button>
@@ -645,8 +489,6 @@ const QuantityStepper = ({ value, onChange, min = 0, max = 99, disabled = false 
             <button type="button" onClick={handleIncrement} disabled={value >= max || disabled} aria-label="Meer"><Icon id="add" /></button>
         </div>
     );
-};
-
 const BookingSummary = ({
     show, reservation, priceDetails, config, appliedCode, promoInput, setPromoInput, onApplyCode, promoMessage
 }: {
@@ -663,7 +505,6 @@ const BookingSummary = ({
     const { guests, drinkPackage, preShowDrinks, afterParty, addons } = reservation;
     const merchandiseMap = useMemo(() => new Map(config.shopMerchandise.map(item => [item.id, item])), [config.shopMerchandise]);
     const capSlogansMap = useMemo(() => new Map(config.capSlogans.map((slogan, index) => [`cap${index}`, slogan])), [config.capSlogans]);
-
     return (
         <>
             <h3>{i18n.bookingSummary}</h3>
@@ -673,7 +514,6 @@ const BookingSummary = ({
                 <p><strong>{i18n.numberOfGuests}:</strong> {guests}</p>
                 <p><strong>{i18n.formPackage}:</strong> {drinkPackage === 'standard' ? i18n.standardPackage : i18n.packagePremium}</p>
             </div>
-
             {(preShowDrinks || afterParty || Object.values(addons).some(v => v > 0)) && (
                 <div className="summary-section">
                     <h4>{i18n.formAddons}</h4>
@@ -697,7 +537,6 @@ const BookingSummary = ({
                 </div>
                 {promoMessage && <p className="promo-message">{promoMessage}</p>}
             </div>
-
             <div className="total-price-bar">
                 <div className="price-breakdown">
                     <div className="price-line"><span>{i18n.subtotal}</span><span>€{priceDetails.subtotal.toFixed(2)}</span></div>
@@ -710,17 +549,13 @@ const BookingSummary = ({
             </div>
         </>
     );
-};
-
 const BookingSummarySidebar = (props: React.ComponentProps<typeof BookingSummary>) => (
     <div className="booking-summary-sidebar">
         <BookingSummary {...props} />
     </div>
 );
-
 const MobileBookingSummary = (props: React.ComponentProps<typeof BookingSummary>) => {
     const [isExpanded, setIsExpanded] = useState(false);
-
     return (
         <div className={`mobile-booking-summary ${isExpanded ? 'expanded' : ''}`}>
             {isExpanded && <div className="mobile-summary-overlay" onClick={() => setIsExpanded(false)}></div>}
@@ -746,7 +581,6 @@ const MobileBookingSummary = (props: React.ComponentProps<typeof BookingSummary>
         </div>
     );
 }
-
 const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapacity, onClose }: { show: ShowEvent, date: string, onAddReservation: (res: Omit<Reservation, 'id'>) => void, config: AppConfig, remainingCapacity: number, onClose: () => void }) => {
     const WIZARD_STEPS = 5;
     const [currentStep, setCurrentStep] = useState(1);
@@ -754,14 +588,12 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
     const [willExceedCapacity, setWillExceedCapacity] = useState(false);
     const [showCapacityWarning, setShowCapacityWarning] = useState(false);
     const isMobile = useMediaQuery('(max-width: 900px)');
-
     const initialAddons = useMemo(() => {
         const addons: AddonQuantities = {};
         config.shopMerchandise.forEach(item => { addons[item.id] = 0; });
         config.capSlogans.forEach((_, index) => { addons[`cap${index}`] = 0; });
         return addons;
     }, [config.shopMerchandise, config.capSlogans]);
-
     const [reservation, setReservation] = useState<Omit<Reservation, 'id' | 'totalPrice'>>({
         date,
         companyName: '', salutation: 'Dhr.', contactName: '', address: '', houseNumber: '',
@@ -770,23 +602,19 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         remarks: '', addons: initialAddons, celebrationName: '', celebrationOccasion: '',
         newsletter: false, termsAccepted: false, checkedIn: false,
         status: 'provisional', bookingSource: 'internal', createdAt: new Date().toISOString()
-    });
     
     const [priceDetails, setPriceDetails] = useState({ subtotal: 0, discount: 0, total: 0 });
     const [promoInput, setPromoInput] = useState('');
     const [appliedCode, setAppliedCode] = useState<{code: string; type: 'promo' | 'gift'; value: number} | null>(null);
     const [promoMessage, setPromoMessage] = useState('');
-
     // Merchandise shop states
     const [selectedCategory, setSelectedCategory] = useState('');
     const [sortBy, setSortBy] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-
     const merchandiseMap = useMemo(() => new Map(config.shopMerchandise.map(item => [item.id, item])), [config.shopMerchandise]);
     const showImage = useMemo(() => config.showNames.find(sn => sn.name === show.name)?.imageUrl, [config.showNames, show.name]);
     const currentShowType = useMemo(() => config.showTypes.find(st => st.name === show.type), [config.showTypes, show.type]);
     const { minGuests, maxGuests } = config.bookingSettings;
-
     const updateReservation = (data: Partial<typeof reservation>) => {
         setReservation(prev => ({...prev, ...data}));
         
@@ -799,22 +627,16 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
             // Show capacity warning for large bookings (> 80% of remaining capacity)
             const isLargeBooking = newGuestCount > (remainingCapacity * 0.8);
             setShowCapacityWarning(isLargeBooking && !exceedsCapacity);
-        }
     };
-
     // Auto-adjust booking status - all reservations are provisional and need admin approval
-    useEffect(() => {
         setReservation(prev => ({...prev, status: 'provisional'}));
     }, []);
-
-    useEffect(() => {
         const { guests, drinkPackage, preShowDrinks, afterParty, addons } = reservation;
         let basePricePerPerson = 0;
         if (currentShowType) {
             basePricePerPerson = drinkPackage === 'premium'
                 ? currentShowType.pricePremium
                 : currentShowType.priceStandard;
-        }
         
         let subtotal = guests * basePricePerPerson;
         
@@ -856,7 +678,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         
         const totalCaps = config.capSlogans.reduce((sum, _, i) => sum + (addons[`cap${i}`] || 0), 0);
         subtotal += totalCaps * config.prices.cap;
-
         let discount = 0;
         if (appliedCode) {
             if (appliedCode.type === 'promo') {
@@ -874,14 +695,12 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                     discount = theaterVoucher.value;
                 }
             }
-        }
         
         // Voor theaterbonnen: laat totaal negatief worden (klant betaalt rest later)
         // Voor andere kortingen: limiteer tot subtotal
         const theaterVoucher = appliedCode && config.theaterVouchers.find(v => v.code === appliedCode.code);
         if (!theaterVoucher) {
             discount = Math.min(subtotal, discount);
-        }
         
         const total = subtotal - discount;
         setPriceDetails({ subtotal, discount, total });
@@ -899,7 +718,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
             setAppliedCode({ code: promo.code, type: 'promo', value: promo.type === 'percentage' ? promo.value : promo.value });
             setPromoMessage(i18n.codeApplied.replace('{code}', promo.code).replace('{discount}', discountDisplay));
             return;
-        }
         
         // Dan proberen als nieuwe theaterbon
         const theaterVoucher = config.theaterVouchers.find(v => v.code.toUpperCase() === code);
@@ -921,11 +739,9 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                     .replace('{value}', theaterVoucher.value.toFixed(2)));
             }
             return;
-        }
         
         setPromoMessage(i18n.invalidCode);
     };
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onAddReservation({ ...reservation, totalPrice: priceDetails.total, promoCode: appliedCode?.code, discountAmount: priceDetails.discount });
@@ -935,7 +751,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
     const nextStep = () => setCurrentStep(s => Math.min(s + 1, WIZARD_STEPS));
     const prevStep = () => setCurrentStep(s => Math.max(s - 1, 1));
     const goToStep = (step: number) => setCurrentStep(Math.max(1, Math.min(step, WIZARD_STEPS)));
-
     const dateObj = new Date(date + 'T00:00:00');
     const formattedDate = i18n.showInfo
         .replace('{dayOfWeek}', dateObj.toLocaleDateString('nl-NL', { weekday: 'long' }))
@@ -944,7 +759,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         .replace('{year}', dateObj.toLocaleDateString('nl-NL', { year: 'numeric' }))
         .replace('{showType}', show.type);
     const showTimes = getShowTimes(dateObj, show.type);
-
     if (submitted) {
         // All reservations are now provisional and require approval
         return (
@@ -960,7 +774,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
             </div>
         )
     }
-
     const renderStepContent = () => {
         switch (currentStep) {
             case 1: // Arrangement & Gasten
@@ -1037,18 +850,15 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                 const handleAddonNumberChange = (name: string, value: number) => {
                     updateReservation({ addons: {...reservation.addons, [name]: value }});
                 };
-
                 const handleGroupQuantity = (itemId: string) => {
                     const guestCount = reservation.guests || 1;
                     updateReservation({ addons: {...reservation.addons, [itemId]: guestCount }});
                 };
-
                 const handleQuantityInputChange = (itemId: string, value: string) => {
                     const numValue = parseInt(value) || 0;
                     const clampedValue = Math.max(0, Math.min(99, numValue));
                     handleAddonNumberChange(itemId, clampedValue);
                 };
-
                 // Alle categorieën inclusief petten
                 const categories = [
                     { id: '', name: 'Alles', icon: '🛍️' },
@@ -1058,7 +868,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                     { id: 'verzamelobjecten', name: 'Collectibles', icon: '�' },
                     { id: 'petten', name: 'Petten', icon: '🧢' }
                 ];
-
                 // Combineer alle producten inclusief petten
                 const allMerchandiseItems = [
                     ...config.shopMerchandise,
@@ -1095,7 +904,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                         updatedAt: '2024-12-15T14:30:00Z'
                     }))
                 ];
-
                 // Filter en sorteer producten
                 let filteredProducts = allMerchandiseItems;
                 
@@ -1127,14 +935,12 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                             return a.name.localeCompare(b.name);
                     }
                 });
-
                 // Helper functie voor stock status
                 const getStockStatus = (item: typeof filteredProducts[0]) => {
                     if (item.stock === 0) return { status: 'out-of-stock', text: 'Uitverkocht' };
                     if (item.stock <= item.lowStockThreshold) return { status: 'low-stock', text: `Nog ${item.stock} beschikbaar` };
                     return { status: 'in-stock', text: 'Op voorraad' };
                 };
-
                 return (
                     <fieldset>
                         <legend>🛍️ {i18n.wizardStep3Title}</legend>
@@ -1145,7 +951,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                                 <h2 className="merchandise-title">🎭 Theater Merchandise Shop</h2>
                                 <p className="merchandise-subtitle">{i18n.wizardStep3SubTitle}</p>
                             </div>
-
                             {/* Compacte Control Bar */}
                             <div className="merchandise-controls">
                                 {/* Search */}
@@ -1188,7 +993,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                                     ))}
                                 </div>
                             </div>
-
                             {/* Product Grid */}
                             {filteredProducts.length === 0 ? (
                                 <div className="empty-state">
@@ -1370,13 +1174,10 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                     </fieldset>
                 );
             default: return null;
-        }
     }
-
     const isStepValid = () => {
         if (currentStep === 4) {
             return reservation.contactName && reservation.address && reservation.houseNumber && reservation.postalCode && reservation.city && reservation.phone && reservation.email && reservation.termsAccepted;
-        }
         return true;
     }
     
@@ -1384,7 +1185,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         show, reservation, priceDetails, config, appliedCode, promoInput, 
         setPromoInput, onApplyCode: handleApplyCode, promoMessage
     }
-
     return (
         <form className={`wizard-form ${isMobile ? 'is-mobile' : ''}`} onSubmit={handleSubmit}>
              <div className={`wizard-main-content ${isMobile ? 'mobile-padding' : ''}`}>
@@ -1419,11 +1219,8 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
             </div>
             
             {isMobile ? <MobileBookingSummary {...summaryProps} /> : <BookingSummarySidebar {...summaryProps} />}
-
         </form>
     );
-};
-
 const WizardProgress = ({ currentStep, totalSteps }: { currentStep: number, totalSteps: number }) => {
     const stepLabels = [i18n.wizardStep1, i18n.wizardStep2, i18n.wizardStep3, i18n.wizardStep4, i18n.wizardStep5];
     return (
@@ -1439,18 +1236,13 @@ const WizardProgress = ({ currentStep, totalSteps }: { currentStep: number, tota
             })}
         </div>
     );
-};
-
-
 const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCapacity }: { show: ShowEvent, onStartBooking: () => void, isUnavailable: boolean, config: AppConfig, remainingCapacity: number }) => {
     const showType = config.showTypes.find(st => st.name === show.type);
     if (!showType) return null;
-
     const dateObj = new Date(show.date + 'T12:00:00');
     const showTimes = getShowTimes(dateObj, show.type);
     const showImage = config.showNames.find(sn => sn.name === show.name)?.imageUrl;
     const formattedDate = dateObj.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
-
     return (
         <div className="show-summary-panel">
             <div className="summary-header-image-container">
@@ -1460,7 +1252,6 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
                     <p className="summary-date">{formattedDate} &bull; {show.type}</p>
                 </div>
             </div>
-
             <div className="summary-content">
                 <div className="summary-info-grid">
                      <div className="summary-info-item">
@@ -1471,7 +1262,6 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
                         </div>
                     </div>
                 </div>
-
                 <div className="summary-pricing">
                     <h4>{i18n.pricing}</h4>
                     <div className="price-item">
@@ -1483,7 +1273,6 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
                         <span className="price">€{showType.pricePremium.toFixed(2)}</span>
                     </div>
                 </div>
-
                 <button onClick={onStartBooking} className="submit-btn wide-btn">
                     {isUnavailable ? i18n.joinWaitingList : i18n.bookShow}
                 </button>
@@ -1496,8 +1285,6 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
             </div>
         </div>
     );
-};
-
 const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReservation, onDeleteWaitingList, onToggleCheckIn, config, onDeleteShow, onToggleShowStatus: handleToggleShowStatus, onEditReservation }: {
     date: string,
     show: ShowEvent | undefined,
@@ -1520,13 +1307,10 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
     const { addToast } = useToast();
     const merchandiseMap = useMemo(() => new Map(config.merchandise.map(item => [item.id, item.name])), [config.merchandise]);
     const capSlogansMap = useMemo(() => new Map(config.capSlogans.map((slogan, index) => [`cap${index}`, slogan])), [config.capSlogans]);
-
-
     const handleGenerateSummary = async () => {
         setIsGenerating(true);
         setError('');
         setAiSummary('');
-        try {
             if (!process.env.API_KEY) {
                 setError(i18n.apiKeyMissing);
                 return;
@@ -1538,29 +1322,24 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
                 De show is '${show?.name}' (${show?.type}). Capaciteit: ${show?.capacity} gasten.
                 Geboekte gasten: ${reservations.reduce((acc, r) => acc + r.guests, 0)}.
                 Wachtlijst: ${waitingList.length > 0 ? waitingList.reduce((acc, wl) => acc + wl.guests, 0) + ' gasten' : 'geen'}.
-
                 Reserveringen:
                 ${reservations.map(r => `- ${r.contactName}: ${r.guests} pers. Pakket: ${r.drinkPackage}. Opmerkingen: ${r.remarks || 'geen'}. Viering: ${r.celebrationOccasion || 'geen'}`).join('\n')}
-
                 Analyseer deze gegevens en geef een korte, duidelijke samenvatting in Markdown formaat. Focus op:
                 1. **Bezetting**: Algemene bezetting (hoe vol is het?).
                 2. **Belangrijke Aandachtspunten**: Grote groepen (>8 personen), VIPs (op basis van opmerkingen), of belangrijke vieringen.
                 3. **Keuken & Bar**: Speciale verzoeken, allergieën, of opvallende trends in arrangementkeuzes of extra's.
                 Schrijf de samenvatting in het Nederlands.
             `;
-
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
             });
             setAiSummary(response.text);
-
         } catch (e) {
             console.error("AI summary generation failed:", e);
             setError(i18n.aiError);
         } finally {
             setIsGenerating(false);
-        }
     };
     
     const handleDeleteShow = () => {
@@ -1575,14 +1354,11 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
             confirmButtonClass: 'delete-btn'
         });
     }
-
     if (!date) {
         return <div className="placeholder-card card"><Icon id="calendar-day" className="placeholder-icon" /><p>{i18n.selectDatePrompt}</p></div>;
     }
-
     const dateObj = new Date(date + 'T12:00:00');
     const formattedDate = dateObj.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
-
     if (!show) {
         return (
             <div className="placeholder-card card">
@@ -1599,13 +1375,11 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
         const allAddons = [];
         if(reservation.preShowDrinks) allAddons.push(`${merchandiseMap.get('preShowDrinks')} (x${reservation.guests})`);
         if(reservation.afterParty) allAddons.push(`${merchandiseMap.get('afterParty')} (x${reservation.guests})`);
-
         for (const [key, value] of Object.entries(reservation.addons)) {
             if (value > 0) {
                 const name = merchandiseMap.get(key) || capSlogansMap.get(key) || key;
                 allAddons.push(`${name} (x${value})`);
             }
-        }
         
         return (
             <div className="reservation-details">
@@ -1617,8 +1391,6 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
             </div>
         );
     };
-
-
     return (
         <>
             <div className="day-details card">
@@ -1639,7 +1411,6 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
                       <span className="slider round"></span>
                     </label>
                 </div>
-
                 {error && <p className="error-message">{error}</p>}
                 {aiSummary && (
                     <div className="ai-summary">
@@ -1738,8 +1509,6 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
             }
         </>
     );
-};
-
 const PrintableListModal = ({ listType, onClose, show, reservations, config, onToggleCheckIn }: {
     listType: 'checkin' | 'kitchen',
     onClose: () => void,
@@ -1750,11 +1519,9 @@ const PrintableListModal = ({ listType, onClose, show, reservations, config, onT
 }) => {
     
     const printContentRef = useRef<HTMLDivElement>(null);
-
     const handlePrint = () => {
         window.print();
     };
-
     const totalGuests = reservations.reduce((sum, r) => sum + r.guests, 0);
     const checkedInGuests = reservations.filter(r => r.checkedIn).reduce((sum, r) => sum + r.guests, 0);
     const checkInProgress = totalGuests > 0 ? (checkedInGuests / totalGuests) * 100 : 0;
@@ -1783,7 +1550,6 @@ const PrintableListModal = ({ listType, onClose, show, reservations, config, onT
     
     const merchandiseMap = useMemo(() => new Map(config.merchandise.map(item => [item.id, item.name])), [config.merchandise]);
     const capSlogansMap = useMemo(() => new Map(config.capSlogans.map((slogan, index) => [`cap${index}`, slogan])), [config.capSlogans]);
-
     return (
         <div className="printable-modal-backdrop no-print">
             <div className="printable-modal">
@@ -1794,7 +1560,6 @@ const PrintableListModal = ({ listType, onClose, show, reservations, config, onT
                         <button onClick={onClose} className="icon-btn"><Icon id="close"/></button>
                     </div>
                 </div>
-
                 <div className="printable-content" ref={printContentRef}>
                     <div className="print-only-header">
                         <h2>{i18n.printableViewFor.replace('{showName}', show.name).replace('{date}', formatDateToNL(new Date(show.date + 'T12:00:00')))}</h2>
@@ -1879,9 +1644,6 @@ const PrintableListModal = ({ listType, onClose, show, reservations, config, onT
             </div>
         </div>
     );
-};
-
-
 // 🎭 Enhanced Modern Admin Calendar View with Advanced Features
 const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, onDeleteReservation, onDeleteWaitingList, config, guestCountMap, onBulkDelete, onDeleteShow, onToggleShowStatus, onToggleCheckIn, onEditReservation }: {
     showEvents: ShowEvent[],
@@ -1905,15 +1667,12 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
     const [popoverData, setPopoverData] = useState<{ event: ShowEvent, guests: number, element: HTMLDivElement } | null>(null);
     const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
     const [filterType, setFilterType] = useState<string>('all');
-
     const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
     const [multiSelectedDates, setMultiSelectedDates] = useState<string[]>([]);
     const [isMultiActionModalOpen, setIsMultiActionModalOpen] = useState(false);
-
     const handleDateClick = (date: string) => {
         setSelectedDate(date);
     };
-
     const handleMultiDateToggle = (date: string) => {
         setMultiSelectedDates(prev => prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]);
     }
@@ -1922,7 +1681,6 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
         setIsMultiSelectMode(false);
         setMultiSelectedDates([]);
     }
-
     const selectedShow = useMemo(() => showEvents.find(e => e.date === selectedDate), [showEvents, selectedDate]);
     const dayReservations = useMemo(() => reservations.filter(r => r.date === selectedDate), [reservations, selectedDate]);
     const dayWaitingList = useMemo(() => waitingList.filter(wl => wl.date === selectedDate), [waitingList, selectedDate]);
@@ -1937,11 +1695,9 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
         
         if (filterType !== 'all') {
             events = events.filter(event => event.type === filterType);
-        }
         
         return events;
     }, [showEvents, month, filterType]);
-
     // Enhanced statistics for the calendar view
     const monthStats = useMemo(() => {
         const totalShows = monthEvents.length;
@@ -1959,15 +1715,12 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
             return resDate.getFullYear() === month.getFullYear() && resDate.getMonth() === month.getMonth();
         }).reduce((sum, r) => sum + r.guests, 0);
         const occupancyRate = totalCapacity > 0 ? Math.round((totalGuests / totalCapacity) * 100) : 0;
-
         return { totalShows, totalBookings, totalRevenue, occupancyRate, totalGuests };
     }, [monthEvents, reservations, month]);
-
     const showTypes = useMemo(() => {
         const types = new Set(showEvents.map(e => e.type));
         return Array.from(types);
     }, [showEvents]);
-
     return (
         <div className="enhanced-calendar-view">
             {/* Enhanced Calendar Header */}
@@ -2001,7 +1754,6 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
                         </div>
                     </div>
                 </div>
-
                 {/* Enhanced Controls */}
                 <div className="calendar-controls-section">
                     <div className="calendar-controls-left">
@@ -2025,7 +1777,6 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
                                 📄 Dag
                             </button>
                         </div>
-
                         <div className="filter-section">
                             <select 
                                 value={filterType} 
@@ -2039,7 +1790,6 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
                             </select>
                         </div>
                     </div>
-
                     <div className="calendar-controls-right">
                         {!isMultiSelectMode ? (
                             <div className="action-buttons">
@@ -2069,7 +1819,6 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
                     </div>
                 </div>
             </div>
-
             {/* Enhanced Calendar Grid */}
             <div className="calendar-main-section">
                 <div className="calendar-wrapper">
@@ -2089,7 +1838,6 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
                     />
                     <CalendarLegend events={monthEvents} config={config} />
                 </div>
-
                 <div className="enhanced-details-panel">
                     <AdminDayDetails
                         date={selectedDate || ''}
@@ -2108,7 +1856,6 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
             </div>
             
             <CalendarPopover data={popoverData} view="admin" config={config} />
-
             {isAddModalOpen && <AddShowModal onClose={() => setIsAddModalOpen(false)} onAdd={onAddShow} config={config} dates={[]} />}
             {isBulkDeleteModalOpen && <BulkDeleteModal onClose={() => setIsBulkDeleteModalOpen(false)} onBulkDelete={onBulkDelete} config={config} month={month} />}
             {isMultiActionModalOpen && 
@@ -2125,19 +1872,14 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
                 />}
         </div>
     );
-};
-
 const BulkDeleteModal = ({ onClose, onBulkDelete, config, month }: { onClose: () => void, onBulkDelete: (criteria: { type: 'name' | 'type', value: string }, month: Date) => void, config: AppConfig, month: Date }) => {
     const { confirm } = useConfirmation();
     const [deleteMode, setDeleteMode] = useState<'name' | 'type'>('name');
     const [selection, setSelection] = useState('');
-
-    useEffect(() => {
         if (deleteMode === 'name') {
             setSelection(config.showNames[0]?.name || '');
         } else {
             setSelection(config.showTypes[0]?.name || '');
-        }
     }, [deleteMode, config]);
     
     const handleSubmit = (e: React.FormEvent) => {
@@ -2155,9 +1897,7 @@ const BulkDeleteModal = ({ onClose, onBulkDelete, config, month }: { onClose: ()
             confirmButtonClass: 'delete-btn'
         });
     };
-
     const options = deleteMode === 'name' ? config.showNames : config.showTypes;
-
     return (
         <div className="modal-backdrop" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -2184,8 +1924,6 @@ const BulkDeleteModal = ({ onClose, onBulkDelete, config, month }: { onClose: ()
             </div>
         </div>
     );
-};
-
 const MultiSelectActions = ({ dates, onClose, onAddShow, onDeleteShows, config }: {
     dates: string[],
     onClose: () => void,
@@ -2200,7 +1938,6 @@ const MultiSelectActions = ({ dates, onClose, onAddShow, onDeleteShows, config }
     const handleApply = () => {
         if (action === 'add') {
             setIsAddModalOpen(true);
-        }
         if (action === 'delete') {
             confirm({
                 title: i18n.deleteShows,
@@ -2211,9 +1948,7 @@ const MultiSelectActions = ({ dates, onClose, onAddShow, onDeleteShows, config }
                 },
                 confirmButtonClass: 'delete-btn'
             });
-        }
     };
-
     return (
         <>
         <div className="modal-backdrop" onClick={onClose}>
@@ -2311,7 +2046,6 @@ const MultiSelectActions = ({ dates, onClose, onAddShow, onDeleteShows, config }
                 config={config}
                 dates={dates}
             />
-        }
         </>
     )
 }
@@ -2324,28 +2058,20 @@ const usePagination = <T,>(items: T[], itemsPerPage = 10) => {
         const end = start + itemsPerPage;
         return items.slice(start, end);
     }, [items, currentPage, itemsPerPage]);
-
     const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
     const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
     const goToPage = (page: number) => setCurrentPage(Math.max(1, Math.min(page, totalPages)));
     
-    useEffect(() => {
         if(currentPage > totalPages && totalPages > 0) {
             setCurrentPage(totalPages);
-        }
     }, [items.length, totalPages, currentPage]);
-
     return { currentPage, totalPages, currentItems, nextPage, prevPage, goToPage };
-};
-
 const Pagination = ({ currentPage, totalPages, onPageChange }: { currentPage: number, totalPages: number, onPageChange: (page: number) => void }) => {
     if (totalPages <= 1) return null;
-
     const pageNumbers = [];
     for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
     }
-
     return (
         <div className="pagination-controls">
             <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="icon-btn"><Icon id="chevron-left" /></button>
@@ -2353,9 +2079,6 @@ const Pagination = ({ currentPage, totalPages, onPageChange }: { currentPage: nu
             <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="icon-btn"><Icon id="chevron-right" /></button>
         </div>
     );
-};
-
-
 // 🎫 Enhanced Modern Admin Reservations View with Advanced Features
 const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, onEditReservation }: { 
     reservations: Reservation[], 
@@ -2368,7 +2091,6 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
     const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'pending' | 'cancelled'>('all');
     const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
     const { confirm } = useConfirmation();
-
     const showMap = useMemo(() => new Map(showEvents.map(s => [s.date, s])), [showEvents]);
     
     // Enhanced analytics for reservations
@@ -2399,7 +2121,6 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                    r.email.toLowerCase().includes(searchLower) ||
                    r.date.includes(searchLower) ||
                    (show && show.name.toLowerCase().includes(searchLower));
-
             // Date filter
             let matchesDate = true;
             if (dateFilter !== 'all') {
@@ -2417,15 +2138,12 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                                  resDate.getFullYear() === today.getFullYear();
                 }
             }
-
             return matchesSearch && matchesDate;
         });
-
         if (sortConfig !== null) {
             filtered.sort((a, b) => {
                 let aValue: any;
                 let bValue: any;
-
                 if (sortConfig.key === 'showName') {
                     aValue = showMap.get(a.date)?.name || '';
                     bValue = showMap.get(b.date)?.name || '';
@@ -2438,7 +2156,6 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                 if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             });
-        }
         return filtered;
     }, [reservations, searchTerm, sortConfig, showMap, statusFilter, dateFilter]);
     
@@ -2448,15 +2165,12 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
             direction = 'desc';
-        }
         setSortConfig({ key, direction });
     };
-
     const getSortIcon = (key: keyof Reservation | 'showName') => {
         if (!sortConfig || sortConfig.key !== key) return null;
         return sortConfig.direction === 'asc' ? <Icon id="chevron-up" /> : <Icon id="chevron-down" />;
     };
-
     const exportData = (format: 'csv' | 'json') => {
         const data = sortedFilteredReservations.map(r => ({
             date: r.date,
@@ -2467,7 +2181,6 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
             totalPrice: r.totalPrice,
             companyName: r.companyName || '',
         }));
-
         if (format === 'csv') {
             const csv = [
                 'Datum,Show,Contact,Email,Gasten,Bedrag,Bedrijf',
@@ -2488,9 +2201,7 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
             a.href = url;
             a.download = `reserveringen_${formatDate(new Date())}.json`;
             a.click();
-        }
     };
-
     return (
         <div className="enhanced-reservations-view">
             {/* Enhanced Header */}
@@ -2501,7 +2212,6 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                         Beheer alle boekingen en bekijk gedetailleerde klantinformatie
                     </p>
                 </div>
-
                 {/* Stats Overview */}
                 <div className="reservations-stats-grid">
                     <div className="stat-item">
@@ -2521,7 +2231,6 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                         <div className="stat-label">Gem. Boeking</div>
                     </div>
                 </div>
-
                 {/* Enhanced Controls */}
                 <div className="reservations-controls">
                     <div className="search-section">
@@ -2547,7 +2256,6 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                             <option value="month">Deze Maand</option>
                         </select>
                     </div>
-
                     <div className="export-section">
                         <button 
                             onClick={() => exportData('csv')} 
@@ -2564,7 +2272,6 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                     </div>
                 </div>
             </div>
-
             {/* Enhanced Table */}
             <div className="enhanced-table-container">
                 {currentItems.length > 0 ? (
@@ -2671,8 +2378,6 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
             </div>
         </div>
     );
-};
-
 // 👥 Enhanced Modern Admin Customers View with CRM Features
 const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Customer[], onSelectCustomer: (customer: Customer) => void }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -2692,7 +2397,6 @@ const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Custom
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             return lastVisit >= thirtyDaysAgo;
         }).length;
-
         return {
             totalCustomers,
             totalSpent,
@@ -2718,10 +2422,8 @@ const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Custom
             } else if (filterType === 'frequent') {
                 matchesFilter = c.totalBookings >= 5;
             }
-
             return matchesSearch && matchesFilter;
         });
-
         if (sortConfig !== null) {
             filtered.sort((a, b) => {
                 const aValue = a[sortConfig.key];
@@ -2730,32 +2432,26 @@ const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Custom
                 if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             });
-        }
         return filtered;
     }, [customers, searchTerm, sortConfig, filterType]);
-
     const { currentItems, currentPage, totalPages, goToPage } = usePagination(sortedFilteredCustomers, 15);
     
     const requestSort = (key: keyof Customer) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
             direction = 'desc';
-        }
         setSortConfig({ key, direction });
     };
-
     const getSortIcon = (key: keyof Customer) => {
         if (!sortConfig || sortConfig.key !== key) return null;
         return sortConfig.direction === 'asc' ? <Icon id="chevron-up" /> : <Icon id="chevron-down" />;
     };
-
     const getCustomerTier = (customer: Customer) => {
         if (customer.totalSpent > 1000) return { tier: 'Platinum', color: '#8b5cf6' };
         if (customer.totalSpent > 500) return { tier: 'Gold', color: '#f59e0b' };
         if (customer.totalSpent > 200) return { tier: 'Silver', color: '#6b7280' };
         return { tier: 'Bronze', color: '#92400e' };
     };
-
     const exportCustomers = () => {
         const csv = [
             'Naam,Email,Totaal Boekingen,Totaal Besteed,Laatste Bezoek',
@@ -2782,7 +2478,6 @@ const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Custom
                         Beheer klantrelaties en analyseer klantgedrag voor betere service
                     </p>
                 </div>
-
                 {/* Stats Overview */}
                 <div className="customers-stats-grid">
                     <div className="stat-item">
@@ -2806,7 +2501,6 @@ const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Custom
                         <div className="stat-label">Recent Actief</div>
                     </div>
                 </div>
-
                 {/* Enhanced Controls */}
                 <div className="customers-controls">
                     <div className="customers-controls-left">
@@ -2832,7 +2526,6 @@ const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Custom
                             <option value="frequent">🔄 Frequent (5+ boekingen)</option>
                         </select>
                     </div>
-
                     <div className="customers-controls-right">
                         <div className="view-toggle">
                             <button 
@@ -2860,7 +2553,6 @@ const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Custom
                     </div>
                 </div>
             </div>
-
             {/* Enhanced Content */}
             {viewMode === 'table' ? (
                 <div className="enhanced-table-container">
@@ -2931,7 +2623,6 @@ const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Custom
                                     })}
                                 </tbody>
                             </table>
-
                             <div className="table-footer">
                                 <div className="results-info">
                                     Resultaten {((currentPage - 1) * 15) + 1} - {Math.min(currentPage * 15, sortedFilteredCustomers.length)} van {sortedFilteredCustomers.length}
@@ -3010,8 +2701,6 @@ const AdminCustomersView = ({ customers, onSelectCustomer }: { customers: Custom
             )}
         </div>
     );
-};
-
 const CustomerDetailView = ({ customer, onBack, showEvents, onEditReservation }: { 
     customer: Customer, 
     onBack: () => void, 
@@ -3023,7 +2712,6 @@ const CustomerDetailView = ({ customer, onBack, showEvents, onEditReservation }:
         showEvents.forEach(e => map.set(e.date, e));
         return map;
     }, [showEvents]);
-
     return (
         <>
             <div className="content-header">
@@ -3061,8 +2749,6 @@ const CustomerDetailView = ({ customer, onBack, showEvents, onEditReservation }:
             </div>
         </>
     );
-};
-
 // 🛡️ Admin Approvals View - Basic Implementation for Phase 1
 const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
     reservations: Reservation[];
@@ -3070,35 +2756,29 @@ const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
     onUpdateReservation: (reservation: Reservation) => void;
 }) => {
     const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
-
     // For Phase 1, we'll show provisional bookings as pending approvals
     const provisionalBookings = reservations.filter(r => r.status === 'provisional');
     const filteredBookings = filter === 'all' ? reservations.filter(r => r.status !== 'confirmed') : 
                             filter === 'pending' ? provisionalBookings :
                             reservations.filter(r => r.status === filter);
-
     const handleApprove = (reservation: Reservation) => {
         const updated = { ...reservation, status: 'confirmed' as const };
         onUpdateReservation(updated);
     };
-
     const handleReject = (reservation: Reservation) => {
         const updated = { ...reservation, status: 'cancelled' as const };
         onUpdateReservation(updated);
     };
-
     const getShowName = (date: string) => {
         const show = showEvents.find(s => s.date === date);
         return show ? `${show.name} (${show.type})` : 'Onbekende show';
     };
-
     return (
         <div className="approvals-view">
             <div className="content-header">
                 <h2><Icon id="check-circle" /> {i18n.approvals}</h2>
                 <p>{i18n.approvalsDescription}</p>
             </div>
-
             {/* KPI Cards */}
             <div className="dashboard-kpi-grid">
                 <div className="kpi-card">
@@ -3123,7 +2803,6 @@ const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
                     </div>
                 </div>
             </div>
-
             {/* Filter Controls */}
             <div className="enhanced-controls">
                 <div className="filter-section">
@@ -3135,7 +2814,6 @@ const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
                     </select>
                 </div>
             </div>
-
             {/* Approvals Table */}
             <div className="card">
                 <div className="table-wrapper">
@@ -3211,20 +2889,16 @@ const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
             </div>
         </div>
     );
-};
-
 // 📋 Admin Waitlist View - Basic Implementation for Phase 1  
 const AdminWaitlistView = ({ waitingList, showEvents }: {
     waitingList: WaitingListEntry[];
     showEvents: ShowEvent[];
 }) => {
     const [filterShow, setFilterShow] = useState<string>('all');
-
     // Use existing waitingList structure and work with what we have
     const filteredWaitlist = filterShow === 'all' ? 
         waitingList : 
         waitingList.filter(entry => entry.date === filterShow);
-
     const waitlistByShow = useMemo(() => {
         const grouped = new Map<string, WaitingListEntry[]>();
         waitingList.forEach(entry => {
@@ -3246,22 +2920,18 @@ const AdminWaitlistView = ({ waitingList, showEvents }: {
             };
         });
     }, [waitingList, showEvents]);
-
     const handleNotify = (entry: WaitingListEntry) => {
         // For Phase 1, just console log - will implement email in later phase
         console.log('Notify waitlist entry:', entry);
     };
-
     const handleConvert = (entry: WaitingListEntry) => {
         // For Phase 1, just console log - will implement conversion in later phase
         console.log('Convert waitlist entry to booking:', entry);
     };
-
     const handleRemove = (entry: WaitingListEntry) => {
         // For Phase 1, just console log - will implement removal in later phase
         console.log('Remove waitlist entry:', entry);
     };
-
     const getStatusColor = (status?: string) => {
         switch (status) {
             case 'active': return 'var(--admin-success)';
@@ -3269,16 +2939,13 @@ const AdminWaitlistView = ({ waitingList, showEvents }: {
             case 'converted': return 'var(--admin-primary)';
             case 'expired': return 'var(--admin-danger)';
             default: return 'var(--admin-secondary)';
-        }
     };
-
     return (
         <div className="waitlist-view">
             <div className="content-header">
                 <h2><Icon id="clock" /> {i18n.waitlist}</h2>
                 <p>{i18n.waitlistDescription}</p>
             </div>
-
             {/* KPI Cards */}
             <div className="dashboard-kpi-grid">
                 <div className="kpi-card">
@@ -3303,7 +2970,6 @@ const AdminWaitlistView = ({ waitingList, showEvents }: {
                     </div>
                 </div>
             </div>
-
             {/* Waitlist by Show */}
             <div className="waitlist-overview">
                 {waitlistByShow.length > 0 ? waitlistByShow.map(({ key, showDate, showName, showType, entries }) => (
@@ -3387,8 +3053,6 @@ const AdminWaitlistView = ({ waitingList, showEvents }: {
             </div>
         </div>
     );
-};
-
 // 🎭 THEATERBON MANAGEMENT - Volledig gebruik systeem
 const TheaterVoucherManagement = ({ 
     theaterVouchers, 
@@ -3411,8 +3075,6 @@ const TheaterVoucherManagement = ({
     const [newVoucher, setNewVoucher] = useState({
         value: 50,
         notes: ''
-    });
-
     // Filter vouchers
     const filteredVouchers = theaterVouchers.filter(voucher => {
         const matchesSearch = searchTerm === '' || 
@@ -3425,8 +3087,6 @@ const TheaterVoucherManagement = ({
         if (filter === 'archived') return voucher.status === 'archived';
         if (filter === 'expiring_soon') return getVoucherStatus(voucher) === 'expiring_soon';
         return getVoucherStatus(voucher) === filter;
-    });
-
     // Statistics
     const stats = {
         total: theaterVouchers.length,
@@ -3438,7 +3098,6 @@ const TheaterVoucherManagement = ({
         totalValue: theaterVouchers.filter(v => ['active', 'extended'].includes(v.status)).reduce((sum, v) => sum + v.value, 0),
         usedValue: theaterVouchers.filter(v => v.status === 'used').reduce((sum, v) => sum + v.value, 0)
     };
-
     const handleCreateVoucher = () => {
         const voucher: Omit<TheaterVoucher, 'id'> = {
             code: generateVoucherCode(),
@@ -3454,28 +3113,22 @@ const TheaterVoucherManagement = ({
         setNewVoucher({ value: 50, notes: '' });
         setShowCreateModal(false);
     };
-
     const handleEditVoucher = (voucher: TheaterVoucher) => {
         setEditingVoucher({...voucher});
         setShowEditModal(true);
     };
-
     const handleSaveEdit = () => {
         if (editingVoucher) {
             onUpdateVoucher(editingVoucher);
             setShowEditModal(false);
             setEditingVoucher(null);
-        }
     };
-
     const handleDeleteVoucher = (voucher: TheaterVoucher) => {
         if (confirm(i18n.voucherDeleteConfirm)) {
             if (onDeleteVoucher) {
                 onDeleteVoucher(voucher.id);
             }
-        }
     };
-
     const handleArchiveVoucher = (voucher: TheaterVoucher) => {
         if (confirm(i18n.voucherArchiveConfirm)) {
             const archivedVoucher: TheaterVoucher = {
@@ -3485,9 +3138,7 @@ const TheaterVoucherManagement = ({
                 archivedReason: 'Gearchiveerd door admin'
             };
             onUpdateVoucher(archivedVoucher);
-        }
     };
-
     const handleRestoreVoucher = (voucher: TheaterVoucher) => {
         if (confirm(i18n.voucherRestoreConfirm)) {
             const restoredVoucher: TheaterVoucher = {
@@ -3497,13 +3148,10 @@ const TheaterVoucherManagement = ({
                 archivedReason: undefined
             };
             onUpdateVoucher(restoredVoucher);
-        }
     };
-
     const handleExtend = (voucher: TheaterVoucher) => {
         onExtendVoucher(voucher.id, 12); // Default 12 months extension
     };
-
     const getStatusBadgeClass = (voucher: TheaterVoucher) => {
         if (voucher.status === 'archived') return 'archived';
         const status = getVoucherStatus(voucher);
@@ -3513,9 +3161,7 @@ const TheaterVoucherManagement = ({
             case 'expired': return 'danger';
             case 'expiring_soon': return 'warning';
             default: return 'neutral';
-        }
     };
-
     const getStatusText = (voucher: TheaterVoucher) => {
         if (voucher.status === 'archived') return i18n.voucherArchived;
         const status = getVoucherStatus(voucher);
@@ -3525,9 +3171,7 @@ const TheaterVoucherManagement = ({
             case 'expired': return i18n.voucherExpired;
             case 'expiring_soon': return i18n.voucherExpiringSoon;
             default: return status;
-        }
     };
-
     return (
         <div className="voucher-management">
             <div className="content-header">
@@ -3537,7 +3181,6 @@ const TheaterVoucherManagement = ({
                     <Icon id="plus" /> {i18n.createVoucher}
                 </button>
             </div>
-
             {/* Statistics Cards */}
             <div className="dashboard-kpi-grid">
                 <div className="kpi-card">
@@ -3580,7 +3223,6 @@ const TheaterVoucherManagement = ({
                     </div>
                 </div>
             </div>
-
             {/* Filters */}
             <div className="filters-section">
                 <div className="filter-group">
@@ -3606,7 +3248,6 @@ const TheaterVoucherManagement = ({
                     <Icon id="search" className="search-icon" />
                 </div>
             </div>
-
             {/* Vouchers Table */}
             <div className="data-table">
                 <div className="table-header">
@@ -3727,7 +3368,6 @@ const TheaterVoucherManagement = ({
                     </div>
                 )}
             </div>
-
             {/* Create Voucher Modal */}
             {showCreateModal && (
                 <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
@@ -3794,7 +3434,6 @@ const TheaterVoucherManagement = ({
                     </div>
                 </div>
             )}
-
             {/* Edit Voucher Modal */}
             {showEditModal && editingVoucher && (
                 <div className="modal-backdrop" onClick={() => setShowEditModal(false)}>
@@ -3865,7 +3504,6 @@ const TheaterVoucherManagement = ({
                                     rows={3}
                                 />
                             </div>
-
                             {editingVoucher.status === 'archived' && (
                                 <div className="form-group">
                                     <label>Archief Reden</label>
@@ -3880,7 +3518,6 @@ const TheaterVoucherManagement = ({
                                     <small>Gearchiveerd op: {editingVoucher.archivedDate && formatDateToNL(new Date(editingVoucher.archivedDate))}</small>
                                 </div>
                             )}
-
                             {editingVoucher.status === 'used' && (
                                 <div className="used-voucher-info">
                                     <h4>🎫 Gebruikt Voucher Info</h4>
@@ -3921,8 +3558,6 @@ const TheaterVoucherManagement = ({
             )}
         </div>
     );
-};
-
 const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], config: AppConfig) => {
     const analytics = useMemo(() => {
         const today = formatDate(new Date());
@@ -3931,7 +3566,6 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
         const todayReservations = reservations.filter(r => r.date === today);
         const todayRevenue = todayReservations.reduce((sum, r) => sum + r.totalPrice, 0);
         const todayGuests = todayReservations.reduce((sum, r) => sum + r.guests, 0);
-
         // Recent Bookings (booked in last 7 days for future shows)
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -3939,20 +3573,17 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
             .filter(r => new Date(r.id).getTime() >= sevenDaysAgo.getTime() && new Date(r.date) >= new Date(today))
             .sort((a,b) => b.id - a.id)
             .slice(0, 5);
-
         // Nearly Full Shows
         const guestCountMap = new Map<string, number>();
         reservations.forEach(r => {
             guestCountMap.set(r.date, (guestCountMap.get(r.date) || 0) + r.guests);
         });
-
         const nearlyFullShows = showEvents
             .filter(e => new Date(e.date) >= new Date(today))
             .map(e => ({...e, guests: guestCountMap.get(e.date) || 0}))
             .filter(e => e.guests / e.capacity >= 0.85 && e.guests / e.capacity < 1)
             .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
             .slice(0, 5);
-
         // Revenue by Show Type
         const revenueByShowType = new Map<string, number>();
         reservations.forEach(r => {
@@ -3964,8 +3595,6 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
         const showTypePopularity = Array.from(revenueByShowType.entries())
             .map(([name, revenue]) => ({ name, revenue}))
             .sort((a,b) => b.revenue - a.revenue);
-
-
         // Bookings per week (last 8 weeks)
         const weeklyBookingsData: { week: string, count: number }[] = [];
         for (let i = 7; i >= 0; i--) {
@@ -3975,23 +3604,18 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
             const weekBookings = reservations.filter(r => r.date >= start && r.date <= end).length;
             const weekLabel = `${new Date(start+'T12:00:00').getDate()}/${new Date(start+'T12:00:00').getMonth()+1}`;
             weeklyBookingsData.push({ week: weekLabel, count: weekBookings });
-        }
-
         // Calculate conversion rate (confirmed reservations vs total inquiries)
         const totalReservations = reservations.length;
         const confirmedReservations = reservations.filter(r => r.status === 'confirmed').length;
         const conversionRate = totalReservations > 0 ? (confirmedReservations / totalReservations) * 100 : 0;
-
         // Calculate average table size
         const averageTableSize = totalReservations > 0 
             ? reservations.reduce((sum, r) => sum + r.guests, 0) / totalReservations 
             : 0;
-
         // Calculate average order value
         const avgOrderValue = totalReservations > 0 
             ? reservations.reduce((sum, r) => sum + r.totalPrice, 0) / totalReservations 
             : 0;
-
         // Calculate peak hours (default theater time)
         const peakHour = 19; // Standard theater show time
         
@@ -4010,13 +3634,9 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
             avgOrderValue
         };
     }, [reservations, showEvents]);
-
     return analytics;
-};
-
 const BarChart = ({ data, labelKey, valueKey, title }: { data: any[], labelKey: string, valueKey: string, title: string }) => {
     const maxValue = useMemo(() => Math.max(...data.map(d => d[valueKey]), 0), [data, valueKey]);
-
     return (
         <div className="card">
             <h3>{title}</h3>
@@ -4033,8 +3653,6 @@ const BarChart = ({ data, labelKey, valueKey, title }: { data: any[], labelKey: 
             </div>
         </div>
     );
-};
-
 const AdminReportsView = ({ reservations, showEvents, config }: { reservations: Reservation[], showEvents: ShowEvent[], config: AppConfig }) => {
     const [selectedPeriod, setSelectedPeriod] = useState('last30');
     const [reportType, setReportType] = useState('overview');
@@ -4046,7 +3664,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
         { value: 'thisYear', label: 'This Year' },
         { value: 'all', label: 'All Time' }
     ];
-
     const reportTypes = [
         { value: 'overview', label: 'Overview', icon: BarChart3 },
         { value: 'revenue', label: 'Revenue', icon: DollarSign },
@@ -4054,7 +3671,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
         { value: 'shows', label: 'Shows', icon: CalendarIcon },
         { value: 'staff', label: 'Staff', icon: UserCheck }
     ];
-
     const filteredReservations = useMemo(() => {
         if (selectedPeriod === 'all') return reservations;
         const now = new Date();
@@ -4064,10 +3680,8 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
         else if (selectedPeriod === 'last30') startDate.setDate(now.getDate() - 30);
         else if (selectedPeriod === 'last90') startDate.setDate(now.getDate() - 90);
         else if (selectedPeriod === 'thisYear') startDate = new Date(now.getFullYear(), 0, 1);
-
         return reservations.filter(r => new Date(r.date) >= startDate);
     }, [reservations, selectedPeriod]);
-
     const stats = useMemo(() => {
         const totalRevenue = filteredReservations.reduce((sum, r) => sum + r.totalPrice, 0);
         const totalBookings = filteredReservations.length;
@@ -4083,7 +3697,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                 revenueByShowType.set(show.type, (revenueByShowType.get(show.type) || 0) + r.totalPrice);
             }
         });
-
         // Bookings over time for chart
         const bookingsOverTime = new Map<string, number>();
         const revenueOverTime = new Map<string, number>();
@@ -4092,7 +3705,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
             bookingsOverTime.set(dateKey, (bookingsOverTime.get(dateKey) || 0) + 1);
             revenueOverTime.set(dateKey, (revenueOverTime.get(dateKey) || 0) + r.totalPrice);
         });
-
         const timeSeriesData = Array.from(bookingsOverTime.entries())
             .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
             .map(([date, bookings]) => ({ 
@@ -4100,7 +3712,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                 bookings, 
                 revenue: revenueOverTime.get(date) || 0 
             }));
-
         // Show performance analysis
         const showPerformance = Array.from(revenueByShowType.entries())
             .map(([showType, revenue]) => {
@@ -4117,7 +3728,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                 };
             })
             .sort((a, b) => b.revenue - a.revenue);
-
         return {
             totalRevenue, 
             totalBookings,
@@ -4129,10 +3739,8 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
             showPerformance
         };
     }, [filteredReservations, showEvents]);
-
     // Calculate percentage changes (mock data for demo)
     const getPercentageChange = () => Math.floor(Math.random() * 20) - 10; // Random between -10 and +10
-
     return (
         <div className="enhanced-reports-view">
             {/* Reports Header */}
@@ -4146,7 +3754,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                         Comprehensive insights into your diner theater performance
                     </p>
                 </div>
-
                 <div className="reports-controls">
                     <div className="report-type-selector">
                         {reportTypes.map(type => {
@@ -4163,7 +3770,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                             );
                         })}
                     </div>
-
                     <div className="period-controls">
                         <select
                             value={selectedPeriod}
@@ -4184,7 +3790,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                     </div>
                 </div>
             </div>
-
             {/* Key Metrics Overview */}
             <div className="reports-metrics-grid">
                 <div className="metric-card revenue-metric">
@@ -4198,7 +3803,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                         {Math.abs(getPercentageChange())}% vs last period
                     </div>
                 </div>
-
                 <div className="metric-card bookings-metric">
                     <div className="metric-header">
                         <CalendarIcon className="metric-icon" />
@@ -4210,7 +3814,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                         {Math.abs(getPercentageChange())}% vs last period
                     </div>
                 </div>
-
                 <div className="metric-card capacity-metric">
                     <div className="metric-header">
                         <Users className="metric-icon" />
@@ -4222,7 +3825,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                         {Math.abs(getPercentageChange())}% vs last period
                     </div>
                 </div>
-
                 <div className="metric-card rating-metric">
                     <div className="metric-header">
                         <Star className="metric-icon" />
@@ -4235,7 +3837,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                     </div>
                 </div>
             </div>
-
             {/* Charts Section */}
             <div className="reports-charts-section">
                 {/* Revenue Trend Chart */}
@@ -4288,7 +3889,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                         </ResponsiveContainer>
                     </div>
                 </div>
-
                 {/* Show Performance & Revenue Distribution */}
                 <div className="charts-row">
                     <div className="chart-container half-width">
@@ -4316,7 +3916,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                             ))}
                         </div>
                     </div>
-
                     <div className="chart-container half-width">
                         <div className="chart-header">
                             <h3 className="chart-title">Revenue by Show Type</h3>
@@ -4364,7 +3963,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                     </div>
                 </div>
             </div>
-
             {/* Additional Insights */}
             <div className="reports-insights">
                 <div className="insights-header">
@@ -4384,7 +3982,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                             <p>Total revenue of €{stats.totalRevenue.toLocaleString()} from {stats.totalBookings} bookings. Average booking value is €{stats.avgBookingValue.toFixed(0)}.</p>
                         </div>
                     </div>
-
                     <div className="insight-card info">
                         <div className="insight-icon">
                             <Users size={24} />
@@ -4394,7 +3991,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                             <p>Served {stats.totalGuests} guests this period. Popular shows drive higher capacity utilization.</p>
                         </div>
                     </div>
-
                     {stats.totalDiscounts > 0 && (
                         <div className="insight-card warning">
                             <div className="insight-icon">
@@ -4410,9 +4006,6 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
             </div>
         </div>
     );
-};
-
-
 const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, onToggleShowStatus, onAddExternalBooking }: {
     showEvents: ShowEvent[],
     guestCountMap: Map<string, number>,
@@ -4456,11 +4049,9 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                 show.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 show.type.toLowerCase().includes(searchTerm.toLowerCase())
             );
-        }
         
         return shows.sort((a, b) => a.date.localeCompare(b.date));
     }, [showEvents, currentDate, selectedPeriod, searchTerm]);
-
     // Calculate capacity metrics
     const getCapacityMetrics = (show: ShowEvent) => {
         const effectiveCapacity = show.manualCapacityOverride || show.capacity;
@@ -4480,7 +4071,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
             status: getCapacityStatus(utilizationPercent, show.isClosed)
         };
     };
-
     const getCapacityStatus = (utilization: number, isClosed?: boolean) => {
         if (isClosed) return 'closed';
         if (utilization >= 100) return 'full';
@@ -4489,7 +4079,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
         if (utilization >= 50) return 'medium';
         return 'low';
     };
-
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'low': return 'var(--admin-success)';
@@ -4499,9 +4088,7 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
             case 'full': return 'var(--admin-danger)';
             case 'closed': return 'var(--admin-secondary)';
             default: return 'var(--admin-text-secondary)';
-        }
     };
-
     const handleCapacityUpdate = (showId: string, newCapacity: number) => {
         const show = showEvents.find(s => s.id === showId);
         if (!show) return;
@@ -4522,18 +4109,14 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
         } else {
             onUpdateShowCapacity(showId, newCapacity);
             addToast(`Capaciteit bijgewerkt naar ${newCapacity}`, 'success');
-        }
     };
-
     const handleAddExternalBooking = (showId: string) => {
         if (onAddExternalBooking && externalBookingGuests > 0) {
             onAddExternalBooking(showId, externalBookingGuests);
             addToast(`${externalBookingGuests} externe gasten toegevoegd`, 'success');
             setExternalBookingGuests(1);
             setSelectedShow(null);
-        }
     };
-
     const handleBulkCapacityUpdate = () => {
         const selectedShows = periodShows.filter(show => {
             // Apply to shows that don't have manual overrides or are currently selected
@@ -4554,17 +4137,14 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
             confirmButtonClass: 'submit-btn'
         });
     };
-
     const navigatePeriod = (direction: 'prev' | 'next') => {
         const newDate = new Date(currentDate);
         if (selectedPeriod === 'week') {
             newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
         } else {
             newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
-        }
         setCurrentDate(newDate);
     };
-
     const formatPeriodTitle = () => {
         if (selectedPeriod === 'week') {
             const weekStart = new Date(currentDate);
@@ -4574,9 +4154,7 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
             return `${weekStart.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} - ${weekEnd.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}`;
         } else {
             return currentDate.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
-        }
     };
-
     // Initialize bulk guest counts with current values
     React.useEffect(() => {
         const newBulkCounts = new Map();
@@ -4586,7 +4164,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
         });
         setBulkGuestCounts(newBulkCounts);
     }, [showEvents, guestCountMap]);
-
     // Get all shows chronologically for bulk input - ALLEEN TOEKOMSTIGE SHOWS
     const allShowsChronological = useMemo(() => {
         const now = new Date();
@@ -4608,13 +4185,11 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
             })
             .sort((a, b) => a.date.localeCompare(b.date));
     }, [showEvents]);
-
     const handleBulkGuestCountChange = (showId: string, newCount: number) => {
         const newBulkCounts = new Map(bulkGuestCounts);
         newBulkCounts.set(showId, newCount);
         setBulkGuestCounts(newBulkCounts);
     };
-
     const saveBulkGuestCount = (showId: string, showDate: string) => {
         const newCount = bulkGuestCounts.get(showId) || 0;
         const currentCount = guestCountMap.get(showDate) || 0;
@@ -4667,9 +4242,7 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                     }
                 }
             }
-        }
     };
-
     const handleBulkInputKeyDown = (e: React.KeyboardEvent, showIndex: number, showId: string, showDate: string) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -4686,12 +4259,9 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                     }
                 }, 50);
             }
-        }
         if (e.key === 'Tab') {
             saveBulkGuestCount(showId, showDate);
-        }
     };
-
     const getShowStatusForBulk = (show: ShowEvent, guestCount: number) => {
         const capacity = show.manualCapacityOverride || show.capacity;
         const now = new Date();
@@ -4702,7 +4272,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
         if (showTimes.start) {
             const [hours, minutes] = showTimes.start.split(':');
             showDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        }
         
         // Check timing constraints
         const cutoffTime = new Date(showDateTime.getTime() - (12 * 60 * 60 * 1000));
@@ -4716,7 +4285,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
         } else if (isNearCutoff) {
             const hoursLeft = Math.floor((cutoffTime.getTime() - now.getTime()) / (1000 * 60 * 60));
             return { status: 'warning', color: '#f59e0b', text: `${hoursLeft}U RESTEREND` };
-        }
         
         // Normale guest-based logica
         if (show.isClosed) return { status: 'closed', color: '#6b7280', text: 'GESLOTEN' };
@@ -4727,7 +4295,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
         if (guestCount >= 120) return { status: 'medium', color: '#65a30d', text: 'NORMAAL' };
         return { status: 'low', color: '#16a34a', text: 'RUIM' };
     };
-
     const resetAllBulkCounts = () => {
         confirm({
             title: 'Reset Alle Aantallen',
@@ -4744,7 +4311,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
             confirmButtonClass: 'submit-btn'
         });
     };
-
     const autoCalculateFromReservations = () => {
         confirm({
             title: 'Auto-bereken Aantallen',
@@ -4762,14 +4328,12 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
             confirmButtonClass: 'submit-btn'
         });
     };
-
     return (
         <div className="capacity-management-view">
             <div className="content-header">
                 <h2>{i18n.capacityManagementTitle}</h2>
                 <p>{i18n.capacityManagementDescription}</p>
             </div>
-
             {/* Tab Navigation */}
             <div className="tab-navigation">
                 <button 
@@ -4785,7 +4349,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                     ⚡ Bulk Invoer Gasten
                 </button>
             </div>
-
             {activeTab === 'overview' ? (
                 <>
                     {/* Controls */}
@@ -4822,7 +4385,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                     </button>
                 </div>
             </div>
-
             {/* Bulk Capacity Controls */}
             {bulkCapacityMode && (
                 <div className="bulk-capacity-panel">
@@ -4845,7 +4407,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                     </div>
                 </div>
             )}
-
             {/* Shows Grid */}
             <div className="capacity-grid">
                 {periodShows.length === 0 ? (
@@ -4876,7 +4437,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                                         {show.isClosed && <Icon id="lock" className="closed-icon" />}
                                     </div>
                                 </div>
-
                                 {/* Capacity Bar */}
                                 <div className="capacity-visualization">
                                     <div className="capacity-bar">
@@ -4893,7 +4453,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                                         <span className="capacity-total">/ {metrics.effectiveCapacity}</span>
                                     </div>
                                 </div>
-
                                 {/* Detailed Breakdown */}
                                 <div className="booking-breakdown">
                                     <div className="breakdown-item">
@@ -4911,7 +4470,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                                         <span className="breakdown-value available">{metrics.available}</span>
                                     </div>
                                 </div>
-
                                 {/* Capacity Controls */}
                                 <div className="capacity-controls-card">
                                     <div className="capacity-input-group">
@@ -4945,7 +4503,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                                         </span>
                                     </div>
                                 </div>
-
                                 {/* External Booking Section */}
                                 <div className="external-booking-section">
                                     {selectedShow === show.id ? (
@@ -5004,7 +4561,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                             </button>
                         </div>
                     </div>
-
                     <div className="bulk-input-table">
                         <div className="bulk-input-header-row">
                             <div className="bulk-col-date">Datum</div>
@@ -5014,13 +4570,11 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                             <div className="bulk-col-guests">Gasten</div>
                             <div className="bulk-col-status">Status</div>
                         </div>
-
                         {allShowsChronological.map((show, index) => {
                             const guestCount = bulkGuestCounts.get(show.id) || 0;
                             const capacity = show.manualCapacityOverride || show.capacity;
                             const statusInfo = getShowStatusForBulk(show, guestCount);
                             const showDate = new Date(show.date);
-
                             return (
                                 <div key={show.id} className={`bulk-input-row ${statusInfo.status}`}>
                                     <div className="bulk-col-date">
@@ -5079,7 +4633,6 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                             );
                         })}
                     </div>
-
                     <div className="bulk-input-footer">
                         <div className="bulk-progress">
                             📊 {allShowsChronological.filter(show => (bulkGuestCounts.get(show.id) || 0) > 0).length} van {allShowsChronological.length} shows bijgewerkt
@@ -5099,22 +4652,17 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
             )}
         </div>
     );
-};
-
 type ObjectArrayConfigKey = 'showNames' | 'showTypes' | 'merchandise' | 'promoCodes' | 'merchandisePackages' | 'borrelEvents' | 'enhancedMerchandise' | 'shopMerchandise' | 'shopBundles' | 'shopCategories' | 'wizardLayout';
-
 const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: React.Dispatch<React.SetStateAction<AppConfig>> }) => {
     const [activeTab, setActiveTab] = useState<SettingsTab>('shows');
     const [localConfig, setLocalConfig] = useState<AppConfig>(JSON.parse(JSON.stringify(config)));
     const [showPreview, setShowPreview] = useState(false);
     const { addToast } = useToast();
     const { confirm } = useConfirmation();
-
     const handleSave = () => {
         setConfig(localConfig);
         addToast(i18n.settingsSaved, 'success');
     };
-
     const handleItemChange = <K extends ObjectArrayConfigKey>(section: K, index: number, field: keyof AppConfig[K][number], value: any) => {
         setLocalConfig(prev => {
             const newSection = [...prev[section]] as any[];
@@ -5122,7 +4670,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
             return { ...prev, [section]: newSection };
         });
     };
-
     const handleAddItem = <K extends keyof AppConfig>(section: K, newItem: any) => {
         setLocalConfig(prev => ({
             ...prev,
@@ -5144,11 +4691,9 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
             confirmButtonClass: 'delete-btn'
         });
     };
-
     const handleToggleArchive = (section: 'showNames' | 'showTypes', id: string) => {
         const item = localConfig[section].find(item => item.id === id);
         if (!item) return;
-
         confirm({
             title: i18n.archiveConfirmTitle,
             message: i18n.archiveConfirmMessage,
@@ -5160,11 +4705,9 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
             }
         });
     };
-
     const renderTabContent = () => {
         const archivedShowNames = localConfig.showNames.filter(s => s.archived);
         const archivedShowTypes = localConfig.showTypes.filter(s => s.archived);
-
         switch(activeTab) {
             case 'shows': return (
                 <div className="settings-section-layout">
@@ -5290,7 +4833,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                             </div>
                         </div>
                     </div>
-
                     {/* 🎯 Enhanced Category Navigation */}
                     <div className="category-navigation-hub">
                         <div className="nav-tabs">
@@ -5316,7 +4858,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                             </button>
                         </div>
                     </div>
-
                     {/* 🎁 BUNDEL MANAGEMENT SECTIE */}
                     <div className="merchandise-section bundles-section">
                         <div className="section-header">
@@ -5441,7 +4982,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                                 </button>
                                             </div>
                                         </div>
-
                                         {/* Bundle Pricing */}
                                         <div className="bundle-pricing">
                                             <div className="price-calculation">
@@ -5481,7 +5021,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                                 </div>
                                             </div>
                                         </div>
-
                                         <div className="card-actions">
                                             <button 
                                                 className="delete-btn compact"
@@ -5495,7 +5034,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                             ))}
                         </div>
                     </div>
-
                     {/* 🏷️ CATEGORIEËN MANAGEMENT SECTIE */}
                     <div className="merchandise-section categories-section">
                         <div className="section-header">
@@ -5615,7 +5153,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                             ))}
                         </div>
                     </div>
-
                     {/* � WIZARD LAYOUT CONFIGURATIE */}
                     <div className="merchandise-section wizard-section">
                         <div className="section-header">
@@ -5784,7 +5321,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                                         ))}
                                                     </div>
                                                 </div>
-
                                                 {/* Display Settings */}
                                                 <div className="display-settings-grid">
                                                     <div className="setting-group">
@@ -5855,7 +5391,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                             </div>
                         </div>
                     </div>
-
                     {/* 📦 SHOP ITEMS SECTIE */}
                     <div className="merchandise-section items-section">
                         <div className="section-header">
@@ -5940,7 +5475,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                                 onChange={(e) => handleItemChange('shopMerchandise', index, 'price', parseFloat(e.target.value) || 0)}
                                             />
                                         </div>
-
                                         <div className="category-section">
                                             <div className="form-group-inline">
                                                 <label>Categorie:</label>
@@ -5963,7 +5497,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                                 />
                                             </div>
                                         </div>
-
                                         <div className="features-section">
                                             <div className="feature-toggles">
                                                 <label className="toggle-switch">
@@ -5986,7 +5519,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                                 </label>
                                             </div>
                                         </div>
-
                                         <div className="item-actions">
                                             <button 
                                                 className="delete-item-btn"
@@ -6000,7 +5532,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                             ))}
                         </div>
                     </div>
-
                     {/* 📦 MERCHANDISE PAKKETTEN SECTIE */}
                     <div className="merchandise-section packages-section">
                         <div className="section-header">
@@ -6036,7 +5567,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                 Nieuw Merchandise Pakket
                             </button>
                         </div>
-
                         {/* Package Stats */}
                         <div className="package-stats-grid">
                             <div className="stat-card">
@@ -6065,7 +5595,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                 </div>
                             </div>
                         </div>
-
                         {/* Package Cards Grid */}
                         <div className="packages-grid">
                             {(localConfig.merchandisePackages || []).map((pkg, index) => (
@@ -6096,7 +5625,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                                 rows={2}
                                             />
                                         </div>
-
                                         <div className="package-pricing">
                                             <div className="pricing-row">
                                                 <label>Origineel:</label>
@@ -6120,7 +5648,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                                 💰 {pkg.discount}% korting = €{(pkg.originalPrice - pkg.packagePrice).toFixed(2)} besparing
                                             </div>
                                         </div>
-
                                         <div className="package-performance">
                                             <div className="performance-metric">
                                                 <span className="metric-icon">📊</span>
@@ -6131,7 +5658,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                                 <span>€{pkg.revenue}</span>
                                             </div>
                                         </div>
-
                                         <div className="package-controls">
                                             <label className="toggle-switch">
                                                 <input 
@@ -6237,9 +5763,7 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                 </div>
             );
             default: return null;
-        }
     }
-
     return (
         <div className="settings-view">
             <div className="card" style={{flexShrink: 0}}>
@@ -6259,8 +5783,6 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
             </div>
         </div>
     )
-};
-
 const EditReservationModal = ({ reservation, show, onClose, onSave }: {
     reservation: Reservation;
     show: ShowEvent;
@@ -6268,17 +5790,14 @@ const EditReservationModal = ({ reservation, show, onClose, onSave }: {
     onSave: (updatedReservation: Reservation) => void;
 }) => {
     const [formData, setFormData] = useState<Reservation>(reservation);
-
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
-
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         onSave(formData);
     };
-
     return (
         <div className="modal-backdrop" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -6314,8 +5833,6 @@ const EditReservationModal = ({ reservation, show, onClose, onSave }: {
             </div>
         </div>
     );
-};
-
 const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, setActiveView: (view: AdminView) => void }) => {
     const navItems: { view: AdminView, label: string, icon: string }[] = [
         { view: 'dashboard', label: 'Dashboard', icon: 'dashboard'},
@@ -6331,7 +5848,6 @@ const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, s
         { view: 'reports', label: i18n.reports, icon: 'chart'},
         { view: 'settings', label: i18n.settings, icon: 'settings'},
     ];
-
     return (
         <nav className="admin-sidebar">
             <div className="sidebar-header">
@@ -6352,10 +5868,7 @@ const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, s
             </div>
         </nav>
     );
-};
-
 // 🧠 Phase 3: Advanced Analytics View
-
 // 🧠 Phase 3: Advanced Analytics View
 const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
     waitingList: WaitingListEntry[];
@@ -6365,7 +5878,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
 }) => {
     const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
     const [selectedMetric, setSelectedMetric] = useState<'overview' | 'conversion' | 'revenue' | 'predictions'>('overview');
-
     // 📊 Calculate Analytics Data
     const analyticsData = useMemo((): AnalyticsData => {
         const now = new Date();
@@ -6376,22 +5888,18 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
             case '30d': cutoffDate.setDate(now.getDate() - 30); break;
             case '90d': cutoffDate.setDate(now.getDate() - 90); break;
             case 'all': cutoffDate.setFullYear(2020); break;
-        }
-
         const filteredWaitlist = waitingList.filter(w => 
             new Date(w.addedAt || now) >= cutoffDate
         );
         const filteredReservations = reservations.filter(r => 
             new Date(r.createdAt) >= cutoffDate
         );
-
         // Waitlist Metrics
         const totalActive = filteredWaitlist.filter(w => w.status === 'active' || !w.status).length;
         const converted = filteredWaitlist.filter(w => w.status === 'converted').length;
         const notified = filteredWaitlist.filter(w => w.status === 'notified').length;
         const conversionRate = filteredWaitlist.length > 0 ? (converted / filteredWaitlist.length) * 100 : 0;
         const notificationResponseRate = notified > 0 ? (converted / notified) * 100 : 0;
-
         const waitTimeData = filteredWaitlist
             .filter(w => w.status === 'converted' && w.addedAt)
             .map(w => {
@@ -6399,14 +5907,12 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                 return waitTime;
             });
         const averageWaitTime = waitTimeData.length > 0 ? waitTimeData.reduce((a, b) => a + b, 0) / waitTimeData.length : 0;
-
         // Revenue Metrics
         const waitlistRevenuePotential = filteredWaitlist.reduce((total, w) => {
             const show = showEvents.find(s => s.date === w.date);
             const showTypeConfig = config.showTypes.find(st => st.name.toLowerCase() === show?.type?.toLowerCase());
             return total + (w.guests * (showTypeConfig?.priceStandard || 0));
         }, 0);
-
         const actualWaitlistRevenue = filteredWaitlist
             .filter(w => w.status === 'converted')
             .reduce((total, w) => {
@@ -6414,7 +5920,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                 const showTypeConfig = config.showTypes.find(st => st.name.toLowerCase() === show?.type?.toLowerCase());
                 return total + (w.guests * (showTypeConfig?.priceStandard || 0));
             }, 0);
-
         // Customer Insights
         const customerCounts = new Map<string, number>();
         filteredWaitlist.forEach(w => {
@@ -6422,10 +5927,8 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
             customerCounts.set(key, (customerCounts.get(key) || 0) + 1);
         });
         const repeatWaitlistCustomers = Array.from(customerCounts.values()).filter(count => count > 1).length;
-
         const vipCustomers = filteredWaitlist.filter(w => w.customerSegment === 'vip').length;
         const vipWaitlistRatio = filteredWaitlist.length > 0 ? (vipCustomers / filteredWaitlist.length) * 100 : 0;
-
         const showRequestCounts = new Map<string, number>();
         filteredWaitlist.forEach(w => {
             showRequestCounts.set(w.date, (showRequestCounts.get(w.date) || 0) + 1);
@@ -6434,14 +5937,12 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
             .map(([date, requests]) => ({ date, requests }))
             .sort((a, b) => b.requests - a.requests)
             .slice(0, 5);
-
         // Predictive Analytics (AI-like calculations)
         const predictCancellationProbability = (showDate: string): number => {
             const historical = filteredReservations.filter(r => r.date === showDate);
             const cancelled = historical.filter(r => r.status === 'cancelled').length;
             return historical.length > 0 ? (cancelled / historical.length) * 100 : 15; // default 15%
         };
-
         const calculateOptimalPrice = (showDate: string): number => {
             const show = showEvents.find(s => s.date === showDate);
             const basePrice = config.showTypes.find(st => st.name.toLowerCase() === show?.type?.toLowerCase())?.priceStandard || 0;
@@ -6449,7 +5950,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
             const demandMultiplier = Math.min(1.5, 1 + (demand * 0.1)); // max 50% increase
             return Math.round(basePrice * demandMultiplier);
         };
-
         return {
             waitlistMetrics: {
                 totalActive,
@@ -6518,7 +6018,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
             }
         };
     }, [waitingList, reservations, showEvents, config, analyticsTimeframe]);
-
     return (
         <div className="admin-analytics-container">
             <div className="admin-header">
@@ -6539,7 +6038,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                     </select>
                 </div>
             </div>
-
             {/* Analytics Navigation */}
             <div className="analytics-nav">
                 <button 
@@ -6567,7 +6065,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                     🔮 Voorspellingen
                 </button>
             </div>
-
             {/* Analytics Content */}
             <div className="analytics-content">
                 {selectedMetric === 'overview' && (
@@ -6594,7 +6091,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                                     </div>
                                 </div>
                             </div>
-
                             <div className="analytics-card">
                                 <div className="card-header">
                                     <h3>💰 Omzet Impact</h3>
@@ -6616,7 +6112,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                                     </div>
                                 </div>
                             </div>
-
                             <div className="analytics-card">
                                 <div className="card-header">
                                     <h3>👥 Klant Inzichten</h3>
@@ -6639,7 +6134,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                                 </div>
                             </div>
                         </div>
-
                         {/* Most Requested Shows */}
                         <div className="analytics-card full-width">
                             <div className="card-header">
@@ -6665,7 +6159,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                         </div>
                     </div>
                 )}
-
                 {selectedMetric === 'predictions' && (
                     <div className="analytics-predictions">
                         <div className="analytics-grid">
@@ -6703,7 +6196,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                                     </div>
                                 </div>
                             </div>
-
                             <div className="analytics-card">
                                 <div className="card-header">
                                     <h3>💡 Optimale Prijsstelling</h3>
@@ -6741,7 +6233,6 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                                     </div>
                                 </div>
                             </div>
-
                             <div className="analytics-card">
                                 <div className="card-header">
                                     <h3>⏰ Optimale Notificatie Tijden</h3>
@@ -6766,13 +6257,10 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
                         </div>
                     </div>
                 )}
-
                 {/* Add other metric views for conversion and revenue */}
             </div>
         </div>
     );
-};
-
 const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, config, onAddShow, onDeleteReservation, onDeleteWaitingList, onBulkDelete, setConfig, guestCountMap, onDeleteShow, onToggleShowStatus, onUpdateShowCapacity, onAddExternalBooking, onToggleCheckIn, customers, onUpdateReservation, onUpdateWaitingList, onNotifyWaitlist, onConvertWaitlistToReservation, onAddInternalEvent, onUpdateInternalEvent, onDeleteInternalEvent }: {
     reservations: Reservation[];
     showEvents: ShowEvent[];
@@ -6812,7 +6300,6 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
     const [broadcastMessage, setBroadcastMessage] = useState('');
     const [showBroadcastModal, setShowBroadcastModal] = useState(false);
     const [quickActionLoading, setQuickActionLoading] = useState<string | null>(null);
-
     const handleSelectCustomer = (customer: Customer) => {
         setSelectedCustomer(customer);
         setAdminView('customerDetail');
@@ -6822,20 +6309,16 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
         setSelectedCustomer(null);
         setAdminView('customers');
     }
-
     // 🚀 Quick Action Handlers
     const handleQuickCheckIn = (reservationId?: number) => {
         if (reservationId) {
             setCheckInReservationId(reservationId);
-        }
         setShowCheckInModal(true);
     };
-
     const handleEmergencyMode = () => {
         setEmergencyMode(!emergencyMode);
         addToast(emergencyMode ? '🟢 Normale modus' : '🚨 Noodmodus geactiveerd', emergencyMode ? 'success' : 'warning');
     };
-
     const handleBroadcast = async () => {
         if (!broadcastMessage.trim()) return;
         
@@ -6847,7 +6330,6 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
         setShowBroadcastModal(false);
         setQuickActionLoading(null);
     };
-
     const handleQuickBooking = () => {
         setQuickActionLoading('booking');
         // Quick booking logic
@@ -6856,7 +6338,6 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
             setQuickActionLoading(null);
         }, 1000);
     };
-
     const handlePaymentAction = () => {
         setQuickActionLoading('payment');
         setTimeout(() => {
@@ -6864,22 +6345,18 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
             setQuickActionLoading(null);
         }, 1000);
     };
-
     const handleEditReservation = (reservation: Reservation) => {
         setEditingReservation(reservation);
     };
-
     const handleSaveReservation = (updatedReservation: Reservation) => {
         onUpdateReservation(updatedReservation);
         addToast(i18n.reservationUpdated, 'success');
         setEditingReservation(null);
     };
-
     const editingShowEvent = useMemo(() => {
         if (!editingReservation) return undefined;
         return showEvents.find(e => e.date === editingReservation.date);
     }, [editingReservation, showEvents]);
-
     const renderAdminContent = () => {
         switch(adminView) {
             case 'dashboard':
@@ -6992,9 +6469,7 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                 );
             default: 
                 return <PremiumDashboard config={config} i18n={i18n} />;
-        }
     }
-
     return (
         <div className="admin-layout">
             <AdminSidebar activeView={adminView} setActiveView={setAdminView} />
@@ -7011,8 +6486,6 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
             )}
         </div>
     );
-};
-
 const SvgDefs = () => (
     <svg style={{ display: 'none' }} xmlns="http://www.w3.org/2000/svg">
       <symbol id="icon-logo" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></symbol>
@@ -7059,41 +6532,22 @@ const SvgDefs = () => (
       <symbol id="icon-gift" viewBox="0 0 24 24"><path d="M20 6h-2.6c.4-.8.6-1.8.6-3 0-1.7-1.3-3-3-3-.8 0-1.5.3-2 .8-.4-.5-1.2-.8-2-.8-1.7 0-3 1.3-3 3 0 1.2.2 2.2.6 3H4c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2v8c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8c1.1 0 2-.9 2-2v-2c0-1.1-.9-2-2-2zm-5-4c.6 0 1 .4 1 1s-.4 1-1 1h-1V3c0-.6.4-1 1-1zM9 3c0-.6.4-1 1-1s1 .4 1 1v1H9c-.6 0-1-.4-1-1zm3 15H6v-6h6v6zm0-8H4V8h8v2zm2 8v-6h6v6h-6zm6-8h-8V8h8v2z"/></symbol>
     </svg>
   );
-
 // Loading Spinner Component
 const LoadingSpinner = ({ size = '24', className = '' }: { size?: string, className?: string }) => (
     <div className={`loading-spinner ${className}`} style={{ width: `${size}px`, height: `${size}px` }}>
         <div className="spinner-ring"></div>
     </div>
 );
-
 // Loading Button Component
 const LoadingButton = ({ loading, children, ...props }: { loading: boolean, children: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props} disabled={loading || props.disabled}>
         {loading ? <LoadingSpinner size="16" /> : children}
     </button>
 );
-
 // Simple Error Boundary with try-catch wrapper
 const withErrorBoundary = <P extends object>(Component: React.ComponentType<P>) => {
     return (props: P) => {
-        try {
             return <Component {...props} />;
-        } catch (error) {
-            console.error('Component error:', error);
-            return (
-                <div className="error-boundary">
-                    <h2>Er is iets misgegaan</h2>
-                    <p>Probeer de pagina te vernieuwen of neem contact op met de beheerder.</p>
-                    <button onClick={() => window.location.reload()} className="submit-btn">
-                        Pagina Vernieuwen
-                    </button>
-                </div>
-            );
-        }
-    };
-};
-
 // 📅 Schedule View Component voor Personeelsschema
 const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdateInternalEvent, onDeleteInternalEvent, config, reservations }: {
     showEvents: ShowEvent[];
@@ -7110,7 +6564,6 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
     const [showPrintModal, setShowPrintModal] = useState(false);
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [editingEvent, setEditingEvent] = useState<InternalEvent | null>(null);
-
     // Get current week dates
     const getWeekDates = (date: Date) => {
         const start = new Date(date);
@@ -7123,10 +6576,8 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
             const currentDate = new Date(start);
             currentDate.setDate(start.getDate() + i);
             weekDates.push(currentDate);
-        }
         return weekDates;
     };
-
     const weekDates = getWeekDates(currentDate);
     
     // Internal event types with colors
@@ -7140,7 +6591,6 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
         { type: 'schoonmaak' as const, label: 'Schoonmaak', color: '#84cc16' },
         { type: 'andere' as const, label: 'Andere', color: '#6b7280' }
     ];
-
     // Get events for a specific date
     const getEventsForDate = (date: Date) => {
         const dateStr = date.toISOString().split('T')[0];
@@ -7152,17 +6602,14 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
                 isPublic: true,
                 times: getShowTimes(date, event.type)
             }));
-
         const internalEventsForDate = internalEvents
             .filter(event => event.date === dateStr)
             .map(event => ({
                 ...event,
                 isPublic: false
             }));
-
         return { publicShows, internalEvents: internalEventsForDate };
     };
-
     return (
         <div className="schedule-view">
             {/* Schedule Header */}
@@ -7194,7 +6641,6 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
                             Volgende Week ▶
                         </button>
                     </div>
-
                     <div className="schedule-actions">
                         <button 
                             className="btn-primary"
@@ -7210,7 +6656,6 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
                         </button>
                     </div>
                 </div>
-
                 {/* Legend */}
                 <div className="schedule-legend">
                     <div className="legend-item public">
@@ -7225,7 +6670,6 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
                     ))}
                 </div>
             </div>
-
             {/* Schedule Grid */}
             <div className="schedule-grid">
                 {weekDates.map(date => {
@@ -7290,7 +6734,6 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
                     );
                 })}
             </div>
-
             {/* Add/Edit Internal Event Modal */}
             {(showAddEventModal || editingEvent) && (
                 <InternalEventModal
@@ -7316,7 +6759,6 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
                     }}
                 />
             )}
-
             {/* Print Modal */}
             {showPrintModal && (
                 <SchedulePrintModal
@@ -7329,8 +6771,6 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
             )}
         </div>
     );
-};
-
 // Internal Event Modal Component
 const InternalEventModal = ({ event, selectedDate, internalEventTypes, onSave, onDelete, onClose }: {
     event?: InternalEvent | null;
@@ -7347,9 +6787,6 @@ const InternalEventModal = ({ event, selectedDate, internalEventTypes, onSave, o
         startTime: '10:00',
         endTime: '12:00',
         notes: ''
-    });
-
-    useEffect(() => {
         if (event) {
             setFormData({
                 date: event.date,
@@ -7359,9 +6796,7 @@ const InternalEventModal = ({ event, selectedDate, internalEventTypes, onSave, o
                 endTime: event.endTime,
                 notes: event.notes || ''
             });
-        }
     }, [event]);
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
@@ -7369,15 +6804,12 @@ const InternalEventModal = ({ event, selectedDate, internalEventTypes, onSave, o
         if (formData.endTime <= formData.startTime) {
             alert('Eindtijd moet na de starttijd zijn!');
             return;
-        }
         
         if (event) {
             onSave({ ...event, ...formData });
         } else {
             onSave(formData);
-        }
     };
-
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content schedule-modal" onClick={e => e.stopPropagation()}>
@@ -7472,8 +6904,6 @@ const InternalEventModal = ({ event, selectedDate, internalEventTypes, onSave, o
             </div>
         </div>
     );
-};
-
 // 🖨️ Schedule Print Modal Component
 const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, onClose }: {
     showEvents: ShowEvent[];
@@ -7494,13 +6924,10 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
             date.setDate(date.getDate() + 7);
             return date.toISOString().split('T')[0];
         })()
-    });
-
     const handlePeriodChange = (period: 'custom' | 'week' | 'month' | 'all') => {
         const today = new Date();
         let startDate = today.toISOString().split('T')[0];
         let endDate = today.toISOString().split('T')[0];
-
         switch (period) {
             case 'week':
                 const weekStart = new Date(today);
@@ -7525,16 +6952,12 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                     endDate = dates[dates.length - 1];
                 }
                 break;
-        }
-
         setPrintOptions(prev => ({ ...prev, period, startDate, endDate }));
     };
-
     const generateManagementReport = () => {
         const filteredShows = showEvents.filter(show => 
             show.date >= printOptions.startDate && show.date <= printOptions.endDate
         );
-
         const reportData: ManagementReportData[] = filteredShows.map(show => {
             const showReservations = reservations.filter(r => r.date === show.date);
             const totalGuests = showReservations.reduce((sum, r) => sum + r.guests, 0);
@@ -7552,20 +6975,16 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                 showType: show.type
             };
         });
-
         return reportData;
     };
-
     const handlePrint = () => {
         const printContent = generatePrintContent();
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
-
         printWindow.document.write(printContent);
         printWindow.document.close();
         printWindow.print();
     };
-
     const generatePrintContent = () => {
         if (printOptions.format === 'management') {
             return generateManagementPrintContent();
@@ -7573,25 +6992,20 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
             return generateCompactPrintContent();
         } else {
             return generateDetailedPrintContent();
-        }
     };
-
     const generateDetailedPrintContent = () => {
         const filteredShows = printOptions.includePublicShows ? 
             showEvents.filter(show => show.date >= printOptions.startDate && show.date <= printOptions.endDate) : [];
         
         const filteredInternals = printOptions.includeInternalEvents ?
             internalEvents.filter(event => event.date >= printOptions.startDate && event.date <= printOptions.endDate) : [];
-
         const getAllDates = () => {
             const allDates = new Set<string>();
             filteredShows.forEach(show => allDates.add(show.date));
             filteredInternals.forEach(event => allDates.add(event.date));
             return Array.from(allDates).sort();
         };
-
         const dates = getAllDates();
-
         return `
             <html>
                 <head>
@@ -7666,23 +7080,19 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
             </html>
         `;
     };
-
     const generateCompactPrintContent = () => {
         const filteredShows = printOptions.includePublicShows ? 
             showEvents.filter(show => show.date >= printOptions.startDate && show.date <= printOptions.endDate) : [];
         
         const filteredInternals = printOptions.includeInternalEvents ?
             internalEvents.filter(event => event.date >= printOptions.startDate && event.date <= printOptions.endDate) : [];
-
         const getAllDates = () => {
             const allDates = new Set<string>();
             filteredShows.forEach(show => allDates.add(show.date));
             filteredInternals.forEach(event => allDates.add(event.date));
             return Array.from(allDates).sort();
         };
-
         const dates = getAllDates();
-
         return `
             <html>
                 <head>
@@ -7741,16 +7151,13 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
             </html>
         `;
     };
-
     const generateManagementPrintContent = () => {
         const reportData = generateManagementReport();
         const totalRevenue = reportData.reduce((sum, show) => sum + show.revenue, 0);
         const totalGuests = reportData.reduce((sum, show) => sum + show.booked, 0);
         const avgOccupancy = reportData.length > 0 ? Math.round(reportData.reduce((sum, show) => sum + show.occupancyRate, 0) / reportData.length) : 0;
-
         const topShows = [...reportData].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
         const bestOccupancy = [...reportData].sort((a, b) => b.occupancyRate - a.occupancyRate).slice(0, 3);
-
         return `
             <html>
                 <head>
@@ -7782,7 +7189,6 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                         <p><strong>Periode:</strong> ${new Date(printOptions.startDate).toLocaleDateString('nl-NL')} t/m ${new Date(printOptions.endDate).toLocaleDateString('nl-NL')}</p>
                         <p><small>Gegenereerd: ${new Date().toLocaleDateString('nl-NL')} om ${new Date().toLocaleTimeString('nl-NL')}</small></p>
                     </div>
-
                     <div class="kpi-section">
                         <div class="kpi-box">
                             <div class="kpi-value">€${totalRevenue.toLocaleString('nl-NL')}</div>
@@ -7797,7 +7203,6 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                             <div class="kpi-label">Gemiddelde Bezetting</div>
                         </div>
                     </div>
-
                     <table class="report-table">
                         <thead>
                             <tr>
@@ -7831,7 +7236,6 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                             `).join('')}
                         </tbody>
                     </table>
-
                     <div class="insights-section">
                         <div class="insight-box">
                             <div class="insight-title">🏆 Top 5 Shows (Omzet)</div>
@@ -7854,7 +7258,6 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
             </html>
         `;
     };
-
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content schedule-modal print-modal" onClick={e => e.stopPropagation()}>
@@ -7930,7 +7333,6 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                             </div>
                         )}
                     </div>
-
                     <div className="form-section">
                         <label className="section-label">📄 Print Formaat</label>
                         <div className="format-options">
@@ -7975,7 +7377,6 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                             </label>
                         </div>
                     </div>
-
                     <div className="form-section">
                         <label className="section-label">📋 Inhoud</label>
                         <div className="content-options">
@@ -8022,62 +7423,14 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
             </div>
         </div>
     );
-};
-
 const AppContent = () => {
     const [view, setView] = useState<View>('book');
-    const [events, setEvents] = useState<ShowEvent[]>([]);
-    const [reservations, setReservations] = useState<Reservation[]>([]);
-    const [waitingList, setWaitingList] = useState<WaitingListEntry[]>([]);
-    const [internalEvents, setInternalEvents] = useState<InternalEvent[]>([]);
-    const [config, setConfig] = useState<AppConfig>(defaultConfig);
-    const [loading, setLoading] = useState(true);
+    const [events, setEvents] = usePersistentState<ShowEvent[]>('showEvents', []);
+    const [reservations, setReservations] = usePersistentState<Reservation[]>('reservations', []);
+    const [waitingList, setWaitingList] = usePersistentState<WaitingListEntry[]>('waitingList', []);
+    const [internalEvents, setInternalEvents] = usePersistentState<InternalEvent[]>('internalEvents', []);
+    const [config, setConfig] = usePersistentState<AppConfig>('appConfig', defaultConfig);
     const { addToast } = useToast();
-    
-    // Load data from Firebase when component mounts
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                setLoading(true);
-                
-                // 🔥 Test Firebase connection first
-                const connectionOk = await testFirebaseConnection();
-                if (!connectionOk) {
-                    console.error('🚨 Firebase connection failed - stopping data load');
-                    return;
-                }
-                
-                const [
-                    showsData,
-                    reservationsData, 
-                    waitingListData,
-                    internalEventsData
-                ] = await Promise.all([
-                    firebaseService.shows.getAllShows(),
-                    firebaseService.reservations.getAllReservations(),
-                    firebaseService.waitingList.getAllWaitingList(),
-                    [] // Start with empty internal events for now
-                ]);
-                
-                setEvents(showsData);
-                setReservations(reservationsData);
-                setWaitingList(waitingListData);
-                setInternalEvents(internalEventsData);
-                
-                console.log('Firebase data loaded successfully - Items loaded:', {
-                    shows: showsData.length,
-                    reservations: reservationsData.length,
-                    waitingList: waitingListData.length
-                });
-            } catch (error) {
-                console.error('Error loading Firebase data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        
-        loadData();
-    }, []); // Empty dependency array - only run once on mount
     
     const guestCountMap = useMemo(() => {
         const map = new Map<string, number>();
@@ -8088,44 +7441,21 @@ const AppContent = () => {
     }, [reservations]);
     
     // Optimize callback functions with useCallback for better performance
-    const handleAddEvent = useCallback(async (event: Omit<ShowEvent, 'id'>, dates: string[]) => {
-        try {
-            const newEvents = dates.map(date => ({
-                ...event,
-                id: `${event.name.toLowerCase().replace(/\s+/g, '-')}-${date}`,
-                date
-            }));
-            
-            // Save all events to Firebase
-            const savedEvents = await Promise.all(
-                newEvents.map(newEvent => firebaseService.shows.addShow(newEvent))
-            );
-            
-            // Update local state
-            setEvents(prev => [...prev, ...savedEvents]);
-            addToast(`${dates.length === 1 ? 'Show' : dates.length + ' shows'} succesvol toegevoegd!`, 'success');
-        } catch (error) {
-            console.error('Error adding events:', error);
-            addToast('Fout bij toevoegen van shows', 'error');
-        }
-    }, [addToast]);
-
-    const handleDeleteEvent = useCallback(async (eventId: string) => {
-        try {
-            // Delete from Firebase
-            await firebaseService.shows.deleteShow(eventId);
-            
-            // Update local state
-            setEvents(prev => prev.filter(e => e.id !== eventId));
-            setReservations(prev => prev.filter(r => !events.find(e => e.id === eventId && e.date === r.date)));
-            setWaitingList(prev => prev.filter(w => !events.find(e => e.id === eventId && e.date === w.date)));
-            
-            addToast('Show verwijderd!', 'success');
-        } catch (error) {
-            console.error('Error deleting event:', error);
-            addToast('Fout bij verwijderen van show', 'error');
-        }
-    }, [events, addToast]);
+    const handleAddEvent = useCallback((event: Omit<ShowEvent, 'id'>, dates: string[]) => {
+        const newEvents = dates.map(date => ({
+            ...event,
+            id: `${event.name.toLowerCase().replace(/\s+/g, '-')}-${date}`,
+            date
+        }));
+        setEvents(prev => [...prev, ...newEvents]);
+        addToast(`${dates.length === 1 ? 'Show' : dates.length + ' shows'} succesvol toegevoegd!`, 'success');
+    }, [setEvents, addToast]);
+    const handleDeleteEvent = useCallback((eventId: string) => {
+        setEvents(prev => prev.filter(e => e.id !== eventId));
+        setReservations(prev => prev.filter(r => !events.find(e => e.id === eventId && e.date === r.date)));
+        setWaitingList(prev => prev.filter(w => !events.find(e => e.id === eventId && e.date === w.date)));
+        addToast('Show verwijderd!', 'success');
+    }, [setEvents, setReservations, setWaitingList, events, addToast]);
     
     const customers = useMemo(() => {
         const customerMap = new Map<string, {name: string, reservations: Reservation[]}>();
@@ -8149,7 +7479,6 @@ const AppContent = () => {
             }
         });
     }, [reservations]);
-
     const handleAddShow = (newShow: Omit<ShowEvent, 'id'>, dates: string[]) => {
         const newEvents: ShowEvent[] = dates.map(date => ({
             ...newShow,
@@ -8158,16 +7487,13 @@ const AppContent = () => {
         }));
         setEvents(prev => [...prev.filter(e => !dates.includes(e.date)), ...newEvents]);
     };
-
     const handleDeleteShow = (showId: string) => {
         const showToDelete = events.find(e => e.id === showId);
         if(!showToDelete) return;
-
         setEvents(prev => prev.filter(e => e.id !== showId));
         setReservations(prev => prev.filter(r => r.date !== showToDelete.date));
         setWaitingList(prev => prev.filter(w => w.date !== showToDelete.date));
     };
-
     const handleToggleShowStatus = (showId: string) => {
         setEvents(prev => prev.map(e => {
             if (e.id === showId) {
@@ -8186,34 +7512,31 @@ const AppContent = () => {
         }));
     };
     
-    const handleAddReservation = useCallback(async (newReservation: Omit<Reservation, 'id'>) => {
-        try {
-            // Add to Firebase (Firebase will generate the ID automatically)
-            const savedReservation = await firebaseService.reservations.addReservation(newReservation);
-            
-            // Update local state
-            setReservations(prev => [...prev, savedReservation]);
-            
-            // AUTO-SLUITING/OPENING LOGICA bij nieuwe reserveringen
-            const showDate = newReservation.date;
-            const currentGuests = guestCountMap.get(showDate) || 0;
-            const newTotalGuests = currentGuests + newReservation.guests;
-            
-            if (newTotalGuests >= 240) {
-                // Auto-sluiten bij 240+ gasten
-                setEvents(prev => prev.map(e => {
-                    if (e.date === showDate && !e.isClosed) {
-                        return {...e, isClosed: true};
-                    }
-                    return e;
-                }));
-            }
-
-            // Update voucher/gift card status if used
-            if(newReservation.promoCode && newReservation.discountAmount) {
-                // Check if it's a theater voucher (nieuwe systeem)
-                const voucherIndex = config.theaterVouchers.findIndex(v => 
-                    v.code === newReservation.promoCode && v.status === 'active'
+    const handleAddReservation = useCallback((newReservation: Omit<Reservation, 'id'>) => {
+        const fullReservation: Reservation = {
+            ...newReservation,
+            id: Date.now(),
+        };
+        setReservations(prev => [...prev, fullReservation]);
+        
+        // AUTO-SLUITING/OPENING LOGICA bij nieuwe reserveringen
+        const showDate = newReservation.date;
+        const currentGuests = guestCountMap.get(showDate) || 0;
+        const newTotalGuests = currentGuests + newReservation.guests;
+        
+        if (newTotalGuests >= 240) {
+            // Auto-sluiten bij 240+ gasten
+            setEvents(prev => prev.map(e => {
+                if (e.date === showDate && !e.isClosed) {
+                    return {...e, isClosed: true};
+                }
+                return e;
+            }));
+        // Update voucher/gift card status if used
+        if(newReservation.promoCode && newReservation.discountAmount) {
+            // Check if it's a theater voucher (nieuwe systeem)
+            const voucherIndex = config.theaterVouchers.findIndex(v => 
+                v.code === newReservation.promoCode && v.status === 'active'
             );
             
             if (voucherIndex > -1) {
@@ -8223,18 +7546,12 @@ const AppContent = () => {
                     ...updatedVouchers[voucherIndex],
                     status: 'used',
                     usedDate: formatDate(new Date()),
-                    usedReservationId: savedReservation.id
+                    usedReservationId: fullReservation.id
                 };
                 setConfig(prev => ({...prev, theaterVouchers: updatedVouchers}));
                 addToast(`🎫 Theaterbon ${newReservation.promoCode} gebruikt`, 'success');
             }
-        }
-        } catch (error) {
-            console.error('Error adding reservation:', error);
-            addToast('Fout bij toevoegen van reservering', 'error');
-        }
-    }, [setConfig, config.theaterVouchers, addToast, guestCountMap]);
-
+    }, [setReservations, setConfig, config.theaterVouchers, addToast]);
     // Internal Events handlers
     const handleAddInternalEvent = useCallback((event: Omit<InternalEvent, 'id'>) => {
         const newEvent: InternalEvent = {
@@ -8244,20 +7561,16 @@ const AppContent = () => {
         setInternalEvents(prev => [...prev, newEvent]);
         addToast(`Intern event "${event.title}" toegevoegd`, 'success');
     }, [setInternalEvents, addToast]);
-
     const handleUpdateInternalEvent = useCallback((event: InternalEvent) => {
         setInternalEvents(prev => prev.map(e => e.id === event.id ? event : e));
         addToast(`Intern event "${event.title}" bijgewerkt`, 'success');
     }, [setInternalEvents, addToast]);
-
     const handleDeleteInternalEvent = useCallback((id: string) => {
         const event = internalEvents.find(e => e.id === id);
         setInternalEvents(prev => prev.filter(e => e.id !== id));
         addToast(`Intern event${event ? ` "${event.title}"` : ''} verwijderd`, 'success');
     }, [setInternalEvents, internalEvents, addToast]);
-
     // Effect voor auto-sluiting van boekingen 12 uur voor voorstelling
-    useEffect(() => {
         const interval = setInterval(() => {
             const now = new Date();
             
@@ -8289,76 +7602,43 @@ const AppContent = () => {
         
         return () => clearInterval(interval);
     }, []);
-
     const handleUpdateReservation = (updatedReservation: Reservation) => {
         setReservations(prev => prev.map(r => r.id === updatedReservation.id ? updatedReservation : r));
     };
     
-    const handleDeleteReservation = async (id: number | string) => {
-        try {
-            // Convert number to string if needed for backwards compatibility
-            const idString = typeof id === 'number' ? id.toString() : id;
+    const handleDeleteReservation = (id: number) => {
+        const deletedReservation = reservations.find(r => r.id === id);
+        setReservations(prev => prev.filter(r => r.id !== id));
+        
+        // AUTO-OPENING LOGICA bij verwijderen reserveringen
+        if (deletedReservation) {
+            const showDate = deletedReservation.date;
+            const currentGuests = guestCountMap.get(showDate) || 0;
+            const newTotalGuests = Math.max(0, currentGuests - deletedReservation.guests);
             
-            const deletedReservation = reservations.find(r => r.id === idString);
-            
-            // Delete from Firebase
-            await firebaseService.reservations.deleteReservation(idString);
-            
-            // Update local state
-            setReservations(prev => prev.filter(r => r.id !== idString));
-            
-            // AUTO-OPENING LOGICA bij verwijderen reserveringen
-            if (deletedReservation) {
-                const showDate = deletedReservation.date;
-                const currentGuests = guestCountMap.get(showDate) || 0;
-                const newTotalGuests = Math.max(0, currentGuests - deletedReservation.guests);
-                
-                if (newTotalGuests < 240) {
-                    // Auto-openen onder 240 gasten
-                    setEvents(prev => prev.map(e => {
-                        if (e.date === showDate && e.isClosed) {
-                            return {...e, isClosed: false};
-                        }
-                        return e;
-                    }));
-                }
+            if (newTotalGuests < 240) {
+                // Auto-openen onder 240 gasten
+                setEvents(prev => prev.map(e => {
+                    if (e.date === showDate && e.isClosed) {
+                        return {...e, isClosed: false};
+                    }
+                    return e;
+                }));
             }
-            
-            addToast('Reservering verwijderd', 'success');
-        } catch (error) {
-            console.error('Error deleting reservation:', error);
-            addToast('Fout bij verwijderen van reservering', 'error');
-        }
     };
     
-    const handleAddWaitingList = async (newEntry: Omit<WaitingListEntry, 'id'>) => {
-        try {
-            const savedEntry = await firebaseService.waitingList.addWaitingListEntry(newEntry);
-            setWaitingList(prev => [...prev, savedEntry]);
-            addToast(i18n.waitingListConfirmed, 'success');
-        } catch (error) {
-            console.error('Error adding to waiting list:', error);
-            addToast('Fout bij toevoegen aan wachtlijst', 'error');
-        }
+    const handleAddWaitingList = (newEntry: Omit<WaitingListEntry, 'id'>) => {
+        setWaitingList(prev => [...prev, {...newEntry, id: Date.now()}]);
+        addToast(i18n.waitingListConfirmed, 'success');
     };
-
-    const handleDeleteWaitingList = async (id: string) => {
-        try {
-            await firebaseService.waitingList.deleteWaitingListEntry(id);
-            setWaitingList(prev => prev.filter(wl => wl.id !== id));
-            addToast('Wachtlijst item verwijderd', 'success');
-        } catch (error) {
-            console.error('Error deleting from waiting list:', error);
-            addToast('Fout bij verwijderen van wachtlijst', 'error');
-        }
+    const handleDeleteWaitingList = (id: number) => {
+        setWaitingList(prev => prev.filter(wl => wl.id !== id));
     };
-
     // 🚀 Phase 2: Advanced Waitlist Management Functions
     const handleUpdateWaitingList = (updatedEntry: WaitingListEntry) => {
         setWaitingList(prev => prev.map(w => w.id === updatedEntry.id ? updatedEntry : w));
         addToast('Wachtlijst bijgewerkt', 'success');
     };
-
     const handleNotifyWaitlist = (entry: WaitingListEntry) => {
         // Phase 2: Smart notification logic
         const updatedEntry = { 
@@ -8392,27 +7672,21 @@ const AppContent = () => {
                 
                 setWaitingList(prev => prev.map(w => w.id === entry.id ? entryWithDeadline : w));
             }
-        }
     };
-
     const handleConvertWaitlistToReservation = (entry: WaitingListEntry) => {
         const show = events.find(s => s.date === entry.date);
         if (!show) {
             addToast('Show niet gevonden', 'error');
             return;
-        }
-
         const currentGuests = guestCountMap.get(entry.date) || 0;
         const availableSpots = show.capacity - currentGuests;
         
         if (availableSpots < entry.guests) {
             addToast(`Onvoldoende capaciteit. ${availableSpots} plaatsen beschikbaar, ${entry.guests} gevraagd.`, 'error');
             return;
-        }
-
         // Create new reservation from waitlist entry
         const newReservation: Reservation = {
-            id: Date.now().toString(),
+            id: Date.now(),
             date: entry.date,
             companyName: '',
             salutation: 'Dhr.',
@@ -8437,7 +7711,6 @@ const AppContent = () => {
             bookingSource: 'internal',
             createdAt: new Date().toISOString()
         };
-
         // Add reservation and update waitlist
         setReservations(prev => [...prev, newReservation]);
         
@@ -8453,17 +7726,14 @@ const AppContent = () => {
         // Auto-notify next in queue if capacity allows
         autoNotifyNextInQueue(entry.date);
     };
-
     // 🤖 Auto-notification for next in queue
     const autoNotifyNextInQueue = (showDate: string) => {
         const show = events.find(s => s.date === showDate);
         if (!show) return;
-
         const updatedGuestCount = guestCountMap.get(showDate) || 0;
         const availableSpots = show.capacity - updatedGuestCount;
         
         if (availableSpots <= 0) return;
-
         // Find next active waitlist entry for this show
         const activeWaitlist = waitingList
             .filter(w => w.date === showDate && (w.status === 'active' || !w.status))
@@ -8477,9 +7747,7 @@ const AppContent = () => {
             setTimeout(() => {
                 handleNotifyWaitlist(nextInQueue);
             }, 2000);
-        }
     };
-
     // Helper function to calculate price
     const calculatePrice = (guests: number, showType: string, config: AppConfig): number => {
         const showTypeConfig = config.showTypes.find(st => st.name.toLowerCase() === showType.toLowerCase());
@@ -8495,10 +7763,7 @@ const AppContent = () => {
             setReservations(prev => prev.filter(r => !datesToDelete.has(r.date)));
             setWaitingList(prev => prev.filter(w => !datesToDelete.has(w.date)));
             return;
-        }
-
         if(!month) return;
-
         const year = month.getFullYear();
         const monthIndex = month.getMonth();
         
@@ -8510,18 +7775,15 @@ const AppContent = () => {
                 })
                 .map(e => e.date)
         );
-
         if (datesInMonthToDelete.size > 0) {
             setEvents(prev => prev.filter(e => !datesInMonthToDelete.has(e.date)));
             setReservations(prev => prev.filter(r => !datesInMonthToDelete.has(r.date)));
             setWaitingList(prev => prev.filter(w => !datesInMonthToDelete.has(w.date)));
-        }
     };
     
     const handleUpdateShowCapacity = (showId: string, newCapacity: number) => {
         setEvents(prev => prev.map(e => e.id === showId ? {...e, manualCapacityOverride: newCapacity, capacity: newCapacity} : e));
     };
-
     const handleAddExternalBooking = useCallback((showId: string, guests: number) => {
         setEvents(prev => prev.map(e => {
             if (e.id === showId) {
@@ -8546,7 +7808,7 @@ const AppContent = () => {
         const show = events.find(e => e.id === showId);
         if (show) {
             const externalReservation: Reservation = {
-                id: Date.now().toString(),
+                id: Date.now(),
                 date: show.date,
                 companyName: 'Externe Boeking',
                 salutation: 'N.v.t.',
@@ -8575,26 +7837,16 @@ const AppContent = () => {
             };
             
             setReservations(prev => [...prev, externalReservation]);
-        }
     }, [events, setReservations]);
-
     const handleToggleCheckIn = (id: number) => {
         setReservations(prev => prev.map(r => r.id === id ? {...r, checkedIn: !r.checkedIn} : r));
     };
-
     return (
         <div className={`container ${view === 'admin' ? 'admin-container' : ''}`}>
             <SvgDefs />
             <Header currentView={view} setCurrentView={setView} />
             <main>
-                {loading ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🔄</div>
-                            <p>Gegevens worden geladen uit Firebase...</p>
-                        </div>
-                    </div>
-                ) : view === 'book' ? (
+                {view === 'book' ? (
                     <BookingView
                         showEvents={events}
                         reservations={reservations}
@@ -8641,8 +7893,6 @@ const AppContent = () => {
             <DynamicStyles config={config} />
         </div>
     );
-};
-
 const App = () => {
     return (
         <ToastProvider>
@@ -8651,7 +7901,5 @@ const App = () => {
             </ConfirmationProvider>
         </ToastProvider>
     );
-};
-
 const root = createRoot(document.getElementById('root')!);
 root.render(<App />);

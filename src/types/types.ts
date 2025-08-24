@@ -48,7 +48,7 @@ export interface AddonQuantities {
 }
 
 export interface Reservation {
-    id: number;
+    id: string; // Firestore document ID
     date: string; // YYYY-MM-DD
     companyName?: string;
     salutation: string;
@@ -80,7 +80,7 @@ export interface Reservation {
 }
 
 export interface WaitingListEntry {
-    id: number;
+    id: string; // Firestore document ID
     name: string;
     email: string;
     phone: string;
@@ -92,13 +92,74 @@ export interface WaitingListEntry {
     lastNotificationAt?: Date;
     priority?: number;
     responseDeadline?: Date;
-    reservationId?: number;
+    reservationId?: string; // Changed to string for Firestore
     // Phase 3: Analytics tracking
     sourceChannel?: 'website' | 'phone' | 'email' | 'walk-in' | 'referral';
     conversionScore?: number; // 0-100 likelihood to convert
     customerSegment?: 'vip' | 'regular' | 'new' | 'corporate';
     priceFlexibility?: 'high' | 'medium' | 'low'; // willingness to pay premium
     notes?: string;
+}
+
+// New Firestore-ready types
+
+export interface Table {
+    id: string; // Firestore document ID
+    number: number;
+    capacity: number;
+    type: 'regular' | 'vip' | 'accessibility';
+    status: 'available' | 'occupied' | 'reserved' | 'maintenance';
+    location: string; // e.g., 'main-floor', 'balcony', 'private-room'
+    features: string[]; // e.g., ['wheelchair-accessible', 'near-stage', 'quiet']
+    notes?: string;
+    isActive: boolean;
+}
+
+export interface MenuItem {
+    id: string; // Firestore document ID
+    name: string;
+    description: string;
+    price: number;
+    category: 'appetizer' | 'main' | 'dessert' | 'beverage' | 'special';
+    dietaryInfo: string[]; // e.g., ['vegetarian', 'gluten-free', 'vegan']
+    ingredients: string[];
+    allergens: string[];
+    isAvailable: boolean;
+    preparationTime: number; // minutes
+    popularity: number; // 1-5 rating
+    imageUrl?: string;
+    calories?: number;
+    isSpecial: boolean;
+    seasonalAvailability?: string; // e.g., 'winter', 'summer'
+}
+
+export interface MerchItem {
+    id: string; // Firestore document ID
+    name: string;
+    description: string;
+    price: number;
+    costPrice: number;
+    category: 'apparel' | 'programs' | 'gifts' | 'collectibles' | 'caps' | 'accessories';
+    type: string; // specific subcategory like 'baseball-cap', 'hoodie', 'magnet'
+    stock: number;
+    lowStockThreshold: number;
+    sizes?: string[]; // for apparel items
+    colors?: string[]; // available colors
+    imageUrl: string;
+    galleryImages?: string[];
+    tags: string[];
+    isActive: boolean;
+    isFeatured: boolean;
+    weight?: number; // for shipping calculations
+    dimensions?: string; // e.g., "10x15x5 cm"
+    supplier?: string;
+    supplierCode?: string;
+    totalSold: number;
+    revenue: number;
+    averageRating: number;
+    reviewCount: number;
+    createdAt: string;
+    updatedAt: string;
 }
 
 // Phase 3: Analytics Interfaces
@@ -265,7 +326,7 @@ export interface GiftCard {
 export interface BookingApproval {
     id: string;
     bookingId: string;
-    reservationId: number;
+    reservationId: string; // Changed to string for Firestore
     status: 'pending' | 'approved' | 'rejected';
     requestedAt: Date;
     processedAt?: Date;
@@ -298,9 +359,9 @@ export interface ApprovalCondition {
 // --- WAITLIST SYSTEM INTERFACES ---
 
 export interface WaitlistEntry {
-    id: string;
+    id: string; // Firestore document ID
     customerId: string;
-    reservationId?: number; // Reference to original reservation if converted
+    reservationId?: string; // Reference to original reservation if converted - changed to string
     showId: string;
     showDate: string; // YYYY-MM-DD
     showName: string;
@@ -355,7 +416,7 @@ export interface TheaterVoucher {
     expiryDate: string;              // Vervaldatum (standaard 1 jaar)
     status: 'active' | 'used' | 'expired' | 'extended' | 'archived';
     usedDate?: string;               // Datum van gebruik
-    usedReservationId?: number;      // Reservering waar bon gebruikt is
+    usedReservationId?: string;      // Reservering waar bon gebruikt is - changed to string
     extendedCount: number;           // Aantal keer verlengd
     notes?: string;                  // Optionele notities
     archivedDate?: string;           // Datum van archivering
