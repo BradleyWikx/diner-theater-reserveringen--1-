@@ -63,14 +63,101 @@ import { firebaseService } from './src/firebase/services/firebaseService';
 
 // 🔥 TEST: Firebase Connection Test
 const testFirebaseConnection = async () => {
-    console.log('🧪 Testing Firebase connection...');
+    console.log('🔥 Testing Firebase connection...');
+    
     try {
-        // Test Firestore connection by trying to read shows
+        // Test 1: Read shows
+        console.log('📖 Testing READ operation...');
         const shows = await firebaseService.shows.getAllShows();
-        console.log('✅ Firebase connection SUCCESS - Shows:', shows.length);
+        console.log('✅ READ SUCCESS - Shows loaded:', shows.length);
+        
+        // Test 2: Try to write a test document
+        console.log('✏️ Testing WRITE operation...');
+        const testShow = {
+            name: 'TEST_SHOW_' + Date.now(),
+            date: '2025-12-31',
+            time: '20:00',
+            description: 'Test show to verify Firebase write permissions',
+            type: 'regular' as any,
+            ticketPrice: 25.00,
+            capacity: 100,
+            reservedSeats: 0,
+            isArchived: false,
+            weekNumber: 1
+        };
+        
+        const addedShow = await firebaseService.shows.addShow(testShow);
+        console.log('✅ WRITE SUCCESS - Test show added:', addedShow.id);
+        
+        // Test 3: Delete the test show immediately
+        await firebaseService.shows.deleteShow(addedShow.id);
+        console.log('🗑️ Test show deleted successfully');
+        
+        console.log('🎉 Firebase connection FULLY OPERATIONAL');
         return true;
+        
     } catch (error) {
         console.error('❌ Firebase connection FAILED:', error);
+        console.error('📋 Error details:', {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
+        return false;
+    }
+};
+
+// 🏗️ Initialize Firebase Collections with sample data
+const initializeFirebaseCollections = async () => {
+    console.log('🏗️ Initializing Firebase Collections...');
+    
+    try {
+        // Check if collections already exist
+        const existingShows = await firebaseService.shows.getAllShows();
+        console.log('📊 Existing shows found:', existingShows.length);
+        
+        if (existingShows.length === 0) {
+            console.log('🎭 Creating sample shows...');
+            
+            // Create sample shows
+            const sampleShows = [
+                {
+                    name: 'Romeo & Juliet',
+                    date: '2025-09-15',
+                    time: '20:00',
+                    description: 'Klassieke romantische tragedie van Shakespeare',
+                    type: 'theater' as any,
+                    ticketPrice: 35.00,
+                    capacity: 120,
+                    reservedSeats: 0,
+                    isArchived: false,
+                    weekNumber: 37
+                },
+                {
+                    name: 'Murder Mystery Dinner',
+                    date: '2025-09-22',
+                    time: '19:00',
+                    description: 'Interactieve moord mysterie tijdens het diner',
+                    type: 'dinner' as any,
+                    ticketPrice: 65.00,
+                    capacity: 80,
+                    reservedSeats: 0,
+                    isArchived: false,
+                    weekNumber: 38
+                }
+            ];
+            
+            for (const show of sampleShows) {
+                const addedShow = await firebaseService.shows.addShow(show);
+                console.log(`✅ Created show: ${show.name} (ID: ${addedShow.id})`);
+            }
+        }
+        
+        console.log('🎉 Firebase Collections Successfully Initialized!');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Failed to initialize Firebase Collections:', error);
         return false;
     }
 };
@@ -406,7 +493,7 @@ const Calendar = React.memo(({ month, onMonthChange, onDateClick, events, guestC
                             onMouseLeave={handleMouseLeave}
                             tabIndex={isClickable ? 0 : -1}
                             role="button"
-                            aria-label={event ? `${i18n.bookShow} ${event.name} op ${dateStr}` : `Datum ${dateStr}`}
+                            aria-label={event ? `${i18n.bookShow.bookButton} ${event.name} op ${dateStr}` : `Datum ${dateStr}`}
                             aria-pressed={dateStr === selectedDate}
                         >
                             <span className="day-number">{day.getDate()}</span>
@@ -928,7 +1015,18 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onAddReservation({ ...reservation, totalPrice: priceDetails.total, promoCode: appliedCode?.code, discountAmount: priceDetails.discount });
+        const reservationData = { 
+            ...reservation, 
+            totalPrice: priceDetails.total, 
+            discountAmount: priceDetails.discount 
+        };
+        
+        // Only add promoCode if it exists (Firebase doesn't accept undefined values)
+        if (appliedCode?.code) {
+            reservationData.promoCode = appliedCode.code;
+        }
+        
+        onAddReservation(reservationData);
         setSubmitted(true);
     };
     
@@ -1485,7 +1583,7 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
                 </div>
 
                 <button onClick={onStartBooking} className="submit-btn wide-btn">
-                    {isUnavailable ? i18n.joinWaitingList : i18n.bookShow}
+                    {isUnavailable ? i18n.joinWaitingList : i18n.bookShow.bookButton}
                 </button>
                 
                 {isUnavailable && (
@@ -1503,18 +1601,18 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
     show: ShowEvent | undefined,
     reservations: Reservation[],
     waitingList: WaitingListEntry[],
-    onDeleteReservation: (id: number) => void,
-    onDeleteWaitingList: (id: number) => void,
-    onToggleCheckIn: (reservationId: number) => void,
+    onDeleteReservation: (id: string) => void,
+    onDeleteWaitingList: (id: string) => void,
+    onToggleCheckIn: (reservationId: string) => void,
     config: AppConfig,
-    onDeleteShow: (showId: string) => void;
-    onToggleShowStatus: (showId: string) => void;
-    onEditReservation: (reservation: Reservation) => void;
+    onDeleteShow: (showId: string) => void,
+    onToggleShowStatus: (showId: string) => void,
+    onEditReservation: (reservation: Reservation) => void,
 }) => {
     const [aiSummary, setAiSummary] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState('');
-    const [expandedRow, setExpandedRow] = useState<number | null>(null);
+    const [expandedRow, setExpandedRow] = useState<string | null>(null);
     const [viewingList, setViewingList] = useState<'checkin' | 'kitchen' | null>(null);
     const { confirm } = useConfirmation();
     const { addToast } = useToast();
@@ -1593,7 +1691,7 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
         );
     }
     
-    const toggleRow = (id: number) => setExpandedRow(prev => prev === id ? null : id);
+    const toggleRow = (id: string) => setExpandedRow(prev => prev === id ? null : id);
     
     const getReservationDetails = (reservation: Reservation) => {
         const allAddons = [];
@@ -1613,7 +1711,7 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
                 {(reservation.celebrationName || reservation.celebrationOccasion) && <div className="detail-section"><strong>Viering:</strong> {reservation.celebrationOccasion} ({reservation.celebrationName})</div>}
                 {reservation.remarks && <div className="detail-section"><strong>{i18n.formRemarks}:</strong> {reservation.remarks}</div>}
                 {allAddons.length > 0 && <div className="detail-section"><strong>{i18n.formAddons}:</strong> {allAddons.join(', ')}</div>}
-                 <div className="detail-section"><strong>{i18n.totalPrice}:</strong> €{reservation.totalPrice.toFixed(2)}</div>
+                 <div className="detail-section"><strong>{i18n.totalPrice}:</strong> €{(reservation.totalPrice || 0).toFixed(2)}</div>
             </div>
         );
     };
@@ -1746,7 +1844,7 @@ const PrintableListModal = ({ listType, onClose, show, reservations, config, onT
     show: ShowEvent,
     reservations: Reservation[],
     config: AppConfig,
-    onToggleCheckIn: (id: number) => void
+    onToggleCheckIn: (id: string) => void
 }) => {
     
     const printContentRef = useRef<HTMLDivElement>(null);
@@ -1820,7 +1918,7 @@ const PrintableListModal = ({ listType, onClose, show, reservations, config, onT
                                                   <div className="cell-sub">{r.companyName}</div>
                                                 </td>
                                                 <td>{r.guests}</td>
-                                                <td>€{r.totalPrice.toFixed(2)}</td>
+                                                <td>€{(r.totalPrice || 0).toFixed(2)}</td>
                                                 <td className="no-print">
                                                   <button className={`check-in-btn ${r.checkedIn ? 'checked-in' : ''}`} onClick={() => onToggleCheckIn(r.id)}>
                                                       <Icon id="check" />
@@ -1834,7 +1932,7 @@ const PrintableListModal = ({ listType, onClose, show, reservations, config, onT
                                         <tr>
                                             <td><strong>{i18n.total}</strong></td>
                                             <td><strong>{totalGuests}</strong></td>
-                                            <td><strong>€{reservations.reduce((sum, r) => sum + r.totalPrice, 0).toFixed(2)}</strong></td>
+                                            <td><strong>€{reservations.reduce((sum, r) => sum + (r.totalPrice || 0), 0).toFixed(2)}</strong></td>
                                             <td className="no-print"></td>
                                         </tr>
                                     </tfoot>
@@ -1888,14 +1986,14 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
     reservations: Reservation[],
     waitingList: WaitingListEntry[],
     onAddShow: (event: Omit<ShowEvent, 'id'>, dates: string[]) => void,
-    onDeleteReservation: (id: number) => void,
-    onDeleteWaitingList: (id: number) => void,
+    onDeleteReservation: (id: string) => void,
+    onDeleteWaitingList: (id: string) => void,
     config: AppConfig,
     guestCountMap: Map<string, number>,
     onBulkDelete: (criteria: { type: 'name' | 'type' | 'date', value: string }, month?: Date) => void;
     onDeleteShow: (showId: string) => void;
     onToggleShowStatus: (showId: string) => void;
-    onToggleCheckIn: (id: number) => void;
+    onToggleCheckIn: (id: string) => void;
     onEditReservation: (reservation: Reservation) => void;
 }) => {
     const [month, setMonth] = useState(new Date());
@@ -2360,7 +2458,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }: { currentPage: nu
 const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, onEditReservation }: { 
     reservations: Reservation[], 
     showEvents: ShowEvent[], 
-    onDeleteReservation: (id: number) => void,
+    onDeleteReservation: (id: string) => void,
     onEditReservation: (reservation: Reservation) => void 
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -2374,8 +2472,8 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
     // Enhanced analytics for reservations
     const reservationStats = useMemo(() => {
         const totalReservations = reservations.length;
-        const totalRevenue = reservations.reduce((sum, r) => sum + r.totalPrice, 0);
-        const totalGuests = reservations.reduce((sum, r) => sum + r.guests, 0);
+        const totalRevenue = reservations.reduce((sum, r) => sum + (r.totalPrice || 0), 0);
+        const totalGuests = reservations.reduce((sum, r) => sum + (r.guests || 0), 0);
         const avgBookingValue = totalReservations > 0 ? totalRevenue / totalReservations : 0;
         
         const today = formatDate(new Date());
@@ -2394,10 +2492,10 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
         let filtered = reservations.filter(r => {
             const show = showMap.get(r.date);
             const searchLower = searchTerm.toLowerCase();
-            const matchesSearch = r.contactName.toLowerCase().includes(searchLower) ||
+            const matchesSearch = (r.contactName && r.contactName.toLowerCase().includes(searchLower)) ||
                    (r.companyName && r.companyName.toLowerCase().includes(searchLower)) ||
-                   r.email.toLowerCase().includes(searchLower) ||
-                   r.date.includes(searchLower) ||
+                   (r.email && r.email.toLowerCase().includes(searchLower)) ||
+                   (r.date && r.date.includes(searchLower)) ||
                    (show && show.name.toLowerCase().includes(searchLower));
 
             // Date filter
@@ -2459,12 +2557,12 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
 
     const exportData = (format: 'csv' | 'json') => {
         const data = sortedFilteredReservations.map(r => ({
-            date: r.date,
+            date: r.date || '',
             show: showMap.get(r.date)?.name || 'Onbekend',
-            contactName: r.contactName,
-            email: r.email,
-            guests: r.guests,
-            totalPrice: r.totalPrice,
+            contactName: r.contactName || '',
+            email: r.email || '',
+            guests: r.guests || 0,
+            totalPrice: r.totalPrice || 0,
             companyName: r.companyName || '',
         }));
 
@@ -2608,10 +2706,10 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                                         <td>
                                             <div className="customer-cell">
                                                 <div className="customer-avatar">
-                                                    {r.contactName.charAt(0).toUpperCase()}
+                                                    {r.contactName ? r.contactName.charAt(0).toUpperCase() : '?'}
                                                 </div>
                                                 <div className="customer-info">
-                                                    <div className="customer-name">{r.contactName}</div>
+                                                    <div className="customer-name">{r.contactName || 'Onbekend'}</div>
                                                     <div className="customer-email">{r.companyName || r.email}</div>
                                                 </div>
                                             </div>
@@ -2623,7 +2721,7 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                                             </div>
                                         </td>
                                         <td>
-                                            <div className="amount-cell">€{r.totalPrice.toFixed(2)}</div>
+                                            <div className="amount-cell">€{(r.totalPrice || 0).toFixed(2)}</div>
                                         </td>
                                         <td className="actions-col">
                                             <div className="action-buttons">
@@ -3936,8 +4034,17 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const recentBookings = reservations
-            .filter(r => new Date(r.id).getTime() >= sevenDaysAgo.getTime() && new Date(r.date) >= new Date(today))
-            .sort((a,b) => b.id - a.id)
+            .filter(r => {
+                // Use createdAt instead of id for filtering
+                const createdDate = new Date(r.createdAt || r.date);
+                return createdDate.getTime() >= sevenDaysAgo.getTime() && new Date(r.date) >= new Date(today);
+            })
+            .sort((a,b) => {
+                // Sort by creation date, newest first
+                const aCreated = new Date(a.createdAt || a.date).getTime();
+                const bCreated = new Date(b.createdAt || b.date).getTime();
+                return bCreated - aCreated;
+            })
             .slice(0, 5);
 
         // Nearly Full Shows
@@ -6780,16 +6887,16 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
     internalEvents: InternalEvent[];
     config: AppConfig;
     onAddShow: (event: Omit<ShowEvent, 'id'>, dates: string[]) => void;
-    onDeleteReservation: (id: number) => void;
-    onDeleteWaitingList: (id: number) => void;
+    onDeleteReservation: (id: string) => void;
+    onDeleteWaitingList: (id: string) => void;
     onBulkDelete: (criteria: { type: 'name' | 'type' | 'date', value: string }, month?: Date) => void;
-    setConfig: React.Dispatch<React.SetStateAction<AppConfig>>;
+    setConfig: (config: AppConfig) => Promise<void>;
     guestCountMap: Map<string, number>;
     onDeleteShow: (showId: string) => void;
     onToggleShowStatus: (showId: string) => void;
     onUpdateShowCapacity: (showId: string, newCapacity: number) => void;
     onAddExternalBooking?: (showId: string, guests: number) => void;
-    onToggleCheckIn: (id: number) => void;
+    onToggleCheckIn: (id: string) => void;
     customers: Customer[];
     onUpdateReservation: (reservation: Reservation) => void;
     onUpdateWaitingList: (entry: WaitingListEntry) => void;
@@ -6807,7 +6914,7 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
     
     // 🎭 Enhanced Dashboard State
     const [showCheckInModal, setShowCheckInModal] = useState(false);
-    const [checkInReservationId, setCheckInReservationId] = useState<number | null>(null);
+    const [checkInReservationId, setCheckInReservationId] = useState<string | null>(null);
     const [emergencyMode, setEmergencyMode] = useState(false);
     const [broadcastMessage, setBroadcastMessage] = useState('');
     const [showBroadcastModal, setShowBroadcastModal] = useState(false);
@@ -6945,34 +7052,38 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                         theaterVouchers={config.theaterVouchers}
                         onCreateVoucher={(voucher) => {
                             const newVoucher = { ...voucher, id: Date.now().toString() };
-                            setConfig(prev => ({
-                                ...prev,
-                                theaterVouchers: [...prev.theaterVouchers, newVoucher]
-                            }));
+                            const updatedConfig = {
+                                ...config,
+                                theaterVouchers: [...config.theaterVouchers, newVoucher]
+                            };
+                            setConfig(updatedConfig);
                             addToast(`✅ Theaterbon ${newVoucher.code} aangemaakt`, 'success');
                         }}
                         onExtendVoucher={(voucherId, months) => {
-                            setConfig(prev => ({
-                                ...prev,
-                                theaterVouchers: prev.theaterVouchers.map(v => 
+                            const updatedConfig = {
+                                ...config,
+                                theaterVouchers: config.theaterVouchers.map(v => 
                                     v.id === voucherId ? extendVoucherExpiry(v, months) : v
                                 )
-                            }));
+                            };
+                            setConfig(updatedConfig);
                             addToast(`📅 Theaterbon verlengd met ${months} maanden`, 'success');
                         }}
                         onUpdateVoucher={(updatedVoucher) => {
-                            setConfig(prev => ({
-                                ...prev,
-                                theaterVouchers: prev.theaterVouchers.map(v => 
+                            const updatedConfig = {
+                                ...config,
+                                theaterVouchers: config.theaterVouchers.map(v => 
                                     v.id === updatedVoucher.id ? updatedVoucher : v
                                 )
-                            }));
+                            };
+                            setConfig(updatedConfig);
                         }}
                         onDeleteVoucher={(voucherId) => {
-                            setConfig(prev => ({
-                                ...prev,
-                                theaterVouchers: prev.theaterVouchers.filter(v => v.id !== voucherId)
-                            }));
+                            const updatedConfig = {
+                                ...config,
+                                theaterVouchers: config.theaterVouchers.filter(v => v.id !== voucherId)
+                            };
+                            setConfig(updatedConfig);
                             addToast(`🗑️ Theaterbon verwijderd`, 'success');
                         }}
                     />
@@ -8034,6 +8145,38 @@ const AppContent = () => {
     const [loading, setLoading] = useState(true);
     const { addToast } = useToast();
     
+    // Function to reload all data from Firebase (no local state updates)
+    const reloadFirebaseData = useCallback(async () => {
+        try {
+            console.log('🔄 Reloading all data from Firebase...');
+            
+            const [showsData, reservationsData, waitingListData, configData] = await Promise.all([
+                firebaseService.shows.getAllShows(),
+                firebaseService.reservations.getAllReservations(),
+                firebaseService.waitingList.getAllWaitingList(),
+                firebaseService.config.getConfig()
+            ]);
+            
+            // Update state with fresh Firebase data
+            setEvents(showsData);
+            setReservations(reservationsData);
+            setWaitingList(waitingListData);
+            
+            if (configData) {
+                setConfig(configData);
+            }
+            
+            console.log('✅ Firebase data reloaded:', {
+                shows: showsData.length,
+                reservations: reservationsData.length,
+                waitingList: waitingListData.length
+            });
+        } catch (error) {
+            console.error('❌ Error reloading Firebase data:', error);
+            addToast('Error reloading data from Firebase', 'error');
+        }
+    }, [addToast]);
+    
     // Load data from Firebase when component mounts
     useEffect(() => {
         const loadData = async () => {
@@ -8047,15 +8190,20 @@ const AppContent = () => {
                     return;
                 }
                 
+                // 🏗️ Initialize Firebase collections with sample data if empty
+                await initializeFirebaseCollections();
+                
                 const [
                     showsData,
                     reservationsData, 
                     waitingListData,
+                    configData,
                     internalEventsData
                 ] = await Promise.all([
                     firebaseService.shows.getAllShows(),
                     firebaseService.reservations.getAllReservations(),
                     firebaseService.waitingList.getAllWaitingList(),
+                    firebaseService.config.getConfig(),
                     [] // Start with empty internal events for now
                 ]);
                 
@@ -8064,10 +8212,21 @@ const AppContent = () => {
                 setWaitingList(waitingListData);
                 setInternalEvents(internalEventsData);
                 
+                // Load config from Firebase or use default
+                if (configData) {
+                    console.log('📝 Config loaded from Firebase');
+                    setConfig(configData);
+                } else {
+                    console.log('📝 No config found, initializing default config in Firebase');
+                    await firebaseService.config.initializeConfig(defaultConfig);
+                    setConfig(defaultConfig);
+                }
+                
                 console.log('Firebase data loaded successfully - Items loaded:', {
                     shows: showsData.length,
                     reservations: reservationsData.length,
-                    waitingList: waitingListData.length
+                    waitingList: waitingListData.length,
+                    configLoaded: !!configData
                 });
             } catch (error) {
                 console.error('Error loading Firebase data:', error);
@@ -8101,31 +8260,32 @@ const AppContent = () => {
                 newEvents.map(newEvent => firebaseService.shows.addShow(newEvent))
             );
             
-            // Update local state
-            setEvents(prev => [...prev, ...savedEvents]);
+            // ✅ NO LOCAL STATE - Reload data from Firebase instead
+            await reloadFirebaseData();
+            
+            console.log('✅ Shows added to Firebase - data reloaded');
             addToast(`${dates.length === 1 ? 'Show' : dates.length + ' shows'} succesvol toegevoegd!`, 'success');
         } catch (error) {
             console.error('Error adding events:', error);
             addToast('Fout bij toevoegen van shows', 'error');
         }
-    }, [addToast]);
+    }, [addToast, reloadFirebaseData]);
 
     const handleDeleteEvent = useCallback(async (eventId: string) => {
         try {
             // Delete from Firebase
             await firebaseService.shows.deleteShow(eventId);
             
-            // Update local state
-            setEvents(prev => prev.filter(e => e.id !== eventId));
-            setReservations(prev => prev.filter(r => !events.find(e => e.id === eventId && e.date === r.date)));
-            setWaitingList(prev => prev.filter(w => !events.find(e => e.id === eventId && e.date === w.date)));
+            // ✅ NO LOCAL STATE - Reload data from Firebase instead
+            await reloadFirebaseData();
             
+            console.log('✅ Event deleted from Firebase - data reloaded');
             addToast('Show verwijderd!', 'success');
         } catch (error) {
             console.error('Error deleting event:', error);
             addToast('Fout bij verwijderen van show', 'error');
         }
-    }, [events, addToast]);
+    }, [addToast, reloadFirebaseData]);
     
     const customers = useMemo(() => {
         const customerMap = new Map<string, {name: string, reservations: Reservation[]}>();
@@ -8150,40 +8310,84 @@ const AppContent = () => {
         });
     }, [reservations]);
 
-    const handleAddShow = (newShow: Omit<ShowEvent, 'id'>, dates: string[]) => {
-        const newEvents: ShowEvent[] = dates.map(date => ({
-            ...newShow,
-            id: `${slugify(newShow.name)}-${date}`,
-            date: date,
-        }));
-        setEvents(prev => [...prev.filter(e => !dates.includes(e.date)), ...newEvents]);
-    };
-
-    const handleDeleteShow = (showId: string) => {
-        const showToDelete = events.find(e => e.id === showId);
-        if(!showToDelete) return;
-
-        setEvents(prev => prev.filter(e => e.id !== showId));
-        setReservations(prev => prev.filter(r => r.date !== showToDelete.date));
-        setWaitingList(prev => prev.filter(w => w.date !== showToDelete.date));
-    };
-
-    const handleToggleShowStatus = (showId: string) => {
-        setEvents(prev => prev.map(e => {
-            if (e.id === showId) {
-                const currentGuests = guestCountMap.get(e.date) || 0;
-                const newStatus = !e.isClosed;
+    const handleAddShow = async (newShow: Omit<ShowEvent, 'id'>, dates: string[]) => {
+        try {
+            console.log('🎭 Adding shows to Firebase for dates:', dates);
+            
+            // Add each show to Firebase
+            const newEvents: ShowEvent[] = [];
+            for (const date of dates) {
+                const showForDate = {
+                    ...newShow,
+                    date: date,
+                };
                 
-                // Voorkom heropening als er 240+ gasten zijn
-                if (newStatus === false && currentGuests >= 240) {
-                    // Show kan niet heropend worden met 240+ gasten
-                    return e; // Geen wijziging
-                }
-                
-                return {...e, isClosed: !e.isClosed};
+                console.log('🔥 Adding show to Firebase:', showForDate);
+                const addedShow = await firebaseService.shows.addShow(showForDate);
+                newEvents.push(addedShow);
+                console.log('✅ Show added to Firebase:', addedShow.id);
             }
-            return e;
-        }));
+            
+            // Update local state with Firebase data
+            setEvents(prev => {
+                // Remove existing shows for these dates and add new ones
+                const filtered = prev.filter(e => !dates.includes(e.date));
+                return [...filtered, ...newEvents];
+            });
+            
+            console.log('🎉 All shows successfully added to Firebase and local state');
+        } catch (error) {
+            console.error('❌ Error adding shows:', error);
+        }
+    };
+
+    const handleDeleteShow = async (showId: string) => {
+        try {
+            const showToDelete = events.find(e => e.id === showId);
+            if(!showToDelete) return;
+
+            console.log('🗑️ Deleting show from Firebase:', showId);
+            
+            // Delete from Firebase
+            await firebaseService.shows.deleteShow(showId);
+            
+            // ✅ NO LOCAL STATE - Reload data from Firebase instead
+            await reloadFirebaseData();
+            
+            console.log('✅ Show deleted from Firebase - data reloaded');
+            addToast('Show verwijderd', 'success');
+        } catch (error) {
+            console.error('❌ Error deleting show:', error);
+            addToast('Fout bij verwijderen show', 'error');
+        }
+    };
+
+    const handleToggleShowStatus = async (showId: string) => {
+        try {
+            const showToUpdate = events.find(e => e.id === showId);
+            if (!showToUpdate) return;
+            
+            const currentGuests = guestCountMap.get(showToUpdate.date) || 0;
+            const newStatus = !showToUpdate.isClosed;
+            
+            // Voorkom heropening als er 240+ gasten zijn
+            if (newStatus === false && currentGuests >= 240) {
+                console.log('🚫 Cannot reopen show with 240+ guests');
+                return; // Geen wijziging
+            }
+            
+            console.log('🔄 Updating show status in Firebase:', showId, 'isClosed:', newStatus);
+            
+            // Update in Firebase
+            await firebaseService.shows.updateShow(showId, { isClosed: newStatus });
+            
+            // ✅ NO LOCAL STATE - Reload data from Firebase instead
+            await reloadFirebaseData();
+            
+            console.log('✅ Show status updated in Firebase - data reloaded');
+        } catch (error) {
+            console.error('❌ Error updating show status:', error);
+        }
     };
     
     const handleAddReservation = useCallback(async (newReservation: Omit<Reservation, 'id'>) => {
@@ -8191,7 +8395,7 @@ const AppContent = () => {
             // Add to Firebase (Firebase will generate the ID automatically)
             const savedReservation = await firebaseService.reservations.addReservation(newReservation);
             
-            // Update local state
+            // ✅ OPTIMISTIC UPDATE - Update local state immediately
             setReservations(prev => [...prev, savedReservation]);
             
             // AUTO-SLUITING/OPENING LOGICA bij nieuwe reserveringen
@@ -8200,13 +8404,13 @@ const AppContent = () => {
             const newTotalGuests = currentGuests + newReservation.guests;
             
             if (newTotalGuests >= 240) {
-                // Auto-sluiten bij 240+ gasten
-                setEvents(prev => prev.map(e => {
-                    if (e.date === showDate && !e.isClosed) {
-                        return {...e, isClosed: true};
-                    }
-                    return e;
-                }));
+                // Auto-sluiten bij 240+ gasten - Update Firebase, not local state
+                const showToClose = events.find(e => e.date === showDate && !e.isClosed);
+                if (showToClose) {
+                    await firebaseService.shows.updateShow(showToClose.id, { isClosed: true });
+                    // Update local state optimistically
+                    setEvents(prev => prev.map(e => e.id === showToClose.id ? {...e, isClosed: true} : e));
+                }
             }
 
             // Update voucher/gift card status if used
@@ -8214,26 +8418,34 @@ const AppContent = () => {
                 // Check if it's a theater voucher (nieuwe systeem)
                 const voucherIndex = config.theaterVouchers.findIndex(v => 
                     v.code === newReservation.promoCode && v.status === 'active'
-            );
+                );
             
-            if (voucherIndex > -1) {
-                // Mark theater voucher as used (volledig gebruik)
-                const updatedVouchers = [...config.theaterVouchers];
-                updatedVouchers[voucherIndex] = {
-                    ...updatedVouchers[voucherIndex],
-                    status: 'used',
-                    usedDate: formatDate(new Date()),
-                    usedReservationId: savedReservation.id
-                };
-                setConfig(prev => ({...prev, theaterVouchers: updatedVouchers}));
-                addToast(`🎫 Theaterbon ${newReservation.promoCode} gebruikt`, 'success');
+                if (voucherIndex > -1) {
+                    // Mark theater voucher as used (volledig gebruik)
+                    const updatedVouchers = [...config.theaterVouchers];
+                    updatedVouchers[voucherIndex] = {
+                        ...updatedVouchers[voucherIndex],
+                        status: 'used',
+                        usedDate: formatDate(new Date()),
+                        usedReservationId: savedReservation.id
+                    };
+                    const updatedConfig = {...config, theaterVouchers: updatedVouchers};
+                    await firebaseService.config.updateConfig(updatedConfig);
+                    // Update local config optimistically
+                    setConfig(updatedConfig);
+                    addToast(`🎫 Theaterbon ${newReservation.promoCode} gebruikt`, 'success');
+                }
             }
-        }
+            
+            console.log('✅ Reservation added to Firebase with optimistic updates');
+            addToast('Reservering succesvol toegevoegd!', 'success');
         } catch (error) {
             console.error('Error adding reservation:', error);
             addToast('Fout bij toevoegen van reservering', 'error');
+            // Fallback: reload from Firebase on error
+            await reloadFirebaseData();
         }
-    }, [setConfig, config.theaterVouchers, addToast, guestCountMap]);
+    }, [config.theaterVouchers, addToast, guestCountMap, events, reloadFirebaseData]);
 
     // Internal Events handlers
     const handleAddInternalEvent = useCallback((event: Omit<InternalEvent, 'id'>) => {
@@ -8294,18 +8506,15 @@ const AppContent = () => {
         setReservations(prev => prev.map(r => r.id === updatedReservation.id ? updatedReservation : r));
     };
     
-    const handleDeleteReservation = async (id: number | string) => {
+    const handleDeleteReservation = async (id: string) => {
         try {
-            // Convert number to string if needed for backwards compatibility
-            const idString = typeof id === 'number' ? id.toString() : id;
-            
-            const deletedReservation = reservations.find(r => r.id === idString);
+            const deletedReservation = reservations.find(r => r.id === id);
             
             // Delete from Firebase
-            await firebaseService.reservations.deleteReservation(idString);
+            await firebaseService.reservations.deleteReservation(id);
             
-            // Update local state
-            setReservations(prev => prev.filter(r => r.id !== idString));
+            // ✅ OPTIMISTIC UPDATE - Update local state immediately
+            setReservations(prev => prev.filter(r => r.id !== id));
             
             // AUTO-OPENING LOGICA bij verwijderen reserveringen
             if (deletedReservation) {
@@ -8314,27 +8523,33 @@ const AppContent = () => {
                 const newTotalGuests = Math.max(0, currentGuests - deletedReservation.guests);
                 
                 if (newTotalGuests < 240) {
-                    // Auto-openen onder 240 gasten
-                    setEvents(prev => prev.map(e => {
-                        if (e.date === showDate && e.isClosed) {
-                            return {...e, isClosed: false};
-                        }
-                        return e;
-                    }));
+                    // Auto-openen onder 240 gasten - Update Firebase and local state
+                    const showToOpen = events.find(e => e.date === showDate && e.isClosed);
+                    if (showToOpen) {
+                        await firebaseService.shows.updateShow(showToOpen.id, { isClosed: false });
+                        setEvents(prev => prev.map(e => e.id === showToOpen.id ? {...e, isClosed: false} : e));
+                    }
                 }
             }
             
+            console.log('✅ Reservation deleted from Firebase with optimistic updates');
             addToast('Reservering verwijderd', 'success');
         } catch (error) {
             console.error('Error deleting reservation:', error);
             addToast('Fout bij verwijderen van reservering', 'error');
+            // Fallback: reload from Firebase on error
+            await reloadFirebaseData();
         }
     };
     
     const handleAddWaitingList = async (newEntry: Omit<WaitingListEntry, 'id'>) => {
         try {
             const savedEntry = await firebaseService.waitingList.addWaitingListEntry(newEntry);
-            setWaitingList(prev => [...prev, savedEntry]);
+            
+            // ✅ NO LOCAL STATE - Reload data from Firebase instead
+            await reloadFirebaseData();
+            
+            console.log('✅ Waiting list entry added to Firebase - data reloaded');
             addToast(i18n.waitingListConfirmed, 'success');
         } catch (error) {
             console.error('Error adding to waiting list:', error);
@@ -8345,7 +8560,11 @@ const AppContent = () => {
     const handleDeleteWaitingList = async (id: string) => {
         try {
             await firebaseService.waitingList.deleteWaitingListEntry(id);
-            setWaitingList(prev => prev.filter(wl => wl.id !== id));
+            
+            // ✅ NO LOCAL STATE - Reload data from Firebase instead
+            await reloadFirebaseData();
+            
+            console.log('✅ Waiting list entry deleted from Firebase - data reloaded');
             addToast('Wachtlijst item verwijderd', 'success');
         } catch (error) {
             console.error('Error deleting from waiting list:', error);
@@ -8488,33 +8707,62 @@ const AppContent = () => {
         return guests * showTypeConfig.priceStandard;
     };
     
-    const handleBulkDelete = (criteria: { type: 'name' | 'type' | 'date', value: string }, month?: Date) => {
-        if(criteria.type === 'date') {
-            const datesToDelete = new Set(criteria.value.split(','));
-            setEvents(prev => prev.filter(e => !datesToDelete.has(e.date)));
-            setReservations(prev => prev.filter(r => !datesToDelete.has(r.date)));
-            setWaitingList(prev => prev.filter(w => !datesToDelete.has(w.date)));
-            return;
-        }
+    const handleBulkDelete = async (criteria: { type: 'name' | 'type' | 'date', value: string }, month?: Date) => {
+        try {
+            console.log('🗑️ Bulk deleting shows with criteria:', criteria);
+            
+            if(criteria.type === 'date') {
+                const datesToDelete = criteria.value.split(',');
+                console.log('📅 Deleting shows for dates:', datesToDelete);
+                
+                // Find shows to delete
+                const showsToDelete = events.filter(e => datesToDelete.includes(e.date));
+                console.log('🎭 Shows to delete:', showsToDelete.length);
+                
+                // Delete each show from Firebase
+                for (const show of showsToDelete) {
+                    console.log('🔥 Deleting show from Firebase:', show.id);
+                    await firebaseService.shows.deleteShow(show.id);
+                }
+                
+                // ✅ NO LOCAL STATE - Reload data from Firebase instead
+                await reloadFirebaseData();
+                
+                console.log('✅ Bulk delete completed for dates - data reloaded from Firebase');
+                addToast(`${showsToDelete.length} shows verwijderd`, 'success');
+                return;
+            }
 
-        if(!month) return;
+            if(!month) return;
 
-        const year = month.getFullYear();
-        const monthIndex = month.getMonth();
-        
-        const datesInMonthToDelete = new Set(
-            events
-                .filter(e => {
-                    const eventDate = new Date(e.date);
-                    return e[criteria.type] === criteria.value && eventDate.getFullYear() === year && eventDate.getMonth() === monthIndex;
-                })
-                .map(e => e.date)
-        );
-
-        if (datesInMonthToDelete.size > 0) {
-            setEvents(prev => prev.filter(e => !datesInMonthToDelete.has(e.date)));
-            setReservations(prev => prev.filter(r => !datesInMonthToDelete.has(r.date)));
-            setWaitingList(prev => prev.filter(w => !datesInMonthToDelete.has(w.date)));
+            console.log('📅 Bulk deleting shows for month:', month, 'with criteria:', criteria);
+            
+            const year = month.getFullYear();
+            const monthIndex = month.getMonth();
+            
+            // Find shows to delete for the specific month
+            const showsToDelete = events.filter(e => {
+                const eventDate = new Date(e.date);
+                return e[criteria.type] === criteria.value && eventDate.getFullYear() === year && eventDate.getMonth() === monthIndex;
+            });
+            
+            console.log('🎭 Shows to delete for month:', showsToDelete.length);
+            
+            // Delete each show from Firebase
+            for (const show of showsToDelete) {
+                console.log('🔥 Deleting show from Firebase:', show.id);
+                await firebaseService.shows.deleteShow(show.id);
+            }
+            
+            // ✅ NO LOCAL STATE - Reload data from Firebase instead
+            await reloadFirebaseData();
+            
+            console.log('✅ Bulk delete completed for month - data reloaded from Firebase');
+            addToast(`${showsToDelete.length} shows verwijderd`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Error during bulk delete:', error);
+            addToast('Er is een fout opgetreden bij het verwijderen', 'error');
         }
     };
     
@@ -8578,8 +8826,25 @@ const AppContent = () => {
         }
     }, [events, setReservations]);
 
-    const handleToggleCheckIn = (id: number) => {
+    const handleToggleCheckIn = (id: string) => {
         setReservations(prev => prev.map(r => r.id === id ? {...r, checkedIn: !r.checkedIn} : r));
+    };
+
+    // 🔧 Config update handler that saves to Firebase
+    const handleConfigUpdate = async (newConfig: AppConfig) => {
+        try {
+            console.log('📝 Updating config in Firebase:', newConfig);
+            
+            // Save to Firebase first
+            await firebaseService.config.updateConfig(newConfig);
+            
+            // Update local state
+            setConfig(newConfig);
+            
+            console.log('✅ Config successfully updated in Firebase and local state');
+        } catch (error) {
+            console.error('❌ Error updating config:', error);
+        }
     };
 
     return (
@@ -8620,7 +8885,7 @@ const AppContent = () => {
                         onDeleteReservation={handleDeleteReservation}
                         onDeleteWaitingList={handleDeleteWaitingList}
                         onBulkDelete={handleBulkDelete}
-                        setConfig={setConfig}
+                        setConfig={handleConfigUpdate}
                         guestCountMap={guestCountMap}
                         onDeleteShow={handleDeleteShow}
                         onToggleShowStatus={handleToggleShowStatus}

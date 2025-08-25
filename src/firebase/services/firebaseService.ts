@@ -134,9 +134,11 @@ export class ShowEventsService {
 
   async deleteShow(id: string): Promise<void> {
     try {
+      console.log('🔥 Firebase: Deleting show with ID:', id);
       await deleteDoc(doc(this.collection, id));
+      console.log('✅ Firebase: Show successfully deleted from Firestore');
     } catch (error) {
-      console.error('Error deleting show:', error);
+      console.error('❌ Firebase: Error deleting show:', error);
       throw new Error('Failed to delete show');
     }
   }
@@ -238,8 +240,18 @@ export class ReservationsService {
   async addReservation(reservation: Omit<Reservation, 'id'>): Promise<Reservation> {
     try {
       console.log('🔥 Firebase: Adding reservation to Firestore:', reservation);
+      
+      // Filter out undefined values to prevent Firestore errors
+      const cleanedReservation = Object.keys(reservation).reduce((acc, key) => {
+        const value = (reservation as any)[key];
+        if (value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as any);
+      
       const docRef = await addDoc(this.collection, {
-        ...reservation,
+        ...cleanedReservation,
         createdAt: serverTimestamp()
       });
       console.log('✅ Firebase: Reservation added successfully with document ID:', docRef.id);
@@ -274,14 +286,11 @@ export class ReservationsService {
     }
   }
 
-  async deleteReservation(id: number): Promise<void> {
+  async deleteReservation(id: string): Promise<void> {
     try {
-      const reservationQuery = query(this.collection, where('id', '==', id));
-      const snapshot = await getDocs(reservationQuery);
-      
-      if (!snapshot.empty) {
-        await deleteDoc(snapshot.docs[0].ref);
-      }
+      // Use doc ID directly since Firebase uses string IDs
+      await deleteDoc(doc(this.collection, id));
+      console.log('🗑️ Firebase: Reservation deleted with ID:', id);
     } catch (error) {
       console.error('Error deleting reservation:', error);
       throw new Error('Failed to delete reservation');
@@ -396,14 +405,11 @@ export class WaitingListService {
     }
   }
 
-  async deleteWaitingListEntry(id: number): Promise<void> {
+  async deleteWaitingListEntry(id: string): Promise<void> {
     try {
-      const entryQuery = query(this.collection, where('id', '==', id));
-      const snapshot = await getDocs(entryQuery);
-      
-      if (!snapshot.empty) {
-        await deleteDoc(snapshot.docs[0].ref);
-      }
+      // Use doc ID directly since Firebase uses string IDs
+      await deleteDoc(doc(this.collection, id));
+      console.log('🗑️ Firebase: Waiting list entry deleted with ID:', id);
     } catch (error) {
       console.error('Error deleting waiting list entry:', error);
       throw new Error('Failed to delete waiting list entry');
