@@ -208,7 +208,7 @@ export interface PredictiveMetrics {
     notificationOptimalTiming: { hour: number; responseRate: number }[];
 }
 
-export type View = 'book' | 'admin' | 'firebase';
+export type View = 'book' | 'admin';
 export type AdminView = 'dashboard' | 'calendar' | 'reservations' | 'customers' | 'settings' | 'capacity' | 'reports' | 'customerDetail' | 'approvals' | 'waitlist' | 'analytics' | 'vouchers' | 'schedule';
 export type SettingsTab = 'shows' | 'booking' | 'merchandise' | 'promo' | 'archive';
 

@@ -37,16 +37,24 @@ export const BookingView: React.FC<BookingViewProps> = ({
     const [month, setMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [bookingMode, setBookingMode] = useState(false);
+    const [showWaitlistModal, setShowWaitlistModal] = useState(false);
     const [popoverData, setPopoverData] = useState<{ event: ShowEvent, guests: number, element: HTMLDivElement } | null>(null);
+    const [wasAvailableWhenStarted, setWasAvailableWhenStarted] = useState<boolean>(false);
     
     const activeShowEvents = useMemo(() => {
         const now = new Date();
         const archivedShowNames = new Set(config.showNames.filter(s => s.archived).map(s => s.name));
         const archivedShowTypes = new Set(config.showTypes.filter(t => t.archived).map(t => t.name));
         
-        return showEvents.filter(e => {
+        console.log('🔍 BookingView - Total showEvents received:', showEvents.length);
+        console.log('🔍 BookingView - showEvents:', showEvents);
+        console.log('🔍 BookingView - Archived show names:', Array.from(archivedShowNames));
+        console.log('🔍 BookingView - Archived show types:', Array.from(archivedShowTypes));
+        
+        const filtered = showEvents.filter(e => {
             // Filter gearchiveerde shows
             if (archivedShowNames.has(e.name) || archivedShowTypes.has(e.type)) {
+                console.log('🚫 BookingView - Filtering out archived show:', e.name, e.type);
                 return false;
             }
             
@@ -63,9 +71,15 @@ export const BookingView: React.FC<BookingViewProps> = ({
             // Show is verlopen als huidige tijd voorbij showtijd is
             const isExpired = now > showDateTime;
             
+            console.log(`🕐 BookingView - Show "${e.name}" on ${e.date}: isExpired=${isExpired}, showDateTime=${showDateTime}, now=${now}`);
+            
             // Verberg verstreken shows van booking kalender
             return !isExpired;
         });
+        
+        console.log('✅ BookingView - Active show events after filtering:', filtered.length);
+        console.log('✅ BookingView - Active events:', filtered);
+        return filtered;
     }, [showEvents, config]);
     
     const monthEvents = useMemo(() => {
@@ -90,21 +104,39 @@ export const BookingView: React.FC<BookingViewProps> = ({
     };
     
     const handleStartBooking = () => {
-        setBookingMode(true);
+        // Onthoud of de show beschikbaar was toen we de booking begonnen
+        setWasAvailableWhenStarted(!selectedShow?.isClosed);
+        
+        if (isUnavailable) {
+            // Toon wachtlijst binnen de bestaande pagina
+            setShowWaitlistModal(true);
+        } else {
+            // Start normale booking flow
+            setBookingMode(true);
+        }
     };
 
     const handleCloseWizard = () => {
         setSelectedDate(null);
         setBookingMode(false);
+        setWasAvailableWhenStarted(false);
+    };
+    
+    const handleCloseWaitlistModal = () => {
+        setShowWaitlistModal(false);
     };
 
     const selectedShow = useMemo(() => activeShowEvents.find(e => e.date === selectedDate), [activeShowEvents, selectedDate]);
     const guestsForSelectedDate = guestCountMap.get(selectedDate || '') || 0;
     const remainingCapacity = selectedShow ? selectedShow.capacity - guestsForSelectedDate : 0;
     
-    // NIEUWE LOGICA: Shows zijn "vol" bij 240+ gasten, ongeacht capaciteit
-    const isFull = selectedShow ? guestsForSelectedDate >= 240 : false;
-    const isUnavailable = !!selectedShow?.isClosed || isFull; // Gesloten shows OF shows met 240+ gasten gaan naar wachtlijst
+    // AANGEPASTE LOGICA: Alleen gesloten shows gaan naar wachtlijst
+    // Capaciteit overschrijdingen gaan naar provisional status voor admin goedkeuring
+    const isUnavailable = !!selectedShow?.isClosed; // Alleen expliciet gesloten shows gaan naar wachtlijst
+    
+    // Als iemand al bezig is met boeken en de show beschikbaar was toen ze begonnen,
+    // laat ze dan de boeking afmaken ook al wordt de show intussen gesloten
+    const shouldShowWaitingList = bookingMode ? !wasAvailableWhenStarted && isUnavailable : isUnavailable;
 
     const renderBookingPanelContent = () => {
         if (!selectedDate || !selectedShow) {
@@ -117,26 +149,16 @@ export const BookingView: React.FC<BookingViewProps> = ({
         }
 
         if (bookingMode) {
-             const wrapperClass = isUnavailable ? 'waiting-list-container-wrapper' : 'wizard-container-wrapper';
             return (
-                <div className={wrapperClass}>
-                    {isUnavailable ? (
-                        <WaitingListForm 
-                            show={selectedShow} 
-                            date={selectedDate} 
-                            onAddToWaitingList={onAddWaitingList}
-                            onClose={handleCloseWizard} 
-                        />
-                    ) : (
-                        <ReservationWizard 
-                            show={selectedShow} 
-                            date={selectedDate} 
-                            onAddReservation={onAddReservation} 
-                            config={config} 
-                            remainingCapacity={remainingCapacity}
-                            onClose={handleCloseWizard}
-                        />
-                    )}
+                <div className="wizard-container-wrapper">
+                    <ReservationWizard 
+                        show={selectedShow} 
+                        date={selectedDate} 
+                        onAddReservation={onAddReservation} 
+                        config={config} 
+                        remainingCapacity={remainingCapacity}
+                        onClose={handleCloseWizard}
+                    />
                 </div>
             );
         }
@@ -176,6 +198,18 @@ export const BookingView: React.FC<BookingViewProps> = ({
             </div>
             
             <CalendarPopover data={popoverData} view="book" config={config} />
+            
+            {/* Wachtlijst Form - gewoon binnen de pagina */}
+            {showWaitlistModal && selectedShow && selectedDate && (
+                <div style={{ marginTop: '20px' }}>
+                    <WaitingListForm 
+                        show={selectedShow} 
+                        date={selectedDate} 
+                        onAddToWaitingList={onAddWaitingList}
+                        onClose={handleCloseWaitlistModal} 
+                    />
+                </div>
+            )}
         </div>
     );
 };

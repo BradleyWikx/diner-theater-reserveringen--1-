@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wachtlijst - Theater Reservering</title>
+    <link rel="stylesheet" href="./index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d1810 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .popup-container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .waitlist-popup-content {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 600px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .popup-header {
+            background: linear-gradient(135deg, #B91C1C, #DC2626);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .popup-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="theater" patternUnits="userSpaceOnUse" width="20" height="20"><circle cx="10" cy="10" r="2" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23theater)"/></svg>') repeat;
+        }
+        
+        .popup-header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .popup-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .popup-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+        
+        .popup-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: background-color 0.3s ease;
+            z-index: 2;
+        }
+        
+        .popup-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .popup-body {
+            padding: 40px 30px;
+        }
+        
+        .show-info-card {
+            background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #D97706;
+        }
+        
+        .show-info-card h3 {
+            color: #92400E;
+            margin: 0 0 5px 0;
+            font-family: 'Playfair Display', serif;
+        }
+        
+        .show-info-card p {
+            color: #B45309;
+            margin: 0;
+        }
+        
+        .waitlist-form {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .form-section {
+            background: #F9FAFB;
+            border-radius: 12px;
+            padding: 25px;
+            border: 2px solid #E5E7EB;
+        }
+        
+        .section-title {
+            color: #374151;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .form-label {
+            display: block;
+            color: #374151;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .form-input, .number-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #D1D5DB;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        .form-input:focus, .number-input:focus {
+            outline: none;
+            border-color: #B91C1C;
+            box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+        }
+        
+        .number-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 200px;
+        }
+        
+        .number-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #D1D5DB;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+            color: #6B7280;
+        }
+        
+        .number-btn:hover:not(:disabled) {
+            border-color: #B91C1C;
+            color: #B91C1C;
+        }
+        
+        .number-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .number-input {
+            width: 60px;
+            text-align: center;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #B91C1C, #DC2626);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(185, 28, 28, 0.3);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #6B7280;
+            border: 2px solid #D1D5DB;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-secondary:hover {
+            border-color: #9CA3AF;
+            color: #374151;
+        }
+        
+        .success-state {
+            text-align: center;
+            padding: 40px 30px;
+        }
+        
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #10B981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            color: white;
+            font-size: 36px;
+        }
+        
+        .success-title {
+            color: #059669;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            margin: 0 0 15px 0;
+        }
+        
+        .success-message {
+            color: #6B7280;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        
+        .auto-close-timer {
+            color: #9CA3AF;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="popup-container">
+        <div class="waitlist-popup-content">
+            <div class="popup-header">
+                <button class="popup-close" onclick="window.close()">×</button>
+                <div class="popup-header-content">
+                    <h1 class="popup-title" id="showTitle">Wachtlijst</h1>
+                    <p class="popup-subtitle" id="showDate"></p>
+                </div>
+            </div>
+            
+            <div class="popup-body">
+                <div id="waitlistForm">
+                    <div class="show-info-card">
+                        <h3>Show is momenteel uitverkocht</h3>
+                        <p>Voeg jezelf toe aan de wachtlijst en we informeren je zodra er plaatsen beschikbaar komen.</p>
+                    </div>
+                    
+                    <form class="waitlist-form" onsubmit="submitWaitlist(event)">
+                        <div class="form-section">
+                            <h4 class="section-title">
+                                👤 Persoonlijke gegevens
+                            </h4>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="name">Volledige naam *</label>
+                                <input type="text" id="name" class="form-input" placeholder="Bijv. Jan van der Berg" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="email">E-mailadres *</label>
+                                <input type="email" id="email" class="form-input" placeholder="bijv@voorbeeld.nl" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="phone">Telefoonnummer *</label>
+                                <input type="tel" id="phone" class="form-input" placeholder="06 12 34 56 78" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h4 class="section-title">
+                                👥 Reservering details
+                            </h4>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="guests">Aantal personen *</label>
+                                <div class="number-input-wrapper">
+                                    <button type="button" class="number-btn" onclick="changeGuests(-1)">-</button>
+                                    <input type="number" id="guests" class="number-input" value="2" min="1" max="20" required>
+                                    <button type="button" class="number-btn" onclick="changeGuests(1)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="window.close()">
+                                ← Annuleren
+                            </button>
+                            <button type="submit" class="btn-primary">
+                                + Toevoegen aan wachtlijst
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div id="successState" style="display: none;">
+                    <div class="success-state">
+                        <div class="success-icon">✓</div>
+                        <h3 class="success-title">Succesvol toegevoegd!</h3>
+                        <p class="success-message">
+                            U bent toegevoegd aan de wachtlijst. We sturen u een email zodra er plaatsen beschikbaar komen.
+                        </p>
+                        <button class="btn-primary" onclick="window.close()">Sluiten</button>
+                        <div class="auto-close-timer">
+                            Deze popup sluit automatisch over <span id="countdown">5</span> seconden...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const showName = urlParams.get('show') || 'Onbekende Show';
+        const showDate = urlParams.get('date') || new Date().toLocaleDateString('nl-NL');
+        const showType = urlParams.get('type') || '';
+        
+        // Update page content
+        document.getElementById('showTitle').textContent = `Wachtlijst voor ${showName}`;
+        document.getElementById('showDate').textContent = new Date(showDate).toLocaleDateString('nl-NL', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        // Guests counter functionality
+        function changeGuests(change) {
+            const input = document.getElementById('guests');
+            const currentValue = parseInt(input.value) || 1;
+            const newValue = Math.max(1, Math.min(20, currentValue + change));
+            input.value = newValue;
+            
+            // Update button states
+            const minusBtn = document.querySelector('.number-btn');
+            const plusBtn = document.querySelectorAll('.number-btn')[1];
+            minusBtn.disabled = newValue <= 1;
+            plusBtn.disabled = newValue >= 20;
+        }
+        
+        // Form submission
+        function submitWaitlist(event) {
+            event.preventDefault();
+            
+            const formData = {
+                show: showName,
+                date: showDate,
+                type: showType,
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                guests: parseInt(document.getElementById('guests').value)
+            };
+            
+            // Simulate form submission (replace with actual API call)
+            console.log('Waitlist submission:', formData);
+            
+            // Show success state
+            document.getElementById('waitlistForm').style.display = 'none';
+            document.getElementById('successState').style.display = 'block';
+            
+            // Auto-close countdown
+            let countdown = 5;
+            const countdownEl = document.getElementById('countdown');
+            const timer = setInterval(() => {
+                countdown--;
+                countdownEl.textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    window.close();
+                }
+            }, 1000);
+            
+            // Try to communicate back to parent window if possible
+            if (window.opener && !window.opener.closed) {
+                try {
+                    window.opener.postMessage({
+                        type: 'waitlistAdded',
+                        data: formData
+                    }, '*');
+                } catch (e) {
+                    console.log('Could not communicate with parent window');
+                }
+            }
+        }
+        
+        // Initialize guest counter button states
+        changeGuests(0);
+        
+        // Handle ESC key to close popup
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                window.close();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -18,9 +18,6 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) =
             <button onClick={() => setCurrentView('admin')} className={currentView === 'admin' ? 'active' : ''} aria-pressed={currentView === 'admin'}>
                 {i18n.adminPanel.title}
             </button>
-            <button onClick={() => setCurrentView('firebase')} className={currentView === 'firebase' ? 'active' : ''} aria-pressed={currentView === 'firebase'}>
-                🔥 Firebase Test
-            </button>
         </nav>
     </header>
 );

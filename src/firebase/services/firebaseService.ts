@@ -217,18 +217,17 @@ export class ReservationsService {
     }
   }
 
-  async getReservationById(id: number): Promise<Reservation | null> {
+  async getReservationById(id: string): Promise<Reservation | null> {
     try {
-      const q = query(this.collection, where('id', '==', id));
-      const snapshot = await getDocs(q);
+      const docRef = doc(this.collection, id);
+      const docSnap = await getDoc(docRef);
       
-      if (snapshot.empty) return null;
+      if (!docSnap.exists()) return null;
       
-      const doc = snapshot.docs[0];
-      const data = doc.data();
+      const data = docSnap.data();
       return {
         ...data,
-        id: parseInt(data.id),
+        id: docSnap.id,
         createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt
       } as unknown as Reservation;
     } catch (error) {
@@ -269,17 +268,14 @@ export class ReservationsService {
     }
   }
 
-  async updateReservation(id: number, updates: Partial<Reservation>): Promise<void> {
+  async updateReservation(id: string, updates: Partial<Reservation>): Promise<void> {
     try {
-      const reservationQuery = query(this.collection, where('id', '==', id));
-      const snapshot = await getDocs(reservationQuery);
-      
-      if (!snapshot.empty) {
-        await updateDoc(snapshot.docs[0].ref, {
-          ...updates,
-          updatedAt: serverTimestamp()
-        });
-      }
+      // Use doc ID directly since Firebase uses string IDs (consistent with deleteReservation)
+      await updateDoc(doc(this.collection, id), {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+      console.log('✅ Firebase: Reservation updated with ID:', id);
     } catch (error) {
       console.error('Error updating reservation:', error);
       throw new Error('Failed to update reservation');
@@ -303,7 +299,7 @@ export class ReservationsService {
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({
         ...doc.data(),
-        id: parseInt(doc.data().id) || Date.now(),
+        id: doc.id,
         createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt
       })) as Reservation[];
     } catch (error) {
@@ -324,7 +320,7 @@ export class ReservationsService {
           console.log('🔥 Firebase: Processing reservation doc:', doc.id, data);
           return {
             ...data,
-            id: parseInt(data.id) || Date.now(),
+            id: doc.id,
             createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt
           };
         }) as Reservation[];
@@ -388,17 +384,13 @@ export class WaitingListService {
     }
   }
 
-  async updateWaitingListEntry(id: number, updates: Partial<WaitingListEntry>): Promise<void> {
+  async updateWaitingListEntry(id: string, updates: Partial<WaitingListEntry>): Promise<void> {
     try {
-      const entryQuery = query(this.collection, where('id', '==', id));
-      const snapshot = await getDocs(entryQuery);
-      
-      if (!snapshot.empty) {
-        await updateDoc(snapshot.docs[0].ref, {
-          ...updates,
-          updatedAt: serverTimestamp()
-        });
-      }
+      const docRef = doc(this.collection, id);
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
     } catch (error) {
       console.error('Error updating waiting list entry:', error);
       throw new Error('Failed to update waiting list entry');
@@ -423,7 +415,7 @@ export class WaitingListService {
       (snapshot) => {
         const waitingList = snapshot.docs.map(doc => ({
           ...doc.data(),
-          id: parseInt(doc.data().id) || Date.now(),
+          id: doc.id,
           addedAt: doc.data().addedAt?.toDate?.() || undefined
         })) as WaitingListEntry[];
         callback(waitingList);

@@ -7,6 +7,20 @@ export {
     getShowTimes
 } from './utilities';
 
+// Mobile utilities
+export {
+    mobileViewportFix,
+    preventDoubleTabZoom,
+    ensureViewportMeta,
+    optimizeTouchActions,
+    initMobileOptimizations,
+    isMobileDevice,
+    isTouchDevice,
+    getDevicePixelRatio,
+    isStandaloneMode,
+    handleSafeAreaInsets
+} from './mobileUtils';
+
 // Text utilities
 export { 
     slugify, 

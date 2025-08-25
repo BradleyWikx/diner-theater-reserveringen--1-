@@ -120,7 +120,7 @@ export const useReservations = () => {
 
   const updateReservation = useCallback(async (id: string, updates: Partial<Reservation>) => {
     try {
-      await firebaseService.reservations.updateReservation(parseInt(id), updates);
+      await firebaseService.reservations.updateReservation(id, updates);
       console.log('✅ Reservering bijgewerkt!');
     } catch (error) {
       console.error('Error updating reservation:', error);

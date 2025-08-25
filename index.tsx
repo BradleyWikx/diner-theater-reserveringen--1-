@@ -56,56 +56,16 @@ import { ConfirmationProvider, useConfirmation } from './src/components/provider
 import { BookingView } from './src/components/views/BookingView';
 
 // Import hooks
-import { useMediaQuery } from './src/hooks';
+import { useMediaQuery, useMobile } from './src/hooks';
 
 // Import Firebase services
 import { firebaseService } from './src/firebase/services/firebaseService';
 
-// 🔥 TEST: Firebase Connection Test
-const testFirebaseConnection = async () => {
-    console.log('🔥 Testing Firebase connection...');
-    
-    try {
-        // Test 1: Read shows
-        console.log('📖 Testing READ operation...');
-        const shows = await firebaseService.shows.getAllShows();
-        console.log('✅ READ SUCCESS - Shows loaded:', shows.length);
-        
-        // Test 2: Try to write a test document
-        console.log('✏️ Testing WRITE operation...');
-        const testShow = {
-            name: 'TEST_SHOW_' + Date.now(),
-            date: '2025-12-31',
-            time: '20:00',
-            description: 'Test show to verify Firebase write permissions',
-            type: 'regular' as any,
-            ticketPrice: 25.00,
-            capacity: 100,
-            reservedSeats: 0,
-            isArchived: false,
-            weekNumber: 1
-        };
-        
-        const addedShow = await firebaseService.shows.addShow(testShow);
-        console.log('✅ WRITE SUCCESS - Test show added:', addedShow.id);
-        
-        // Test 3: Delete the test show immediately
-        await firebaseService.shows.deleteShow(addedShow.id);
-        console.log('🗑️ Test show deleted successfully');
-        
-        console.log('🎉 Firebase connection FULLY OPERATIONAL');
-        return true;
-        
-    } catch (error) {
-        console.error('❌ Firebase connection FAILED:', error);
-        console.error('📋 Error details:', {
-            message: error.message,
-            code: error.code,
-            stack: error.stack
-        });
-        return false;
-    }
-};
+// Import Email service
+import { sendBookingNotification, type BookingEmailData } from './src/services/emailService';
+
+// Import mobile utilities
+import { initMobileOptimizations } from './src/utils/mobileUtils';
 
 // 🏗️ Initialize Firebase Collections with sample data
 const initializeFirebaseCollections = async () => {
@@ -619,19 +579,116 @@ const WaitingListForm = ({ show, date, onAddToWaitingList, onClose }: { show: Sh
         .replace('{year}', dateObj.toLocaleDateString('nl-NL', { year: 'numeric' }))
         .replace('{showType}', show.type);
     
+    if (submitted) {
+        return (
+            <div className="waiting-list-form">
+                <div className="waitlist-confirmation">
+                    <Icon id="check-circle" className="confirmation-icon-large" />
+                    <h3>✅ Op de wachtlijst geplaatst!</h3>
+                    <p>Bedankt <strong>{name}</strong>! Je bent succesvol toegevoegd aan de wachtlijst voor:</p>
+                    <div className="show-details-card">
+                        <h4>🎭 {show.name}</h4>
+                        <p>{formattedDate}</p>
+                        <p>👥 {guests} {guests === 1 ? 'persoon' : 'personen'}</p>
+                    </div>
+                    <div className="next-steps">
+                        <h4>Wat gebeurt er nu?</h4>
+                        <ul>
+                            <li>📧 We informeren je zodra er plaatsen beschikbaar komen</li>
+                            <li>⏰ Je hebt 24 uur om te reageren op beschikbaarheid</li>
+                            <li>🎫 Bij bevestiging ontvang je direct je tickets</li>
+                        </ul>
+                    </div>
+                    <button onClick={onClose} className="submit-btn">Sluiten</button>
+                </div>
+            </div>
+        );
+    }
+    
     return (
         <div className="waiting-list-form">
             <button type="button" className="wizard-close-btn" onClick={onClose} aria-label={i18n.close}><Icon id="close"/></button>
-            <h3>{i18n.waitingListFormTitle.replace('{showName}', show.name)}</h3>
-            <p className="show-info-date">{formattedDate}</p>
-            <p className="info-text">{i18n.waitingListInfo}</p>
-            {submitted && <div className="confirmation-message">{i18n.waitingListConfirmed}</div>}
-            <form onSubmit={handleSubmit}>
-                <div className="form-group"><label htmlFor="name">{i18n.fullName}</label><input id="name" type="text" value={name} onChange={e => setName(e.target.value)} required /></div>
-                <div className="form-group"><label htmlFor="email">E-mailadres</label><input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-                <div className="form-group"><label htmlFor="phone">Telefoonnummer</label><input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required /></div>
-                <div className="form-group"><label htmlFor="guests">{i18n.numberOfGuests}</label><input id="guests" type="number" value={guests} min="1" onChange={e => setGuests(parseInt(e.target.value, 10))} required /></div>
-                <button type="submit" className="submit-btn">{i18n.joinWaitingList}</button>
+            
+            <div className="waitlist-header">
+                <Icon id="clock" className="waitlist-icon" />
+                <h3>🎭 Wachtlijst voor {show.name}</h3>
+                <p className="show-info-date">{formattedDate}</p>
+            </div>
+
+            <div className="capacity-notice">
+                <Icon id="info" />
+                <div>
+                    <strong>Show is vol!</strong>
+                    <p>Deze voorstelling is momenteel uitverkocht. Voeg jezelf toe aan de wachtlijst en we informeren je zodra er plaatsen beschikbaar komen.</p>
+                </div>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="waitlist-form-fields">
+                <div className="form-group">
+                    <label htmlFor="name">
+                        <Icon id="user" />
+                        {i18n.fullName}
+                    </label>
+                    <input 
+                        id="name" 
+                        type="text" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        placeholder="Voer je volledige naam in"
+                        required 
+                    />
+                </div>
+                
+                <div className="form-group">
+                    <label htmlFor="email">
+                        <Icon id="mail" />
+                        E-mailadres
+                    </label>
+                    <input 
+                        id="email" 
+                        type="email" 
+                        value={email} 
+                        onChange={e => setEmail(e.target.value)} 
+                        placeholder="je@email.com"
+                        required 
+                    />
+                </div>
+                
+                <div className="form-group">
+                    <label htmlFor="phone">
+                        <Icon id="phone" />
+                        Telefoonnummer
+                    </label>
+                    <input 
+                        id="phone" 
+                        type="tel" 
+                        value={phone} 
+                        onChange={e => setPhone(e.target.value)} 
+                        placeholder="06-12345678"
+                        required 
+                    />
+                </div>
+                
+                <div className="form-group">
+                    <label htmlFor="guests">
+                        <Icon id="users" />
+                        {i18n.numberOfGuests}
+                    </label>
+                    <input 
+                        id="guests" 
+                        type="number" 
+                        value={guests} 
+                        min="1" 
+                        max="20"
+                        onChange={e => setGuests(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))} 
+                        required 
+                    />
+                </div>
+                
+                <button type="submit" className="submit-btn waitlist-submit-btn">
+                    <Icon id="clock" />
+                    Toevoegen aan wachtlijst
+                </button>
             </form>
         </div>
     )
@@ -1853,8 +1910,8 @@ const PrintableListModal = ({ listType, onClose, show, reservations, config, onT
         window.print();
     };
 
-    const totalGuests = reservations.reduce((sum, r) => sum + r.guests, 0);
-    const checkedInGuests = reservations.filter(r => r.checkedIn).reduce((sum, r) => sum + r.guests, 0);
+    const totalGuests = reservations.filter(r => r.status === 'confirmed').reduce((sum, r) => sum + r.guests, 0);
+    const checkedInGuests = reservations.filter(r => r.checkedIn && r.status === 'confirmed').reduce((sum, r) => sum + r.guests, 0);
     const checkInProgress = totalGuests > 0 ? (checkedInGuests / totalGuests) * 100 : 0;
     
     const kitchenData = useMemo(() => {
@@ -2022,7 +2079,7 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
     }
 
     const selectedShow = useMemo(() => showEvents.find(e => e.date === selectedDate), [showEvents, selectedDate]);
-    const dayReservations = useMemo(() => reservations.filter(r => r.date === selectedDate), [reservations, selectedDate]);
+    const dayReservations = useMemo(() => reservations.filter(r => r.date === selectedDate && r.status === 'confirmed'), [reservations, selectedDate]);
     const dayWaitingList = useMemo(() => waitingList.filter(wl => wl.date === selectedDate), [waitingList, selectedDate]);
     
     const monthEvents = useMemo(() => {
@@ -2040,19 +2097,20 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
         return events;
     }, [showEvents, month, filterType]);
 
-    // Enhanced statistics for the calendar view
+    // Enhanced statistics for the calendar view - only count confirmed reservations
     const monthStats = useMemo(() => {
         const totalShows = monthEvents.length;
-        const totalBookings = reservations.filter(r => {
+        const confirmedReservations = reservations.filter(r => r.status === 'confirmed');
+        const totalBookings = confirmedReservations.filter(r => {
             const resDate = new Date(r.date);
             return resDate.getFullYear() === month.getFullYear() && resDate.getMonth() === month.getMonth();
         }).length;
-        const totalRevenue = reservations.filter(r => {
+        const totalRevenue = confirmedReservations.filter(r => {
             const resDate = new Date(r.date);
             return resDate.getFullYear() === month.getFullYear() && resDate.getMonth() === month.getMonth();
         }).reduce((sum, r) => sum + r.totalPrice, 0);
         const totalCapacity = monthEvents.reduce((sum, e) => sum + e.capacity, 0);
-        const totalGuests = reservations.filter(r => {
+        const totalGuests = confirmedReservations.filter(r => {
             const resDate = new Date(r.date);
             return resDate.getFullYear() === month.getFullYear() && resDate.getMonth() === month.getMonth();
         }).reduce((sum, r) => sum + r.guests, 0);
@@ -2469,15 +2527,16 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
 
     const showMap = useMemo(() => new Map(showEvents.map(s => [s.date, s])), [showEvents]);
     
-    // Enhanced analytics for reservations
+    // Enhanced analytics for reservations - only count confirmed reservations
     const reservationStats = useMemo(() => {
-        const totalReservations = reservations.length;
-        const totalRevenue = reservations.reduce((sum, r) => sum + (r.totalPrice || 0), 0);
-        const totalGuests = reservations.reduce((sum, r) => sum + (r.guests || 0), 0);
+        const confirmedReservations = reservations.filter(r => r.status === 'confirmed');
+        const totalReservations = confirmedReservations.length;
+        const totalRevenue = confirmedReservations.reduce((sum, r) => sum + (r.totalPrice || 0), 0);
+        const totalGuests = confirmedReservations.reduce((sum, r) => sum + (r.guests || 0), 0);
         const avgBookingValue = totalReservations > 0 ? totalRevenue / totalReservations : 0;
         
         const today = formatDate(new Date());
-        const todayReservations = reservations.filter(r => r.date === today).length;
+        const todayReservations = reservations.filter(r => r.date === today && r.status === 'confirmed').length;
         
         return {
             totalReservations,
@@ -2489,7 +2548,11 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
     }, [reservations]);
     
     const sortedFilteredReservations = useMemo(() => {
+        // Only show confirmed reservations in main reservation list
         let filtered = reservations.filter(r => {
+            // First filter by status - only show confirmed reservations
+            if (r.status !== 'confirmed') return false;
+            
             const show = showMap.get(r.date);
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch = (r.contactName && r.contactName.toLowerCase().includes(searchLower)) ||
@@ -3162,10 +3225,11 @@ const CustomerDetailView = ({ customer, onBack, showEvents, onEditReservation }:
 };
 
 // 🛡️ Admin Approvals View - Basic Implementation for Phase 1
-const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
+const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation, guestCountMap }: {
     reservations: Reservation[];
     showEvents: ShowEvent[];
     onUpdateReservation: (reservation: Reservation) => void;
+    guestCountMap: Map<string, number>;
 }) => {
     const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
 
@@ -3188,6 +3252,27 @@ const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
     const getShowName = (date: string) => {
         const show = showEvents.find(s => s.date === date);
         return show ? `${show.name} (${show.type})` : 'Onbekende show';
+    };
+
+    // Calculate capacity impact for each reservation
+    const getCapacityInfo = (reservation: Reservation) => {
+        const currentGuests = guestCountMap.get(reservation.date) || 0;
+        const show = showEvents.find(s => s.date === reservation.date);
+        const showCapacity = show?.capacity || 240;
+        
+        // Calculate what the total would be if this reservation is approved
+        const totalWithThisReservation = currentGuests + reservation.guests;
+        const wouldExceed = totalWithThisReservation > showCapacity;
+        const exceedsBy = Math.max(0, totalWithThisReservation - showCapacity);
+        
+        return {
+            current: currentGuests,
+            capacity: showCapacity,
+            total: totalWithThisReservation,
+            wouldExceed,
+            exceedsBy,
+            remaining: Math.max(0, showCapacity - currentGuests)
+        };
     };
 
     return (
@@ -3245,12 +3330,15 @@ const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
                                     <th>Show</th>
                                     <th>Datum</th>
                                     <th>Gasten</th>
+                                    <th>Capaciteit Impact</th>
                                     <th>Status</th>
                                     <th>Acties</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredBookings.map(reservation => (
+                                {filteredBookings.map(reservation => {
+                                    const capacityInfo = getCapacityInfo(reservation);
+                                    return (
                                     <tr key={reservation.id}>
                                         <td>
                                             <div className="customer-cell">
@@ -3265,7 +3353,27 @@ const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
                                         </td>
                                         <td>{getShowName(reservation.date)}</td>
                                         <td>{formatDateToNL(new Date(reservation.date + 'T12:00:00'))}</td>
-                                        <td>{reservation.guests}</td>
+                                        <td>
+                                            <span className="guests-count">{reservation.guests}</span>
+                                        </td>
+                                        <td>
+                                            <div className="capacity-info-cell">
+                                                <div className={`capacity-status ${capacityInfo.wouldExceed ? 'over-capacity' : 'within-capacity'}`}>
+                                                    <strong>{capacityInfo.total}</strong> / {capacityInfo.capacity}
+                                                </div>
+                                                <div className="capacity-details">
+                                                    {capacityInfo.wouldExceed ? (
+                                                        <span className="capacity-warning">
+                                                            ⚠️ +{capacityInfo.exceedsBy} over capaciteit
+                                                        </span>
+                                                    ) : (
+                                                        <span className="capacity-ok">
+                                                            ✅ {capacityInfo.remaining} plaatsen resterend
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
                                         <td>
                                             <span className={`status-badge status-${reservation.status}`}>
                                                 {reservation.status === 'provisional' ? i18n.statusProvisional :
@@ -3280,7 +3388,7 @@ const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
                                                     <button 
                                                         onClick={() => handleApprove(reservation)}
                                                         className="btn-success"
-                                                        title={i18n.approveBooking}
+                                                        title={`${i18n.approveBooking} ${capacityInfo.wouldExceed ? '(Overschrijdt capaciteit!)' : ''}`}
                                                     >
                                                         <Icon id="check" />
                                                     </button>
@@ -3295,7 +3403,7 @@ const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation }: {
                                             )}
                                         </td>
                                     </tr>
-                                ))}
+                                )})}
                             </tbody>
                         </table>
                     ) : (
@@ -4025,19 +4133,19 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
     const analytics = useMemo(() => {
         const today = formatDate(new Date());
         
-        // Today's stats
-        const todayReservations = reservations.filter(r => r.date === today);
+        // Today's stats - only count confirmed reservations
+        const todayReservations = reservations.filter(r => r.date === today && r.status === 'confirmed');
         const todayRevenue = todayReservations.reduce((sum, r) => sum + r.totalPrice, 0);
         const todayGuests = todayReservations.reduce((sum, r) => sum + r.guests, 0);
 
-        // Recent Bookings (booked in last 7 days for future shows)
+        // Recent Bookings (booked in last 7 days for future shows) - only count confirmed reservations
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const recentBookings = reservations
             .filter(r => {
-                // Use createdAt instead of id for filtering
+                // Use createdAt instead of id for filtering - only confirmed reservations
                 const createdDate = new Date(r.createdAt || r.date);
-                return createdDate.getTime() >= sevenDaysAgo.getTime() && new Date(r.date) >= new Date(today);
+                return r.status === 'confirmed' && createdDate.getTime() >= sevenDaysAgo.getTime() && new Date(r.date) >= new Date(today);
             })
             .sort((a,b) => {
                 // Sort by creation date, newest first
@@ -4047,9 +4155,9 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
             })
             .slice(0, 5);
 
-        // Nearly Full Shows
+        // Nearly Full Shows - only count confirmed reservations
         const guestCountMap = new Map<string, number>();
-        reservations.forEach(r => {
+        reservations.filter(r => r.status === 'confirmed').forEach(r => {
             guestCountMap.set(r.date, (guestCountMap.get(r.date) || 0) + r.guests);
         });
 
@@ -4060,9 +4168,9 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
             .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
             .slice(0, 5);
 
-        // Revenue by Show Type
+        // Revenue by Show Type - only count confirmed reservations
         const revenueByShowType = new Map<string, number>();
-        reservations.forEach(r => {
+        reservations.filter(r => r.status === 'confirmed').forEach(r => {
             const show = showEvents.find(e => e.date === r.date);
             if (show) {
                 revenueByShowType.set(show.type, (revenueByShowType.get(show.type) || 0) + r.totalPrice);
@@ -4073,13 +4181,13 @@ const useAnalyticsData = (reservations: Reservation[], showEvents: ShowEvent[], 
             .sort((a,b) => b.revenue - a.revenue);
 
 
-        // Bookings per week (last 8 weeks)
+        // Bookings per week (last 8 weeks) - only count confirmed reservations
         const weeklyBookingsData: { week: string, count: number }[] = [];
         for (let i = 7; i >= 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() - (i * 7));
             const { start, end } = getWeekRange(date);
-            const weekBookings = reservations.filter(r => r.date >= start && r.date <= end).length;
+            const weekBookings = reservations.filter(r => r.status === 'confirmed' && r.date >= start && r.date <= end).length;
             const weekLabel = `${new Date(start+'T12:00:00').getDate()}/${new Date(start+'T12:00:00').getMonth()+1}`;
             weeklyBookingsData.push({ week: weekLabel, count: weekBookings });
         }
@@ -4163,7 +4271,9 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
     ];
 
     const filteredReservations = useMemo(() => {
-        if (selectedPeriod === 'all') return reservations;
+        // Only include confirmed reservations in management reports
+        const confirmedReservations = reservations.filter(r => r.status === 'confirmed');
+        if (selectedPeriod === 'all') return confirmedReservations;
         const now = new Date();
         let startDate = new Date();
         
@@ -4172,7 +4282,7 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
         else if (selectedPeriod === 'last90') startDate.setDate(now.getDate() - 90);
         else if (selectedPeriod === 'thisYear') startDate = new Date(now.getFullYear(), 0, 1);
 
-        return reservations.filter(r => new Date(r.date) >= startDate);
+        return confirmedReservations.filter(r => new Date(r.date) >= startDate);
     }, [reservations, selectedPeriod]);
 
     const stats = useMemo(() => {
@@ -7043,7 +7153,7 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
             case 'customerDetail':
                  return selectedCustomer ? <CustomerDetailView customer={selectedCustomer} onBack={handleBackToCustomers} showEvents={showEvents} onEditReservation={handleEditReservation}/> : null;
             case 'approvals':
-                return <AdminApprovalsView reservations={reservations} showEvents={showEvents} onUpdateReservation={onUpdateReservation} />;
+                return <AdminApprovalsView reservations={reservations} showEvents={showEvents} onUpdateReservation={onUpdateReservation} guestCountMap={guestCountMap} />;
             case 'waitlist':
                 return <AdminWaitlistView waitingList={waitingList} showEvents={showEvents} />;
             case 'vouchers':
@@ -8158,6 +8268,7 @@ const AppContent = () => {
             ]);
             
             // Update state with fresh Firebase data
+            console.log('📊 Setting events state with Firebase data:', showsData.length, 'shows');
             setEvents(showsData);
             setReservations(reservationsData);
             setWaitingList(waitingListData);
@@ -8171,6 +8282,7 @@ const AppContent = () => {
                 reservations: reservationsData.length,
                 waitingList: waitingListData.length
             });
+            console.log('📋 Shows loaded:', showsData);
         } catch (error) {
             console.error('❌ Error reloading Firebase data:', error);
             addToast('Error reloading data from Firebase', 'error');
@@ -8182,13 +8294,6 @@ const AppContent = () => {
         const loadData = async () => {
             try {
                 setLoading(true);
-                
-                // 🔥 Test Firebase connection first
-                const connectionOk = await testFirebaseConnection();
-                if (!connectionOk) {
-                    console.error('🚨 Firebase connection failed - stopping data load');
-                    return;
-                }
                 
                 // 🏗️ Initialize Firebase collections with sample data if empty
                 await initializeFirebaseCollections();
@@ -8240,7 +8345,8 @@ const AppContent = () => {
     
     const guestCountMap = useMemo(() => {
         const map = new Map<string, number>();
-        reservations.forEach(r => {
+        // Only count confirmed reservations for capacity calculations
+        reservations.filter(r => r.status === 'confirmed').forEach(r => {
             map.set(r.date, (map.get(r.date) || 0) + r.guests);
         });
         return map;
@@ -8315,7 +8421,6 @@ const AppContent = () => {
             console.log('🎭 Adding shows to Firebase for dates:', dates);
             
             // Add each show to Firebase
-            const newEvents: ShowEvent[] = [];
             for (const date of dates) {
                 const showForDate = {
                     ...newShow,
@@ -8324,20 +8429,17 @@ const AppContent = () => {
                 
                 console.log('🔥 Adding show to Firebase:', showForDate);
                 const addedShow = await firebaseService.shows.addShow(showForDate);
-                newEvents.push(addedShow);
                 console.log('✅ Show added to Firebase:', addedShow.id);
             }
             
-            // Update local state with Firebase data
-            setEvents(prev => {
-                // Remove existing shows for these dates and add new ones
-                const filtered = prev.filter(e => !dates.includes(e.date));
-                return [...filtered, ...newEvents];
-            });
+            // ✅ NO LOCAL STATE - Reload data from Firebase instead
+            await reloadFirebaseData();
             
-            console.log('🎉 All shows successfully added to Firebase and local state');
+            console.log('🎉 All shows successfully added to Firebase - data reloaded');
+            addToast('Shows toegevoegd', 'success');
         } catch (error) {
             console.error('❌ Error adding shows:', error);
+            addToast('Error bij toevoegen shows', 'error');
         }
     };
 
@@ -8397,6 +8499,38 @@ const AppContent = () => {
             
             // ✅ OPTIMISTIC UPDATE - Update local state immediately
             setReservations(prev => [...prev, savedReservation]);
+            
+            // 📧 Send email notification for new booking
+            try {
+                const show = events.find(e => e.date === newReservation.date);
+                const emailData: BookingEmailData = {
+                    customerName: newReservation.contactName || 'Onbekend',
+                    customerEmail: newReservation.email || 'Niet opgegeven',
+                    customerPhone: newReservation.phone || 'Niet opgegeven',
+                    customerAddress: `${newReservation.address || ''} ${newReservation.houseNumber || ''}`.trim() || undefined,
+                    customerCity: newReservation.city || undefined,
+                    customerPostalCode: newReservation.postalCode || undefined,
+                    customerCountry: 'Nederland',
+                    showTitle: show?.name || 'Onbekende show',
+                    showDate: newReservation.date,
+                    showTime: show?.time || undefined,
+                    packageType: newReservation.drinkPackage || 'standard',
+                    numberOfGuests: newReservation.guests,
+                    totalPrice: newReservation.totalPrice || 0,
+                    reservationId: savedReservation.id,
+                    selectedAddons: [
+                        ...(newReservation.preShowDrinks ? ['Pre-show drinks'] : []),
+                        ...(newReservation.afterParty ? ['After party'] : []),
+                        ...(newReservation.drinkPackage === 'premium' ? ['Premium drankenpakket'] : []),
+                        ...(newReservation.remarks ? [`Opmerkingen: ${newReservation.remarks}`] : [])
+                    ]
+                };
+                
+                await sendBookingNotification(emailData);
+            } catch (emailError) {
+                console.error('❌ Email notification failed:', emailError);
+                // Don't fail the entire reservation for email errors
+            }
             
             // AUTO-SLUITING/OPENING LOGICA bij nieuwe reserveringen
             const showDate = newReservation.date;
@@ -8502,8 +8636,23 @@ const AppContent = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const handleUpdateReservation = (updatedReservation: Reservation) => {
-        setReservations(prev => prev.map(r => r.id === updatedReservation.id ? updatedReservation : r));
+    const handleUpdateReservation = async (updatedReservation: Reservation) => {
+        try {
+            console.log('🔄 Attempting to update reservation:', updatedReservation.id, updatedReservation.status);
+            
+            // Update in Firebase first - use string id directly
+            await firebaseService.reservations.updateReservation(updatedReservation.id, updatedReservation);
+            console.log('✅ Firebase update successful');
+            
+            // ✅ OPTIMISTIC UPDATE - Update local state after successful Firebase update
+            setReservations(prev => prev.map(r => r.id === updatedReservation.id ? updatedReservation : r));
+            
+            console.log('✅ Reservering status bijgewerkt in Firebase:', updatedReservation.status);
+            addToast(`Reservering ${updatedReservation.status === 'confirmed' ? 'goedgekeurd' : 'geannuleerd'}!`, 'success');
+        } catch (error) {
+            console.error('❌ Failed to update reservation:', error);
+            addToast('Er is een fout opgetreden bij het bijwerken van de reservering', 'error');
+        }
     };
     
     const handleDeleteReservation = async (id: string) => {
@@ -8826,8 +8975,24 @@ const AppContent = () => {
         }
     }, [events, setReservations]);
 
-    const handleToggleCheckIn = (id: string) => {
-        setReservations(prev => prev.map(r => r.id === id ? {...r, checkedIn: !r.checkedIn} : r));
+    const handleToggleCheckIn = async (id: string) => {
+        try {
+            const reservation = reservations.find(r => r.id === id);
+            if (!reservation) return;
+            
+            const updatedReservation = {...reservation, checkedIn: !reservation.checkedIn};
+            
+            // Update in Firebase first - use string id directly
+            await firebaseService.reservations.updateReservation(id, updatedReservation);
+            
+            // Update local state after successful Firebase update
+            setReservations(prev => prev.map(r => r.id === id ? updatedReservation : r));
+            
+            console.log('✅ Check-in status bijgewerkt in Firebase voor reservering:', id);
+        } catch (error) {
+            console.error('❌ Failed to update check-in status:', error);
+            addToast('Er is een fout opgetreden bij het bijwerken van de check-in status', 'error');
+        }
     };
 
     // 🔧 Config update handler that saves to Firebase
@@ -8851,6 +9016,8 @@ const AppContent = () => {
         <div className={`container ${view === 'admin' ? 'admin-container' : ''}`}>
             <SvgDefs />
             <Header currentView={view} setCurrentView={setView} />
+            
+            {/* 🧪 EMAIL TEST BUTTON - Development Only */}
             <main>
                 {loading ? (
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -8909,6 +9076,12 @@ const AppContent = () => {
 };
 
 const App = () => {
+    // Initialize mobile optimizations on app start
+    useEffect(() => {
+        const cleanup = initMobileOptimizations();
+        return cleanup;
+    }, []);
+
     return (
         <ToastProvider>
             <ConfirmationProvider>
