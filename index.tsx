@@ -6599,7 +6599,17 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                      </>
                 );
             default: 
-                return <PremiumDashboard config={config} i18n={i18n} />;
+                return (
+                    <PremiumDashboard 
+                        config={config} 
+                        i18n={i18n}
+                        showEvents={showEvents}
+                        reservations={reservations}
+                        onNavigate={(view, date) => {
+                            setAdminView(view as AdminView);
+                        }}
+                    />
+                );
         }
     }
 
