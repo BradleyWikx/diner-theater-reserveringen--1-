@@ -3,10 +3,41 @@
 
 import type { AppConfig } from '../types/types';
 
+// Utility function to calculate doors open time (30 minutes before show start)
+export const calculateDoorsOpenTime = (showStartTime: string): string => {
+    const [hours, minutes] = showStartTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes - 30; // 30 minutes earlier
+    
+    if (totalMinutes < 0) {
+        // Handle case where doors would open the day before
+        const adjustedMinutes = totalMinutes + 24 * 60;
+        const newHours = Math.floor(adjustedMinutes / 60);
+        const newMinutes = adjustedMinutes % 60;
+        return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+    }
+    
+    const newHours = Math.floor(totalMinutes / 60);
+    const newMinutes = totalMinutes % 60;
+    return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+};
+
+// Utility function to calculate end time (3.5 hours after start time)
+export const calculateEndTime = (showStartTime: string): string => {
+    const [hours, minutes] = showStartTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + (3.5 * 60); // Add 3.5 hours (210 minutes)
+    
+    // Handle next day overflow
+    const adjustedMinutes = totalMinutes % (24 * 60);
+    const newHours = Math.floor(adjustedMinutes / 60);
+    const newMinutes = adjustedMinutes % 60;
+    
+    return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+};
+
 // Internationalization (Dutch) - all UI text strings
 export const i18n = {
     header: {
-        title: '🎭 Diner Theater Reserveringen'
+        title: ''
     },
     bookShow: {
         title: 'Voorstelling Boeken',
@@ -15,7 +46,11 @@ export const i18n = {
         selectTime: 'Selecteer tijd:',
         seatsAvailable: 'plaatsen beschikbaar',
         closedDate: 'Gesloten op deze datum',
-        bookButton: 'Boek nu'
+        bookButton: 'Boek nu',
+        showTimes: 'Tijden',
+        doorsOpen: 'Deuren open',
+        showStarts: 'Voorstelling begint',
+        showEnds: 'Voorstelling eindigt'
     },
     adminPanel: {
         title: 'Admin Beheer',
@@ -449,11 +484,50 @@ export const defaultConfig: AppConfig = {
         { id: 'wicked', name: 'Wicked', archived: true, imageUrl: 'https://placehold.co/600x300/1a1a1a/e6c35c?text=Wicked' },
     ],
     showTypes: [
-        { id: 'weekday', name: 'Doordeweeks', archived: false, defaultCapacity: 220, priceStandard: 70, pricePremium: 85 },
-        { id: 'weekend', name: 'Weekend Special', archived: false, defaultCapacity: 240, priceStandard: 80, pricePremium: 95 },
-        { id: 'matinee', name: 'Matinee', archived: false, defaultCapacity: 200, priceStandard: 70, pricePremium: 85 },
-        { id: 'premiere', name: 'Première', archived: false, defaultCapacity: 250, priceStandard: 90, pricePremium: 105 },
-        { id: 'zorgheld', name: 'Zorgzame Helden Avond', archived: false, defaultCapacity: 200, priceStandard: 65, pricePremium: 80 },
+        { 
+            id: 'repetitie', 
+            name: 'Repetitie', 
+            archived: false, 
+            defaultCapacity: 50, 
+            priceStandard: 0, 
+            pricePremium: 0,
+            defaultStartTime: '19:30',
+            defaultEndTime: '23:00', // 19:30 + 3.5 uur = 23:00
+            allowCustomTimes: true
+        },
+        { 
+            id: 'besloten-feest', 
+            name: 'Besloten Feest', 
+            archived: false, 
+            defaultCapacity: 200, 
+            priceStandard: 75, 
+            pricePremium: 90,
+            defaultStartTime: '19:00',
+            defaultEndTime: '22:30', // 19:00 + 3.5 uur = 22:30
+            allowCustomTimes: true
+        },
+        { 
+            id: 'team-meeting', 
+            name: 'Team Meeting', 
+            archived: false, 
+            defaultCapacity: 30, 
+            priceStandard: 0, 
+            pricePremium: 0,
+            defaultStartTime: '10:00',
+            defaultEndTime: '13:30', // 10:00 + 3.5 uur = 13:30
+            allowCustomTimes: true
+        },
+        { 
+            id: 'schoonmaak', 
+            name: 'Schoonmaak', 
+            archived: false, 
+            defaultCapacity: 10, 
+            priceStandard: 0, 
+            pricePremium: 0,
+            defaultStartTime: '09:00',
+            defaultEndTime: '12:30', // 09:00 + 3.5 uur = 12:30
+            allowCustomTimes: false
+        },
     ],
     capSlogans: [
         "Meer pret in bed met een beetje vet",
@@ -961,13 +1035,13 @@ export const defaultConfig: AppConfig = {
             expiryDate: '2025-06-01',
             status: 'used',
             usedDate: '2024-08-15',
-            usedReservationId: 123,
+            usedReservationId: '123',
             extendedCount: 0
         },
     ],
     bookingSettings: {
         minGuests: 1,
-        maxGuests: 20,
+        maxGuests: 999,
         bookingCutoffHours: 4,
     },
     prices: {

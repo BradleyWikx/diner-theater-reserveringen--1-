@@ -46,9 +46,25 @@ export const CalendarPopover: React.FC<CalendarPopoverProps> = ({ data, view, co
     const standardPrice = showTypeConfig?.priceStandard;
     const premiumPrice = showTypeConfig?.pricePremium;
 
-    // Get the correct show times based on date and show type
+    // Get show times from event or show type defaults
     const eventDate = new Date(data.event.date + 'T12:00:00');
-    const showTimes = getShowTimes(eventDate, data.event.type);
+    
+    // Gebruik custom tijden van event als beschikbaar, anders fallback naar showType defaults of getShowTimes
+    let displayStartTime = data.event.startTime;
+    let displayEndTime = data.event.endTime;
+    
+    if (!displayStartTime || !displayEndTime) {
+        // Fallback naar showType defaults
+        if (showTypeConfig?.defaultStartTime && showTypeConfig?.defaultEndTime) {
+            displayStartTime = showTypeConfig.defaultStartTime;
+            displayEndTime = showTypeConfig.defaultEndTime;
+        } else {
+            // Laatste fallback naar oude getShowTimes functie
+            const showTimes = getShowTimes(eventDate, data.event.type);
+            displayStartTime = showTimes.start;
+            displayEndTime = showTimes.end;
+        }
+    }
     
     // Bepaal de status van de show - NIEUWE 240+ LOGICA  
     const isFullyBooked = data.guests >= 240; // Gewijzigd van data.event.capacity naar 240
@@ -74,7 +90,7 @@ export const CalendarPopover: React.FC<CalendarPopoverProps> = ({ data, view, co
                 </div>
                 <div className="popover-info">
                     <span className="popover-label">Tijd:</span>
-                    <span className="popover-value">{showTimes.start} - {showTimes.end}</span>
+                    <span className="popover-value">{displayStartTime} - {displayEndTime}</span>
                 </div>
                 {standardPrice && (
                     <div className="popover-info">

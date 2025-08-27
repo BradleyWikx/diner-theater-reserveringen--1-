@@ -60,7 +60,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
             
             // Voor booking view: verberg verstreken shows
             const showDateTime = new Date(e.date + 'T19:30:00'); // Standaard showtijd 19:30
-            const showTimes = getShowTimes(new Date(e.date + 'T12:00:00'), e.type);
+            const showTimes = getShowTimes(new Date(e.date + 'T12:00:00'), e.type, config);
             
             // Gebruik echte showtijd als beschikbaar
             if (showTimes.start) {

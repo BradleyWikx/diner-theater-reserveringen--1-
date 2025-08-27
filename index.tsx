@@ -3,6 +3,9 @@
 import React, { useState, useEffect, useMemo, useCallback, ReactNode, Fragment, useRef, createContext, useContext } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { AuthProvider } from './src/contexts/AuthContext';
+import { useAuth } from './src/contexts/AuthContext';
+import { DiscreteAdminButton } from './src/components/admin/DiscreteAdminButton';
 import PremiumDashboard from './PremiumDashboard';
 import type { 
     ShowEvent, 
@@ -46,7 +49,7 @@ import type {
 } from './src/types/types';
 
 // Import configuration
-import { i18n, defaultConfig } from './src/config/config';
+import { i18n, defaultConfig, calculateEndTime, calculateDoorsOpenTime } from './src/config/config';
 
 // Import components
 import { Icon } from './src/components/UI/Icon';
@@ -306,6 +309,8 @@ const CalendarPopover = ({ data, view, config }: {
     // Get the correct show times based on date and show type
     const eventDate = new Date(data.event.date + 'T12:00:00');
     const showTimes = getShowTimes(eventDate, data.event.type);
+    const doorsOpenTime = calculateDoorsOpenTime(showTimes.start);
+    const formattedDate = eventDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
     
     // Bepaal de status van de show - NIEUWE 240+ LOGICA  
     const isFullyBooked = data.guests >= 240; // Gewijzigd van data.event.capacity naar 240
@@ -324,14 +329,21 @@ const CalendarPopover = ({ data, view, config }: {
 
     return (
         <div className="calendar-popover" ref={popoverRef} style={style}>
-            <div className="popover-title">{data.event.name}</div>
             <div className="popover-content">
+                <div className="popover-title">{data.event.name}</div>
+                <div className="popover-date">
+                    {formattedDate}
+                    {(() => {
+                        const showType = config?.showTypes.find(st => st.name === data.event.type);
+                        return showType?.showInLegend ? ` - ${data.event.type}` : '';
+                    })()}
+                </div>
+                <div className="popover-times">
+                    <div>Deuren: {doorsOpenTime}</div>
+                    <div>Show: {showTimes.start} - {showTimes.end}</div>
+                </div>
                 <div className={`popover-status ${statusClass}`}>
                     {statusMessage}
-                </div>
-                <div className="popover-info">
-                    <span className="popover-label">Tijd:</span>
-                    <span className="popover-value">{showTimes.start} - {showTimes.end}</span>
                 </div>
                 {standardPrice && (
                     <div className="popover-info">
@@ -502,20 +514,52 @@ const AddShowModal = ({ onClose, onAdd, config, dates }: { onClose: () => void, 
     const [name, setName] = useState(activeShowNames[0]?.name || '');
     const [type, setType] = useState(activeShowTypes[0]?.name || '');
     const [capacity, setCapacity] = useState(activeShowTypes[0]?.defaultCapacity || 240);
+    const [startTime, setStartTime] = useState(activeShowTypes[0]?.defaultStartTime || '19:30');
+    const [endTime, setEndTime] = useState(activeShowTypes[0]?.defaultEndTime || '22:30');
+    const [useCustomTimes, setUseCustomTimes] = useState(false);
     const [singleDate, setSingleDate] = useState(dates[0] || formatDate(new Date()));
 
     useEffect(() => {
         const selectedType = activeShowTypes.find(t => t.name === type);
         if (selectedType) {
             setCapacity(selectedType.defaultCapacity);
+            const defaultStart = selectedType.defaultStartTime || '19:30';
+            setStartTime(defaultStart);
+            setEndTime(selectedType.defaultEndTime || calculateEndTime(defaultStart));
+            setUseCustomTimes(false);
         }
     }, [type, activeShowTypes]);
 
+    const selectedShowType = activeShowTypes.find(t => t.name === type);
+    const canCustomizeTimes = selectedShowType?.allowCustomTimes !== false;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Validatie voor tijden (24-uurs formaat)
+        if (useCustomTimes) {
+            const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+                alert('Gebruik het juiste tijdformaat (UU:MM in 24-uurs formaat)!');
+                return;
+            }
+            
+            if (startTime >= endTime) {
+                alert('Starttijd moet eerder zijn dan eindtijd!');
+                return;
+            }
+        }
+        
         const targetDates = dates.length > 0 ? dates : [singleDate];
-        const newShow: Omit<ShowEvent, 'id'> = { date: '', name, type, capacity, isClosed: false };
+        const newShow: Omit<ShowEvent, 'id'> = { 
+            date: '', 
+            name, 
+            type, 
+            capacity, 
+            isClosed: false,
+            startTime: useCustomTimes ? startTime : selectedShowType?.defaultStartTime,
+            endTime: useCustomTimes ? endTime : selectedShowType?.defaultEndTime
+        };
         onAdd(newShow, targetDates);
         onClose();
     };
@@ -548,9 +592,225 @@ const AddShowModal = ({ onClose, onAdd, config, dates }: { onClose: () => void, 
                         <label htmlFor="capacity">{i18n.capacity}</label>
                         <input type="number" id="capacity" value={capacity} min="1" onChange={e => setCapacity(Number(e.target.value))} />
                     </div>
+                    
+                    {/* Tijd instellingen */}
+                    <div className="form-section">
+                        <h4>⏰ Tijden</h4>
+                        {canCustomizeTimes && (
+                            <div className="form-group">
+                                <label className="checkbox-label">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={useCustomTimes} 
+                                        onChange={(e) => setUseCustomTimes(e.target.checked)} 
+                                    />
+                                    Aangepaste tijden gebruiken
+                                </label>
+                            </div>
+                        )}
+                        
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="startTime">
+                                    Starttijd {!useCustomTimes && selectedShowType && `(standaard: ${selectedShowType.defaultStartTime})`}
+                                </label>
+                                <input 
+                                    type="time" 
+                                    id="startTime" 
+                                    value={startTime} 
+                                    onChange={e => {
+                                        const newStartTime = e.target.value;
+                                        setStartTime(newStartTime);
+                                        // Automatisch eindtijd berekenen bij wijzigen starttijd
+                                        if (useCustomTimes) {
+                                            setEndTime(calculateEndTime(newStartTime));
+                                        }
+                                    }}
+                                    disabled={!useCustomTimes && canCustomizeTimes}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="endTime">
+                                    Eindtijd (automatisch: starttijd + 3,5 uur) {!useCustomTimes && selectedShowType && `(standaard: ${selectedShowType.defaultEndTime})`}
+                                </label>
+                                <input 
+                                    type="time" 
+                                    id="endTime" 
+                                    value={endTime} 
+                                    onChange={e => setEndTime(e.target.value)}
+                                    disabled={!useCustomTimes && canCustomizeTimes}
+                                    style={{ backgroundColor: useCustomTimes ? '#f8f9fa' : 'inherit', fontStyle: useCustomTimes ? 'italic' : 'normal' }}
+                                    title="Deze tijd wordt automatisch berekend op basis van de starttijd + 3,5 uur, maar kan handmatig worden aangepast"
+                                />
+                            </div>
+                        </div>
+                        
+                        {!canCustomizeTimes && (
+                            <p className="form-help-text">
+                                Dit show type heeft vaste tijden: {selectedShowType?.defaultStartTime} - {selectedShowType?.defaultEndTime}
+                            </p>
+                        )}
+                    </div>
                     <div className="modal-footer">
                         <button type="button" onClick={onClose} className="btn-secondary">{i18n.cancel}</button>
                         <button type="submit" className="submit-btn">{i18n.addShow}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// Quick Add Booking Modal for admin use
+const AddBookingModal = ({ onClose, onAdd, show, date, config }: { 
+    onClose: () => void, 
+    onAdd: (reservation: Omit<Reservation, 'id'>) => void, 
+    show: ShowEvent, 
+    date: string, 
+    config: AppConfig 
+}) => {
+    const [contactName, setContactName] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [guests, setGuests] = useState(2);
+    const [drinkPackage, setDrinkPackage] = useState<'standard' | 'premium'>('standard');
+    
+    const showType = config.showTypes.find(st => st.name === show.type);
+    const price = drinkPackage === 'premium' ? showType?.pricePremium : showType?.priceStandard;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        const reservation: Omit<Reservation, 'id'> = {
+            date,
+            companyName: '',
+            salutation: 'Dhr.',
+            contactName,
+            address: '',
+            houseNumber: '',
+            postalCode: '',
+            city: '',
+            phone,
+            email,
+            guests,
+            drinkPackage,
+            preShowDrinks: false,
+            afterParty: false,
+            remarks: '',
+            addons: {},
+            celebrationName: '',
+            celebrationOccasion: '',
+            newsletter: false,
+            termsAccepted: true,
+            totalPrice: (price || 0) * guests,
+            promoCode: '',
+            discountAmount: 0,
+            checkedIn: false,
+            status: 'confirmed',
+            bookingSource: 'internal',
+            createdAt: new Date().toISOString()
+        };
+
+        onAdd(reservation);
+        onClose();
+    };
+
+    return (
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>🎭 Handmatige Reservering Toevoegen</h3>
+                    <button onClick={onClose} className="close-btn" aria-label="Sluiten">
+                        <Icon id="close" />
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit} className="modal-body">
+                    <div className="show-info-card">
+                        <h4>{show.name}</h4>
+                        <p><Icon id="calendar" /> {new Date(date + 'T12:00:00').toLocaleDateString('nl-NL', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                        })}</p>
+                        <p><Icon id="theater" /> {show.type}</p>
+                    </div>
+
+                    <div className="form-grid">
+                        <div className="form-group">
+                            <label htmlFor="contactName">Naam *</label>
+                            <input 
+                                type="text" 
+                                id="contactName" 
+                                value={contactName}
+                                onChange={e => setContactName(e.target.value)}
+                                required 
+                                placeholder="Voor- en achternaam"
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="email">E-mail *</label>
+                            <input 
+                                type="email" 
+                                id="email" 
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                required 
+                                placeholder="voorbeeld@email.nl"
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="phone">Telefoon</label>
+                            <input 
+                                type="tel" 
+                                id="phone" 
+                                value={phone}
+                                onChange={e => setPhone(e.target.value)}
+                                placeholder="+31 6 12345678"
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="guests">Aantal gasten *</label>
+                            <input 
+                                type="number" 
+                                id="guests" 
+                                value={guests}
+                                onChange={e => setGuests(parseInt(e.target.value) || 0)}
+                                min="1" 
+                                required 
+                            />
+                        </div>
+
+                        <div className="form-group full-width">
+                            <label htmlFor="drinkPackage">Drankenpakket</label>
+                            <select 
+                                id="drinkPackage" 
+                                value={drinkPackage}
+                                onChange={e => setDrinkPackage(e.target.value as 'standard' | 'premium')}
+                            >
+                                <option value="standard">Standaard (€{showType?.priceStandard})</option>
+                                <option value="premium">Premium (€{showType?.pricePremium})</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="booking-summary">
+                        <div className="summary-row total">
+                            <span>Totaal:</span>
+                            <span>€{(price || 0) * guests}</span>
+                        </div>
+                    </div>
+
+                    <div className="modal-footer">
+                        <button type="button" onClick={onClose} className="btn-secondary">
+                            Annuleren
+                        </button>
+                        <button type="submit" className="submit-btn">
+                            <Icon id="plus" /> Reservering Toevoegen
+                        </button>
                     </div>
                 </form>
             </div>
@@ -856,7 +1116,8 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         .replace('{month}', dateObj.toLocaleDateString('nl-NL', { month: 'long' }))
         .replace('{year}', dateObj.toLocaleDateString('nl-NL', { year: 'numeric' }))
         .replace('{showType}', show.type);
-    const showTimes = getShowTimes(dateObj, show.type);
+    const showTimes = getShowTimes(dateObj, show.type, config);
+    const doorsOpenTime = calculateDoorsOpenTime(showTimes.start);
 
     if (submitted) {
         // All reservations are now provisional and require approval
@@ -883,20 +1144,42 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                         <p className="fieldset-subtitle">{i18n.wizardStep1SubTitle}</p>
                         <div className="package-selection">
                             <div className={`package-card ${reservation.drinkPackage === 'standard' ? 'active' : ''}`} onClick={() => updateReservation({ drinkPackage: 'standard' })}>
-                                <h4>{i18n.standardPackage}</h4>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <h4>{i18n.standardPackage}</h4>
+                                    <div className="tooltip-container" onClick={(e) => e.stopPropagation()}>
+                                        <span className="tooltip-icon">?</span>
+                                        <div className="tooltip-content">
+                                            <strong>Standaard arrangement</strong>
+                                            {'\n\n'}Voorstelling + Dinerbuffet
+                                            {'\n'}+ Standaard Drank Arrangement
+                                            {'\n\n'}Inclusief: Bier, wijn, frisdrank, port & Martini
+                                        </div>
+                                    </div>
+                                </div>
                                 <p>{i18n.packageStandard}</p>
                                 <div className="price">€{currentShowType?.priceStandard.toFixed(2) || '0.00'} p.p.</div>
                             </div>
                              <div className={`package-card ${reservation.drinkPackage === 'premium' ? 'active' : ''}`} onClick={() => updateReservation({ drinkPackage: 'premium' })}>
-                                <h4>{i18n.premiumPackage}</h4>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <h4>{i18n.premiumPackage}</h4>
+                                    <div className="tooltip-container" onClick={(e) => e.stopPropagation()}>
+                                        <span className="tooltip-icon">?</span>
+                                        <div className="tooltip-content">
+                                            <strong>Premium arrangement</strong>
+                                            {'\n\n'}Voorstelling + Dinerbuffet
+                                            {'\n'}+ Premium Drank Arrangement
+                                            {'\n\n'}Inclusief: Bier, wijn, frisdrank, sterke drank, speciale bieren en bubbels van het huis
+                                        </div>
+                                    </div>
+                                </div>
                                 <p>{i18n.packagePremium}</p>
                                 <div className="price">€{currentShowType?.pricePremium.toFixed(2) || '0.00'} p.p.</div>
                             </div>
                         </div>
                         <div className="form-group guests-input">
                             <label htmlFor="guests">{i18n.numberOfGuests}</label>
-                            <input id="guests" name="guests" type="number" min={minGuests} max={Math.min(remainingCapacity + 10, maxGuests)} value={reservation.guests} 
-                                   onChange={e => updateReservation({ guests: Math.max(minGuests, Math.min(Number(e.target.value), 250)) })} required />
+                            <input id="guests" name="guests" type="number" min={minGuests} value={reservation.guests} 
+                                   onChange={e => updateReservation({ guests: Math.max(minGuests, Number(e.target.value)) })} required />
                             
                             {/* Capacity Warnings - alleen voor admin */}
                             {willExceedCapacity && (
@@ -1248,15 +1531,45 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                 );
             case 5: // Overzicht
                 const { guests, drinkPackage, preShowDrinks, afterParty, addons, ...details } = reservation;
+                const overviewShowType = config.showTypes.find(st => st.name === show.type);
+                if (!overviewShowType) return null;
+                
                 return (
                     <fieldset className="final-summary-ticket">
+                        {/* Show title and date in overlay box */}
+                        <div className="show-info-overlay">
+                            <h3 className="show-title-main">{show.name}</h3>
+                            <p className="show-date-main">
+                                {formattedDate}
+                                {/* Show type only if it's in the legend (special shows) */}
+                                {(() => {
+                                    const showType = config.showTypes.find(st => st.name === show.type);
+                                    return showType?.showInLegend ? ` - ${show.type}` : '';
+                                })()}
+                            </p>
+                        </div>
+
+                        {/* Show times overlapping bottom of overlay */}
+                        <div className="show-times-cards">
+                            <div className="time-info-card">
+                                <span className="time-icon">🚪</span>
+                                <span className="time-label">Deuren:</span>
+                                <span className="time-value">{doorsOpenTime}</span>
+                            </div>
+                            <div className="time-info-card">
+                                <span className="time-icon">🎭</span>
+                                <span className="time-label">Show:</span>
+                                <span className="time-value">{showTimes.start} - {showTimes.end}</span>
+                            </div>
+                        </div>
+
                         <legend>{i18n.wizardStep5Title}</legend>
                         <div className="wizard-summary">
                             <div className="summary-section">
                                 <div className="summary-header"><h4>{i18n.yourSelection}</h4><button type="button" onClick={() => goToStep(1)} className="btn-text">{i18n.edit}</button></div>
-                                <p><strong>{i18n.show}:</strong> {show.name}</p>
                                 <p><strong>{i18n.numberOfGuests}:</strong> {guests}</p>
                                 <p><strong>{i18n.formPackage}:</strong> {drinkPackage === 'standard' ? i18n.standardPackage : i18n.packagePremium}</p>
+                                <p><strong>{i18n.pricing}:</strong> €{(drinkPackage === 'standard' ? overviewShowType.priceStandard : overviewShowType.pricePremium).toFixed(2)} per persoon</p>
                             </div>
                             {(preShowDrinks || afterParty || Object.values(addons).some((v): v is number => typeof v === 'number' && v > 0)) && (
                             <div className="summary-section">
@@ -1304,13 +1617,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                 <div className="wizard-header">
                      {showImage && <img src={showImage} alt={show.name} className="wizard-header-image" />}
                      <button type="button" className="wizard-close-btn" onClick={onClose} aria-label={i18n.close}><Icon id="close"/></button>
-                     <div className="wizard-header-content">
-                        <h3>{i18n.bookForShow.replace('{showName}', show.name)}</h3>
-                        <div className="show-meta">
-                            <p className="show-info-date">{formattedDate}</p>
-                            <p className="show-info-price"><b>{i18n.showTimes}:</b> {showTimes.start} - {showTimes.end}</p>
-                        </div>
-                     </div>
                 </div>
                 
                 <div className="wizard-container">
@@ -1342,7 +1648,8 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
     if (!showType) return null;
 
     const dateObj = new Date(show.date + 'T12:00:00');
-    const showTimes = getShowTimes(dateObj, show.type);
+    const showTimes = getShowTimes(dateObj, show.type, config);
+    const doorsOpenTime = calculateDoorsOpenTime(showTimes.start);
     const showImage = config.showNames.find(sn => sn.name === show.name)?.imageUrl;
     const formattedDate = dateObj.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -1350,23 +1657,36 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
         <div className="show-summary-panel">
             <div className="summary-header-image-container">
                 {showImage && <img src={showImage} alt={show.name} className="summary-header-image" />}
-                <div className="summary-header-overlay">
-                    <h3>{show.name}</h3>
-                    <p className="summary-date">{formattedDate} &bull; {show.type}</p>
+            </div>
+            
+            {/* Show title and date in overlay box - same style as wizard */}
+            <div className="show-info-overlay">
+                <h3 className="show-title-main">{show.name}</h3>
+                <p className="show-date-main">
+                    {formattedDate}
+                    {/* Show type only if it's in the legend (special shows) */}
+                    {(() => {
+                        const showType = config.showTypes.find(st => st.name === show.type);
+                        return showType?.showInLegend ? ` - ${show.type}` : '';
+                    })()}
+                </p>
+            </div>
+
+            {/* Show times overlapping bottom of overlay */}
+            <div className="show-times-cards">
+                <div className="time-info-card">
+                    <span className="time-icon">🚪</span>
+                    <span className="time-label">Deuren:</span>
+                    <span className="time-value">{doorsOpenTime}</span>
+                </div>
+                <div className="time-info-card">
+                    <span className="time-icon">🎭</span>
+                    <span className="time-label">Show:</span>
+                    <span className="time-value">{showTimes.start} - {showTimes.end}</span>
                 </div>
             </div>
 
             <div className="summary-content">
-                <div className="summary-info-grid">
-                     <div className="summary-info-item">
-                        <Icon id="calendar" />
-                        <div>
-                            <h4>{i18n.showTimes}</h4>
-                            <p>{showTimes.start} - {showTimes.end}</p>
-                        </div>
-                    </div>
-                </div>
-
                 <div className="summary-pricing">
                     <h4>{i18n.pricing}</h4>
                     <div className="price-item">
@@ -1393,7 +1713,7 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
     );
 };
 
-const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReservation, onDeleteWaitingList, onToggleCheckIn, config, onDeleteShow, onToggleShowStatus: handleToggleShowStatus, onEditReservation }: {
+const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReservation, onDeleteWaitingList, onToggleCheckIn, config, onDeleteShow, onToggleShowStatus: handleToggleShowStatus, onEditReservation, onAddBooking, onAddShow }: {
     date: string,
     show: ShowEvent | undefined,
     reservations: Reservation[],
@@ -1405,16 +1725,37 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
     onDeleteShow: (showId: string) => void,
     onToggleShowStatus: (showId: string) => void,
     onEditReservation: (reservation: Reservation) => void,
+    onAddBooking?: (date: string, show: ShowEvent) => void,
+    onAddShow?: () => void,
 }) => {
     const [aiSummary, setAiSummary] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState('');
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
     const [viewingList, setViewingList] = useState<'checkin' | 'kitchen' | null>(null);
+    const [reservationFilter, setReservationFilter] = useState<'all' | 'checked-in' | 'waiting' | 'premium' | 'celebrations' | 'provisional'>('all');
     const { confirm } = useConfirmation();
     const { addToast } = useToast();
     const merchandiseMap = useMemo(() => new Map(config.merchandise.map(item => [item.id, item.name])), [config.merchandise]);
     const capSlogansMap = useMemo(() => new Map(config.capSlogans.map((slogan, index) => [`cap${index}`, slogan])), [config.capSlogans]);
+
+    // Filter reservations based on selected filter
+    const filteredReservations = useMemo(() => {
+        switch (reservationFilter) {
+            case 'checked-in':
+                return reservations.filter(r => r.checkedIn);
+            case 'waiting':
+                return reservations.filter(r => !r.checkedIn);
+            case 'premium':
+                return reservations.filter(r => r.drinkPackage === 'premium');
+            case 'celebrations':
+                return reservations.filter(r => r.celebrationOccasion && r.celebrationOccasion.trim() !== '');
+            case 'provisional':
+                return reservations.filter(r => r.status === 'provisional');
+            default:
+                return reservations;
+        }
+    }, [reservations, reservationFilter]);
 
 
     const handleGenerateSummary = async () => {
@@ -1477,18 +1818,39 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
 
     const dateObj = new Date(date + 'T12:00:00');
     const formattedDate = dateObj.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+    const showTimes = getShowTimes(dateObj, show?.type || 'Standaard', config);
+    const doorsOpenTime = calculateDoorsOpenTime(showTimes.start);
 
     if (!show) {
         return (
             <div className="placeholder-card card">
-                <h3>{formattedDate}</h3>
-                <Icon id="show" className="placeholder-icon" />
-                <p>{i18n.noShowOnDate}</p>
+                <div className="placeholder-header">
+                    <h3>{formattedDate}</h3>
+                    {onAddShow && (
+                        <button onClick={onAddShow} className="btn-primary add-show-btn">
+                            <Icon id="plus" /> Show Toevoegen
+                        </button>
+                    )}
+                </div>
+                <div className="placeholder-content">
+                    <Icon id="show" className="placeholder-icon" />
+                    <p>{i18n.noShowOnDate}</p>
+                    <p className="placeholder-subtitle">Voeg een show toe om reserveringen te kunnen ontvangen</p>
+                </div>
             </div>
         );
     }
     
     const toggleRow = (id: string) => setExpandedRow(prev => prev === id ? null : id);
+    
+    // Calculate stats for enhanced date details
+    const totalGuests = reservations.reduce((acc, r) => acc + r.guests, 0);
+    const waitingListGuests = waitingList.reduce((acc, wl) => acc + wl.guests, 0);
+    const checkedInGuests = reservations.filter(r => r.checkedIn).reduce((acc, r) => acc + r.guests, 0);
+    const capacityPercentage = Math.round((totalGuests / show.capacity) * 100);
+    const totalRevenue = reservations.reduce((acc, r) => acc + (r.totalPrice || 0), 0);
+    const premiumGuestsCount = reservations.filter(r => r.drinkPackage === 'premium').reduce((acc, r) => acc + r.guests, 0);
+    const celebrationCount = reservations.filter(r => r.celebrationOccasion && r.celebrationOccasion.trim() !== '').length;
     
     const getReservationDetails = (reservation: Reservation) => {
         const allAddons = [];
@@ -1518,15 +1880,109 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
         <>
             <div className="day-details card">
                 <div className="day-details-header">
-                    <h3>{formattedDate}</h3>
+                    <div className="date-title-section">
+                        <h3>{formattedDate}</h3>
+                        <div className="show-badge">
+                            <Icon id="theater" />
+                            {show.name} - {show.type}
+                        </div>
+                        {/* Compact show times */}
+                        <div className="calendar-show-times">
+                            <div className="calendar-time-item">
+                                <span className="time-label">Deuren</span>
+                                <span className="time-value">{doorsOpenTime}</span>
+                            </div>
+                            <div className="calendar-time-item">
+                                <span className="time-label">Show</span>
+                                <span className="time-value">{showTimes.start}</span>
+                            </div>
+                        </div>
+                    </div>
                     <div className="day-details-actions">
-                        <button onClick={() => setViewingList('checkin')} className="btn-secondary"><Icon id="check" /> {i18n.startCheckIn}</button>
+                        {show && onAddBooking && (
+                            <button 
+                                onClick={() => onAddBooking(date, show)} 
+                                className="btn-primary add-booking-btn"
+                            >
+                                <Icon id="plus" /> Reservering Toevoegen
+                            </button>
+                        )}
+                        <button onClick={() => setViewingList('checkin')} className="btn-secondary">
+                            <Icon id="check" /> {i18n.startCheckIn}
+                        </button>
                         <button onClick={handleGenerateSummary} disabled={isGenerating} className="btn-secondary">
                             {isGenerating ? <><Icon id="loader" className="spinning"/> {i18n.generating}</> : <><Icon id="sparkle" /> {i18n.generateSummary}</>}
                         </button>
-                        <button onClick={handleDeleteShow} className="icon-btn delete-btn" title={i18n.deleteShow}><Icon id="trash" /></button>
+                        <button onClick={handleDeleteShow} className="icon-btn delete-btn" title={i18n.deleteShow}>
+                            <Icon id="trash" />
+                        </button>
                     </div>
                 </div>
+
+                {/* Enhanced Stats Overview */}
+                <div className="date-stats-overview">
+                    <div className="stats-grid">
+                        <div className="stat-card capacity">
+                            <div className="stat-header">
+                                <Icon id="users" />
+                                <span>Bezetting</span>
+                            </div>
+                            <div className="stat-value">{totalGuests} / {show.capacity}</div>
+                            <div className="capacity-bar">
+                                <div 
+                                    className="capacity-fill" 
+                                    style={{
+                                        width: `${Math.min(capacityPercentage, 100)}%`,
+                                        backgroundColor: capacityPercentage > 90 ? '#dc2626' : capacityPercentage > 70 ? '#d97706' : '#10b981'
+                                    }}
+                                ></div>
+                            </div>
+                            <div className="stat-subtitle">{capacityPercentage}% vol</div>
+                        </div>
+
+                        <div className="stat-card revenue">
+                            <div className="stat-header">
+                                <Icon id="euro" />
+                                <span>Omzet</span>
+                            </div>
+                            <div className="stat-value">€{totalRevenue.toFixed(2)}</div>
+                            <div className="stat-subtitle">Totaal verwacht</div>
+                        </div>
+
+                        <div className="stat-card checkin">
+                            <div className="stat-header">
+                                <Icon id="check-circle" />
+                                <span>Ingecheckt</span>
+                            </div>
+                            <div className="stat-value">{checkedInGuests}</div>
+                            <div className="stat-subtitle">{Math.round((checkedInGuests / totalGuests) * 100) || 0}% aanwezig</div>
+                        </div>
+
+                        <div className="stat-card premium">
+                            <div className="stat-header">
+                                <Icon id="star" />
+                                <span>Premium</span>
+                            </div>
+                            <div className="stat-value">{premiumGuestsCount}</div>
+                            <div className="stat-subtitle">Premium gasten</div>
+                        </div>
+                    </div>
+
+                    {waitingListGuests > 0 && (
+                        <div className="waiting-indicator">
+                            <Icon id="clock" />
+                            <span>{waitingListGuests} gasten op wachtlijst</span>
+                        </div>
+                    )}
+
+                    {celebrationCount > 0 && (
+                        <div className="celebration-indicator">
+                            <Icon id="gift" />
+                            <span>{celebrationCount} speciale gelegenheden</span>
+                        </div>
+                    )}
+                </div>
+
                 <div className="status-toggle-wrapper">
                     <span>{show.isClosed ? i18n.showClosedForBookings : i18n.showOpenForBookings}</span>
                     <label className="switch">
@@ -1545,13 +2001,37 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
             </div>
             
             <div className="card">
-                 <h3>{i18n.reservations} ({reservations.reduce((acc, r) => acc + r.guests, 0)} {i18n.guests})</h3>
+                <div className="reservations-header">
+                    <h3>{i18n.reservations} ({reservations.reduce((acc, r) => acc + r.guests, 0)} {i18n.guests})</h3>
+                    <div className="reservation-filters">
+                        <select 
+                            value={reservationFilter} 
+                            onChange={(e) => setReservationFilter(e.target.value as any)}
+                            className="filter-select"
+                        >
+                            <option value="all">Alle reserveringen</option>
+                            <option value="checked-in">Ingecheckt</option>
+                            <option value="waiting">Wachtend</option>
+                            <option value="premium">Premium pakket</option>
+                            <option value="celebrations">Vieringen</option>
+                            <option value="provisional">Voorlopig</option>
+                        </select>
+                    </div>
+                </div>
                  <div className="table-wrapper">
-                    {reservations.length > 0 ? (
+                    {filteredReservations.length > 0 ? (
                         <table>
-                            <thead><tr><th>{i18n.fullName}</th><th>{i18n.guests}</th><th>{i18n.status}</th><th>{i18n.actions}</th></tr></thead>
+                            <thead>
+                                <tr>
+                                    <th>{i18n.fullName}</th>
+                                    <th>{i18n.guests}</th>
+                                    <th>Pakket</th>
+                                    <th>{i18n.status}</th>
+                                    <th>{i18n.actions}</th>
+                                </tr>
+                            </thead>
                             <tbody>
-                                {reservations.map(r => (
+                                {filteredReservations.map(r => (
                                     <Fragment key={r.id}>
                                         <tr className={`${r.checkedIn ? 'checked-in-row' : ''} ${r.status === 'provisional' ? 'provisional-row' : ''} ${r.bookingSource === 'external' ? 'external-row' : ''}`}>
                                             <td onClick={() => toggleRow(r.id)} style={{cursor:'pointer'}}>
@@ -1559,10 +2039,26 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
                                                     {r.contactName}
                                                     {r.status === 'provisional' && <span className="status-badge provisional">Voorlopig</span>}
                                                     {r.bookingSource === 'external' && <span className="status-badge external">Extern</span>}
+                                                    {r.celebrationOccasion && r.celebrationOccasion.trim() !== '' && (
+                                                        <span className="status-badge celebration">
+                                                            <Icon id="gift" /> {r.celebrationOccasion}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className='cell-sub'>{r.companyName || r.email}</div>
                                             </td>
-                                            <td>{r.guests}</td>
+                                            <td>
+                                                <span className="guest-count">{r.guests}</span>
+                                            </td>
+                                            <td>
+                                                <span className={`package-badge ${r.drinkPackage}`}>
+                                                    {r.drinkPackage === 'premium' ? (
+                                                        <><Icon id="star" /> Premium</>
+                                                    ) : (
+                                                        <><Icon id="coffee" /> Standaard</>
+                                                    )}
+                                                </span>
+                                            </td>
                                             <td>
                                                 {r.status === 'provisional' ? (
                                                     <div className="provisional-actions">
@@ -1586,14 +2082,16 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
                                             </td>
                                         </tr>
                                         {expandedRow === r.id && (
-                                            <tr className="detail-row"><td colSpan={4}>{getReservationDetails(r)}</td></tr>
+                                            <tr className="detail-row"><td colSpan={5}>{getReservationDetails(r)}</td></tr>
                                         )}
                                     </Fragment>
                                 ))}
                             </tbody>
                         </table>
                     ) : (
-                        <p className="no-data-message">{i18n.noReservations}</p>
+                        <p className="no-data-message">
+                            {reservationFilter === 'all' ? i18n.noReservations : `Geen reserveringen met filter "${reservationFilter}"`}
+                        </p>
                     )}
                  </div>
             </div>
@@ -1636,11 +2134,12 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
 };
 
 // 🎭 Enhanced Modern Admin Calendar View with Advanced Features
-const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, onDeleteReservation, onDeleteWaitingList, config, guestCountMap, onBulkDelete, onDeleteShow, onToggleShowStatus, onToggleCheckIn, onEditReservation }: {
+const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, onAddReservation, onDeleteReservation, onDeleteWaitingList, config, guestCountMap, onBulkDelete, onDeleteShow, onToggleShowStatus, onToggleCheckIn, onEditReservation }: {
     showEvents: ShowEvent[],
     reservations: Reservation[],
     waitingList: WaitingListEntry[],
     onAddShow: (event: Omit<ShowEvent, 'id'>, dates: string[]) => void,
+    onAddReservation: (reservation: Omit<Reservation, 'id'>) => void,
     onDeleteReservation: (id: string) => void,
     onDeleteWaitingList: (id: string) => void,
     config: AppConfig,
@@ -1654,7 +2153,10 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
     const [month, setMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(formatDate(new Date()));
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isAddBookingModalOpen, setIsAddBookingModalOpen] = useState(false);
     const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+    const [selectedDateForBooking, setSelectedDateForBooking] = useState<string>('');
+    const [selectedShowForBooking, setSelectedShowForBooking] = useState<ShowEvent | null>(null);
     const [popoverData, setPopoverData] = useState<{ event: ShowEvent, guests: number, element: HTMLDivElement } | null>(null);
     const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
     const [filterType, setFilterType] = useState<string>('all');
@@ -1664,7 +2166,16 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
     const [isMultiActionModalOpen, setIsMultiActionModalOpen] = useState(false);
 
     const handleDateClick = (date: string) => {
+        if (isMultiSelectMode) return; // Don't interfere with multi-select mode
+        
         setSelectedDate(date);
+        // Just select the date, don't open modal automatically
+    };
+
+    const handleAddBooking = (date: string, show: ShowEvent) => {
+        setSelectedDateForBooking(date);
+        setSelectedShowForBooking(show);
+        setIsAddBookingModalOpen(true);
     };
 
     const handleMultiDateToggle = (date: string) => {
@@ -1843,28 +2354,44 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
                     />
                     <CalendarLegend events={monthEvents} config={config} />
                 </div>
+            </div>
 
-                <div className="enhanced-details-panel">
-                    <AdminDayDetails
-                        date={selectedDate || ''}
-                        show={selectedShow}
-                        reservations={dayReservations}
-                        waitingList={dayWaitingList}
-                        onDeleteReservation={onDeleteReservation}
-                        onDeleteWaitingList={onDeleteWaitingList}
-                        onToggleCheckIn={onToggleCheckIn}
-                        config={config}
-                        onDeleteShow={onDeleteShow}
-                        onToggleShowStatus={onToggleShowStatus}
-                        onEditReservation={onEditReservation}
-                    />
-                </div>
+            {/* Date Details Below Calendar */}
+            <div className="date-details-section">
+                <AdminDayDetails
+                    date={selectedDate || ''}
+                    show={selectedShow}
+                    reservations={dayReservations}
+                    waitingList={dayWaitingList}
+                    onDeleteReservation={onDeleteReservation}
+                    onDeleteWaitingList={onDeleteWaitingList}
+                    onToggleCheckIn={onToggleCheckIn}
+                    config={config}
+                    onDeleteShow={onDeleteShow}
+                    onToggleShowStatus={onToggleShowStatus}
+                    onEditReservation={onEditReservation}
+                    onAddBooking={handleAddBooking}
+                    onAddShow={() => setIsAddModalOpen(true)}
+                />
             </div>
             
             <CalendarPopover data={popoverData} view="admin" config={config} />
 
             {isAddModalOpen && <AddShowModal onClose={() => setIsAddModalOpen(false)} onAdd={onAddShow} config={config} dates={[]} />}
             {isBulkDeleteModalOpen && <BulkDeleteModal onClose={() => setIsBulkDeleteModalOpen(false)} onBulkDelete={onBulkDelete} config={config} month={month} />}
+            {isAddBookingModalOpen && selectedShowForBooking && (
+                <AddBookingModal 
+                    onClose={() => {
+                        setIsAddBookingModalOpen(false);
+                        setSelectedDateForBooking('');
+                        setSelectedShowForBooking(null);
+                    }} 
+                    onAdd={onAddReservation} 
+                    show={selectedShowForBooking}
+                    date={selectedDateForBooking}
+                    config={config}
+                />
+            )}
             {isMultiActionModalOpen && 
                 <MultiSelectActions 
                     dates={multiSelectedDates} 
@@ -4017,12 +4544,13 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
 };
 
 
-const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, onToggleShowStatus, onAddExternalBooking }: {
+const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, onToggleShowStatus, onAddExternalBooking, config }: {
     showEvents: ShowEvent[],
     guestCountMap: Map<string, number>,
     onUpdateShowCapacity: (showId: string, newCapacity: number) => void,
     onToggleShowStatus?: (showId: string) => void,
-    onAddExternalBooking?: (showId: string, guests: number) => void
+    onAddExternalBooking?: (showId: string, guests: number) => void,
+    config: AppConfig
 }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month'>('week');
@@ -4199,7 +4727,7 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
             .filter(show => {
                 // Filter alleen toekomstige shows voor bulk invoer
                 const showDateTime = new Date(show.date + 'T19:30:00');
-                const showTimes = getShowTimes(new Date(show.date + 'T12:00:00'), show.type);
+                const showTimes = getShowTimes(new Date(show.date + 'T12:00:00'), show.type, config);
                 
                 // Gebruik echte showtijd als beschikbaar
                 if (showTimes.start) {
@@ -4237,7 +4765,7 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
                 if (show) {
                     const now = new Date();
                     const showDateTime = new Date(show.date + 'T19:30:00');
-                    const showTimes = getShowTimes(new Date(show.date + 'T12:00:00'), show.type);
+                    const showTimes = getShowTimes(new Date(show.date + 'T12:00:00'), show.type, config);
                     
                     // Gebruik echte showtijd als beschikbaar
                     if (showTimes.start) {
@@ -4300,7 +4828,7 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
         const capacity = show.manualCapacityOverride || show.capacity;
         const now = new Date();
         const showDateTime = new Date(show.date + 'T19:30:00');
-        const showTimes = getShowTimes(new Date(show.date + 'T12:00:00'), show.type);
+        const showTimes = getShowTimes(new Date(show.date + 'T12:00:00'), show.type, config);
         
         // Gebruik echte showtijd als beschikbaar
         if (showTimes.start) {
@@ -4707,7 +5235,12 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
 
 type ObjectArrayConfigKey = 'showNames' | 'showTypes' | 'merchandise' | 'promoCodes' | 'merchandisePackages' | 'borrelEvents' | 'enhancedMerchandise' | 'shopMerchandise' | 'shopBundles' | 'shopCategories' | 'wizardLayout';
 
-const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: React.Dispatch<React.SetStateAction<AppConfig>> }) => {
+const SettingsView = ({ config, setConfig, events, setEvents }: { 
+    config: AppConfig, 
+    setConfig: React.Dispatch<React.SetStateAction<AppConfig>>,
+    events?: ShowEvent[],
+    setEvents?: React.Dispatch<React.SetStateAction<ShowEvent[]>>
+}) => {
     const [activeTab, setActiveTab] = useState<SettingsTab>('shows');
     const [localConfig, setLocalConfig] = useState<AppConfig>(JSON.parse(JSON.stringify(config)));
     const [showPreview, setShowPreview] = useState(false);
@@ -4715,6 +5248,32 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
     const { confirm } = useConfirmation();
 
     const handleSave = () => {
+        // Update existing shows with new showType default times if they don't have custom times
+        if (events && setEvents) {
+            const updatedEvents = events.map(event => {
+                const oldShowType = config.showTypes.find(type => type.name === event.type);
+                const newShowType = localConfig.showTypes.find(type => type.name === event.type);
+                
+                if (oldShowType && newShowType) {
+                    // Update times only if the show doesn't have custom times set
+                    const needsTimeUpdate = (
+                        (!event.startTime || event.startTime === oldShowType.defaultStartTime) ||
+                        (!event.endTime || event.endTime === oldShowType.defaultEndTime)
+                    );
+                    
+                    if (needsTimeUpdate) {
+                        return {
+                            ...event,
+                            startTime: event.startTime || newShowType.defaultStartTime,
+                            endTime: event.endTime || newShowType.defaultEndTime
+                        };
+                    }
+                }
+                return event;
+            });
+            setEvents(updatedEvents);
+        }
+        
         setConfig(localConfig);
         addToast(i18n.settingsSaved, 'success');
     };
@@ -4723,6 +5282,13 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
         setLocalConfig(prev => {
             const newSection = [...prev[section]] as any[];
             newSection[index] = { ...newSection[index], [field]: value };
+            
+            // Automatisch eindtijd berekenen bij wijzigen van starttijd voor showTypes
+            if (section === 'showTypes' && field === 'defaultStartTime' && typeof value === 'string') {
+                const calculatedEndTime = calculateEndTime(value);
+                newSection[index] = { ...newSection[index], defaultEndTime: calculatedEndTime };
+            }
+            
             return { ...prev, [section]: newSection };
         });
     };
@@ -4811,6 +5377,36 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                             <div className="form-group-inline"><label>{i18n.defaultCapacity}</label><input type="number" value={item.defaultCapacity} onChange={e => handleItemChange('showTypes', localConfig.showTypes.indexOf(item), 'defaultCapacity', Number(e.target.value))} /></div>
                                             <div className="form-group-inline"><label>{i18n.priceStandard}</label><input type="number" value={item.priceStandard} onChange={e => handleItemChange('showTypes', localConfig.showTypes.indexOf(item), 'priceStandard', Number(e.target.value))} /></div>
                                             <div className="form-group-inline"><label>{i18n.pricePremium}</label><input type="number" value={item.pricePremium} onChange={e => handleItemChange('showTypes', localConfig.showTypes.indexOf(item), 'pricePremium', Number(e.target.value))} /></div>
+                                            
+                                            {/* Nieuwe tijd instellingen */}
+                                            <div className="form-group-inline">
+                                                <label>🕐 Standaard Starttijd</label>
+                                                <input 
+                                                    type="time" 
+                                                    value={item.defaultStartTime || '19:30'} 
+                                                    onChange={e => handleItemChange('showTypes', localConfig.showTypes.indexOf(item), 'defaultStartTime', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="form-group-inline">
+                                                <label>🕘 Standaard Eindtijd (automatisch berekend: starttijd + 3,5 uur)</label>
+                                                <input 
+                                                    type="time" 
+                                                    value={item.defaultEndTime || '22:30'} 
+                                                    onChange={e => handleItemChange('showTypes', localConfig.showTypes.indexOf(item), 'defaultEndTime', e.target.value)}
+                                                    style={{ backgroundColor: '#f8f9fa', fontStyle: 'italic' }}
+                                                    title="Deze tijd wordt automatisch berekend, maar kan handmatig worden aangepast"
+                                                />
+                                            </div>
+                                            <div className="form-group-inline">
+                                                <label>⚙️ Aangepaste Tijden Toestaan</label>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={item.allowCustomTimes !== false} 
+                                                    onChange={e => handleItemChange('showTypes', localConfig.showTypes.indexOf(item), 'allowCustomTimes', e.target.checked)}
+                                                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                                                />
+                                            </div>
+                                            
                                             <div className="form-group-inline">
                                                 <label>🎨 Kalender Kleur</label>
                                                 <input 
@@ -4838,7 +5434,23 @@ const SettingsView = ({ config, setConfig }: { config: AppConfig, setConfig: Rea
                                 </li>
                             )})}
                         </ul>
-                         <button className="add-new-btn btn-secondary" onClick={() => handleAddItem('showTypes', {id: `new_type_${Date.now()}`, name: 'Nieuw Type', archived: false, defaultCapacity: 100, priceStandard: 50, pricePremium: 65, color: '#3b82f6', showInLegend: true})}>{i18n.addNew}</button>
+                         <button className="add-new-btn btn-secondary" onClick={() => {
+                             const defaultStartTime = '19:30';
+                             const defaultEndTime = calculateEndTime(defaultStartTime);
+                             handleAddItem('showTypes', {
+                                 id: `new_type_${Date.now()}`, 
+                                 name: 'Nieuw Type', 
+                                 archived: false, 
+                                 defaultCapacity: 100, 
+                                 priceStandard: 50, 
+                                 pricePremium: 65, 
+                                 color: '#3b82f6', 
+                                 showInLegend: true,
+                                 defaultStartTime: defaultStartTime,
+                                 defaultEndTime: defaultEndTime,
+                                 allowCustomTimes: true
+                             });
+                         }}>{i18n.addNew}</button>
                     </div>
                 </div>
             );
@@ -6377,13 +6989,14 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
     );
 };
 
-const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, config, onAddShow, onDeleteReservation, onDeleteWaitingList, onBulkDelete, setConfig, guestCountMap, onDeleteShow, onToggleShowStatus, onUpdateShowCapacity, onAddExternalBooking, onToggleCheckIn, customers, onUpdateReservation, onUpdateWaitingList, onNotifyWaitlist, onConvertWaitlistToReservation, onAddInternalEvent, onUpdateInternalEvent, onDeleteInternalEvent }: {
+const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, config, onAddShow, onAddReservation, onDeleteReservation, onDeleteWaitingList, onBulkDelete, setConfig, guestCountMap, onDeleteShow, onToggleShowStatus, onUpdateShowCapacity, onAddExternalBooking, onToggleCheckIn, customers, onUpdateReservation, onUpdateWaitingList, onNotifyWaitlist, onConvertWaitlistToReservation, onAddInternalEvent, onUpdateInternalEvent, onDeleteInternalEvent, onUpdateShowEvents }: {
     reservations: Reservation[];
     showEvents: ShowEvent[];
     waitingList: WaitingListEntry[];
     internalEvents: InternalEvent[];
     config: AppConfig;
     onAddShow: (event: Omit<ShowEvent, 'id'>, dates: string[]) => void;
+    onAddReservation: (reservation: Omit<Reservation, 'id'>) => void;
     onDeleteReservation: (id: string) => void;
     onDeleteWaitingList: (id: string) => void;
     onBulkDelete: (criteria: { type: 'name' | 'type' | 'date', value: string }, month?: Date) => void;
@@ -6399,6 +7012,7 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
     onUpdateWaitingList: (entry: WaitingListEntry) => void;
     onNotifyWaitlist: (entry: WaitingListEntry) => void;
     onConvertWaitlistToReservation: (entry: WaitingListEntry) => void;
+    onUpdateShowEvents?: (shows: ShowEvent[]) => void;
     onAddInternalEvent: (event: Omit<InternalEvent, 'id'>) => void;
     onUpdateInternalEvent: (event: InternalEvent) => void;
     onDeleteInternalEvent: (id: string) => void;
@@ -6513,7 +7127,7 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                         <div className="content-header"><h2>{i18n.viewCalendar}</h2></div>
                         <AdminCalendarView 
                             showEvents={showEvents} reservations={reservations} waitingList={waitingList}
-                            onAddShow={onAddShow} onDeleteReservation={onDeleteReservation} onDeleteWaitingList={onDeleteWaitingList}
+                            onAddShow={onAddShow} onAddReservation={onAddReservation} onDeleteReservation={onDeleteReservation} onDeleteWaitingList={onDeleteWaitingList}
                             config={config} guestCountMap={guestCountMap} onBulkDelete={onBulkDelete}
                             onDeleteShow={onDeleteShow} onToggleShowStatus={onToggleShowStatus} onToggleCheckIn={onToggleCheckIn}
                             onEditReservation={handleEditReservation}
@@ -6590,12 +7204,12 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
             case 'reports':
                 return <AdminReportsView reservations={reservations} showEvents={showEvents} config={config} />;
             case 'capacity':
-                return <AdminCapacityView showEvents={showEvents} guestCountMap={guestCountMap} onUpdateShowCapacity={onUpdateShowCapacity} onToggleShowStatus={onToggleShowStatus} onAddExternalBooking={onAddExternalBooking} />;
+                return <AdminCapacityView showEvents={showEvents} guestCountMap={guestCountMap} onUpdateShowCapacity={onUpdateShowCapacity} onToggleShowStatus={onToggleShowStatus} onAddExternalBooking={onAddExternalBooking} config={config} />;
             case 'settings':
                 return (
                      <>
                         <div className="content-header"><h2>{i18n.settings}</h2></div>
-                        <SettingsView config={config} setConfig={setConfig} />
+                        <SettingsView config={config} setConfig={setConfig} events={showEvents} setEvents={onUpdateShowEvents} />
                      </>
                 );
             default: 
@@ -6747,16 +7361,12 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
 
     const weekDates = getWeekDates(currentDate);
     
-    // Internal event types with colors
+    // Internal event types met theater kleuren
     const internalEventTypes = [
-        { type: 'repetitie' as const, label: 'Repetitie', color: '#10b981' },
-        { type: 'besloten-feest' as const, label: 'Besloten Feest', color: '#f59e0b' },
-        { type: 'teammeeting' as const, label: 'Team Meeting', color: '#3b82f6' },
-        { type: 'onderhoud' as const, label: 'Onderhoud', color: '#8b5cf6' },
-        { type: 'techniek' as const, label: 'Techniek', color: '#ef4444' },
-        { type: 'catering' as const, label: 'Catering', color: '#06b6d4' },
-        { type: 'schoonmaak' as const, label: 'Schoonmaak', color: '#84cc16' },
-        { type: 'andere' as const, label: 'Andere', color: '#6b7280' }
+        { type: 'repetitie' as const, label: 'Repetitie', color: 'var(--kleur-accent)' },
+        { type: 'besloten-feest' as const, label: 'Besloten Feest', color: 'var(--kleur-secundair)' },
+        { type: 'teammeeting' as const, label: 'Team Meeting', color: 'var(--kleur-primair)' },
+        { type: 'schoonmaak' as const, label: 'Schoonmaak', color: 'var(--kleur-secundair-licht)' }
     ];
 
     // Get events for a specific date
@@ -6765,11 +7375,19 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
         
         const publicShows = showEvents
             .filter(event => event.date === dateStr)
-            .map(event => ({
-                ...event,
-                isPublic: true,
-                times: getShowTimes(date, event.type)
-            }));
+            .map(event => {
+                // Gebruik custom tijden van event of fallback naar showType defaults
+                const showType = config?.showTypes?.find(type => type.name === event.type);
+                const startTime = event.startTime || showType?.defaultStartTime || '19:30';
+                const endTime = event.endTime || showType?.defaultEndTime || '22:30';
+                
+                return {
+                    ...event,
+                    isPublic: true,
+                    startTime,
+                    endTime
+                };
+            });
 
         const internalEventsForDate = internalEvents
             .filter(event => event.date === dateStr)
@@ -6874,7 +7492,7 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
                                 {/* Public Shows */}
                                 {publicShows.map(show => (
                                     <div key={show.id} className="event public-show">
-                                        <div className="event-time">{show.times.start || '19:30'}</div>
+                                        <div className="event-time">{show.startTime} - {show.endTime}</div>
                                         <div className="event-title">{show.name}</div>
                                         <div className="event-type">{show.type}</div>
                                     </div>
@@ -7337,12 +7955,15 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                                     <div class="date-header">
                                         ${dateObj.toLocaleDateString('nl-NL')} - ${dateObj.toLocaleDateString('nl-NL', { weekday: 'short' })}
                                     </div>
-                                    ${dateShows.map(show => `
+                                    ${dateShows.map(show => {
+                                        const showType = config.showTypes.find(type => type.name === show.type);
+                                        const showTime = show.startTime || showType?.defaultStartTime || '19:30';
+                                        return `
                                         <div class="event-item public-event">
                                             <div class="event-title">${show.name}</div>
-                                            <div class="event-time">19:30 | ${show.type}</div>
-                                        </div>
-                                    `).join('')}
+                                            <div class="event-time">${showTime} | ${show.type}</div>
+                                        </div>`
+                                    }).join('')}
                                     ${dateInternals.map(event => `
                                         <div class="event-item internal-event">
                                             <div class="event-title">${event.title}</div>
@@ -7644,6 +8265,7 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
 
 const AppContent = () => {
     const [view, setView] = useState<View>('book');
+    const [adminSession, setAdminSession] = useState(false); // Track active admin session
     const [events, setEvents] = useState<ShowEvent[]>([]);
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [waitingList, setWaitingList] = useState<WaitingListEntry[]>([]);
@@ -7651,6 +8273,41 @@ const AppContent = () => {
     const [config, setConfig] = useState<AppConfig>(defaultConfig);
     const [loading, setLoading] = useState(true);
     const { addToast } = useToast();
+    const { isAdmin } = useAuth();
+
+    // Beveiligde view setter - admin views alleen voor ingelogde admins
+    const setViewSecure = useCallback((newView: View, bypassCheck = false) => {
+        console.log('🔄 setViewSecure called:', { newView, isAdmin, bypassCheck, loading, adminSession });
+        
+        if (newView === 'admin' && !isAdmin && !bypassCheck) {
+            addToast('⚠️ Admin toegang vereist. Log eerst in via de © knop linksonder.', 'warning');
+            return;
+        }
+        
+        // Als we naar admin gaan met bypass (na login), start admin session
+        if (newView === 'admin' && bypassCheck) {
+            setAdminSession(true);
+            console.log('✅ Starting admin session');
+        }
+        
+        // Als we weg gaan van admin, stop admin session
+        if (view === 'admin' && newView !== 'admin') {
+            setAdminSession(false);
+            console.log('🚫 Ending admin session');
+        }
+        
+        console.log('✅ Setting view to:', newView);
+        setView(newView);
+    }, [isAdmin, addToast, loading, adminSession, view]);
+
+    // Auto-redirect alleen bij uitloggen (niet tijdens actieve admin session)
+    useEffect(() => {
+        // Alleen redirect als we in admin view zijn EN geen actieve admin session EN gebruiker is niet admin
+        if (view === 'admin' && !adminSession && !isAdmin && !loading) {
+            console.log('🚫 No active admin session - redirecting to book');
+            setView('book');
+        }
+    }, [isAdmin, view, loading, adminSession]);
     
     // Function to reload all data from Firebase (no local state updates)
     const reloadFirebaseData = useCallback(async () => {
@@ -8412,7 +9069,7 @@ const AppContent = () => {
     return (
         <div className={`container ${view === 'admin' ? 'admin-container' : ''}`}>
             <SvgDefs />
-            <Header currentView={view} setCurrentView={setView} />
+            <Header currentView={view} setCurrentView={setViewSecure} />
             
             {/* 🧪 EMAIL TEST BUTTON - Development Only */}
             <main>
@@ -8446,6 +9103,7 @@ const AppContent = () => {
                         internalEvents={internalEvents}
                         config={config}
                         onAddShow={handleAddShow}
+                        onAddReservation={handleAddReservation}
                         onDeleteReservation={handleDeleteReservation}
                         onDeleteWaitingList={handleDeleteWaitingList}
                         onBulkDelete={handleBulkDelete}
@@ -8464,10 +9122,19 @@ const AppContent = () => {
                         onAddInternalEvent={handleAddInternalEvent}
                         onUpdateInternalEvent={handleUpdateInternalEvent}
                         onDeleteInternalEvent={handleDeleteInternalEvent}
+                        onUpdateShowEvents={setEvents}
                     />
                 )}
             </main>
+            
             <DynamicStyles config={config} />
+            <DiscreteAdminButton 
+                onAdminLogin={() => setViewSecure('admin', true)}
+                onAdminLogout={() => {
+                    setAdminSession(false);
+                    setViewSecure('book');
+                }}
+            />
         </div>
     );
 };
@@ -8480,11 +9147,13 @@ const App = () => {
     }, []);
 
     return (
-        <ToastProvider>
-            <ConfirmationProvider>
-                <AppContent />
-            </ConfirmationProvider>
-        </ToastProvider>
+        <AuthProvider>
+            <ToastProvider>
+                <ConfirmationProvider>
+                    <AppContent />
+                </ConfirmationProvider>
+            </ToastProvider>
+        </AuthProvider>
     );
 };
 

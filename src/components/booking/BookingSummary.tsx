@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Icon } from '../UI/Icon';
-import { i18n } from '../../config/config';
-import { formatDateToNL } from '../../utils/utilities';
-import type { ShowEvent, Reservation, AppConfig } from '../../types/types';
+import { i18n, calculateDoorsOpenTime } from '../../config/config';
+import { formatDateToNL, getShowTimes } from '../../utils/utilities';
+import type { ShowEvent, Reservation, AppConfig, ShowType } from '../../types/types';
 
 interface BookingSummaryProps {
     show: ShowEvent;
@@ -30,6 +30,15 @@ export const BookingSummary: React.FC<BookingSummaryProps> = ({
     const { guests, drinkPackage, preShowDrinks, afterParty, addons } = reservation;
     const merchandiseMap = useMemo(() => new Map(config.shopMerchandise.map(item => [item.id, item])), [config.shopMerchandise]);
     const capSlogansMap = useMemo(() => new Map(config.capSlogans.map((slogan, index) => [`cap${index}`, slogan])), [config.capSlogans]);
+    
+    // Get show type for time information using getShowTimes for consistency
+    const dateObj = new Date(show.date + 'T12:00:00');
+    const showTimes = getShowTimes(dateObj, show.type, config);
+    
+    // Use show-specific times if available, otherwise fall back to showType defaults from getShowTimes
+    const startTime = show.startTime || showTimes.start;
+    const endTime = show.endTime || showTimes.end;
+    const doorsOpenTime = calculateDoorsOpenTime(startTime);
 
     return (
         <>
@@ -37,6 +46,26 @@ export const BookingSummary: React.FC<BookingSummaryProps> = ({
             <div className="summary-section">
                 <p><strong>{i18n.show}:</strong> {show.name}</p>
                 <p><strong>{i18n.date}:</strong> {formatDateToNL(new Date(show.date + 'T12:00:00'), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                
+                {/* Show times information */}
+                <div className="show-times-info">
+                    <h4>{i18n.bookShow.showTimes}</h4>
+                    <div className="times-grid">
+                        <div className="time-item">
+                            <span className="time-label">{i18n.bookShow.doorsOpen}:</span>
+                            <span className="time-value">{doorsOpenTime}</span>
+                        </div>
+                        <div className="time-item">
+                            <span className="time-label">{i18n.bookShow.showStarts}:</span>
+                            <span className="time-value">{startTime}</span>
+                        </div>
+                        <div className="time-item">
+                            <span className="time-label">{i18n.bookShow.showEnds}:</span>
+                            <span className="time-value">{endTime}</span>
+                        </div>
+                    </div>
+                </div>
+                
                 <p><strong>{i18n.numberOfGuests}:</strong> {guests}</p>
                 <p><strong>{i18n.formPackage}:</strong> {drinkPackage === 'standard' ? i18n.standardPackage : i18n.packagePremium}</p>
             </div>

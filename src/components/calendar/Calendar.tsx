@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Icon } from '../UI/Icon';
 import type { ShowEvent, View, AppConfig } from '../../types/types';
 import { getDaysInMonth, formatDate, slugify, getShowColorClass } from '../../utils/utilities';
+import { useMobile } from '../../hooks/useMobile';
 
 // I18N - Dutch translations
 const i18n = {
@@ -42,6 +43,7 @@ export const Calendar: React.FC<CalendarProps> = React.memo(({
     onDayHover, 
     config 
 }) => {
+    const { isMobile, isSmallMobile, isTouchDevice, orientation } = useMobile();
     const year = month.getFullYear();
     const monthIndex = month.getMonth();
     
@@ -63,13 +65,25 @@ export const Calendar: React.FC<CalendarProps> = React.memo(({
     };
 
     return (
-        <div className="calendar-container">
+        <div className={`calendar-container ${isMobile ? 'mobile-layout' : ''} ${isSmallMobile ? 'small-mobile-layout' : ''} ${orientation === 'landscape' && isMobile ? 'mobile-landscape' : ''}`}>
             <div className="calendar-header">
-                <button onClick={handlePrevMonth} aria-label={i18n.prevMonth}><Icon id="chevron-left" /></button>
+                <button 
+                    onClick={handlePrevMonth} 
+                    aria-label={i18n.prevMonth}
+                    className={`calendar-nav-btn ${isTouchDevice ? 'touch-optimized' : ''}`}
+                >
+                    <Icon id="chevron-left" />
+                </button>
                 <h2>{month.toLocaleString('nl-NL', { month: 'long', year: 'numeric' })}</h2>
-                <button onClick={handleNextMonth} aria-label={i18n.nextMonth}><Icon id="chevron-right" /></button>
+                <button 
+                    onClick={handleNextMonth} 
+                    aria-label={i18n.nextMonth}
+                    className={`calendar-nav-btn ${isTouchDevice ? 'touch-optimized' : ''}`}
+                >
+                    <Icon id="chevron-right" />
+                </button>
             </div>
-            <div className="calendar-grid">
+            <div className={`calendar-grid ${isMobile ? 'mobile-grid' : ''} ${isSmallMobile ? 'small-mobile-grid' : ''}`}>
                 {i18n.dayNames.map(day => <div key={day} className="day-name">{day}</div>)}
                 {paddingDays.map((_, index) => <div key={`pad-${index}`} className="calendar-day other-month"></div>)}
                 {days.map(day => {
@@ -112,14 +126,28 @@ export const Calendar: React.FC<CalendarProps> = React.memo(({
                     };
 
                     const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-                        if (event && onDayHover) {
+                        // Don't show hover on touch devices
+                        if (event && onDayHover && !isTouchDevice) {
                             onDayHover({ event, guests, element: e.currentTarget });
                         }
                     };
 
                     const handleMouseLeave = () => {
-                        if (onDayHover) {
+                        if (onDayHover && !isTouchDevice) {
                             onDayHover(null);
+                        }
+                    };
+
+                    // Touch-specific handlers for mobile
+                    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+                        if (event && onDayHover && isTouchDevice) {
+                            onDayHover({ event, guests, element: e.currentTarget });
+                        }
+                    };
+
+                    const handleTouchEnd = () => {
+                        if (onDayHover && isTouchDevice) {
+                            setTimeout(() => onDayHover(null), 1500); // Show info for 1.5 seconds on touch
                         }
                     };
 
@@ -129,6 +157,8 @@ export const Calendar: React.FC<CalendarProps> = React.memo(({
                         return null;
                     };
 
+                    let dayClassName = `calendar-day ${day.getMonth() !== monthIndex ? 'other-month' : ''} ${event ? 'has-event' : ''} ${event?.isClosed ? 'is-closed' : ''} ${isFull ? 'full-event' : ''} ${dateStr === selectedDate ? 'selected' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isClickable ? 'clickable' : ''} ${capacityClass} ${typeClass} ${colorClass} ${isTouchDevice ? 'touch-enabled' : ''} ${isMobile ? 'mobile-day' : ''}`;
+
                     return (
                         <div 
                             key={dateStr}
@@ -137,6 +167,8 @@ export const Calendar: React.FC<CalendarProps> = React.memo(({
                             onKeyDown={handleKeyDown}
                             onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
+                            onTouchStart={isTouchDevice ? handleTouchStart : undefined}
+                            onTouchEnd={isTouchDevice ? handleTouchEnd : undefined}
                             tabIndex={isClickable ? 0 : -1}
                             role="button"
                             aria-label={event ? `${i18n.bookShow} ${event.name} op ${dateStr}` : `Datum ${dateStr}`}

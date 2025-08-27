@@ -175,8 +175,19 @@ export const throttle = <T extends (...args: any[]) => any>(func: T, limit: numb
 };
 
 // Show time utilities
-export const getShowTimes = (date: Date, showType: string) => {
-    // Default show times based on type
+export const getShowTimes = (date: Date, showType: string, config?: any) => {
+    // If config is provided, use dynamic show type times
+    if (config) {
+        const showTypeConfig = config.showTypes.find((st: any) => st.name === showType);
+        if (showTypeConfig) {
+            return {
+                start: showTypeConfig.defaultStartTime || '19:30',
+                end: showTypeConfig.defaultEndTime || '22:30'
+            };
+        }
+    }
+    
+    // Fallback to default times based on type (for backwards compatibility)
     const showTimes = {
         'Dinner & Show': { start: '17:30', end: '22:30' },
         'High Wine & Borrelhap': { start: '16:00', end: '18:30' },

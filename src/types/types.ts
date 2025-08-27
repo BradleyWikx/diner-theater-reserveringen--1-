@@ -9,6 +9,8 @@ export interface ShowEvent {
   isClosed?: boolean;
   manualCapacityOverride?: number; // Admin can override default capacity
   externalBookings?: number; // Track external bookings separately
+  startTime?: string; // HH:MM format - custom tijd of default van ShowType
+  endTime?: string; // HH:MM format - custom tijd of default van ShowType
 }
 
 export interface InternalEvent {
@@ -303,6 +305,9 @@ export interface ShowType extends ArchivableItem {
     pricePremium: number;
     color?: string; // Kleur voor kalender weergave
     showInLegend?: boolean; // Of dit type getoond moet worden in de legenda
+    defaultStartTime?: string; // HH:MM format, bijvoorbeeld "19:30"
+    defaultEndTime?: string; // HH:MM format, bijvoorbeeld "22:30"
+    allowCustomTimes?: boolean; // Of admins aangepaste tijden kunnen instellen
 }
 
 export interface PromoCode {

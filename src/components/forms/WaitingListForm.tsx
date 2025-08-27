@@ -168,15 +168,13 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
                                     className="number-input"
                                     value={guests} 
                                     min="1" 
-                                    max="20"
                                     onChange={e => setGuests(Math.max(1, parseInt(e.target.value, 10) || 1))} 
                                     required 
                                 />
                                 <button 
                                     type="button" 
                                     className="number-btn plus"
-                                    onClick={() => setGuests(Math.min(20, guests + 1))}
-                                    disabled={guests >= 20}
+                                    onClick={() => setGuests(guests + 1)}
                                 >
                                     <Icon id="plus" />
                                 </button>
