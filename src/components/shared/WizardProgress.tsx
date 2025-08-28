@@ -9,11 +9,11 @@ interface WizardProgressProps {
 
 export const WizardProgress: React.FC<WizardProgressProps> = ({ currentStep, totalSteps }) => {
     const stepLabels = [
-        i18n.wizardStep1, 
-        i18n.wizardStep2, 
-        i18n.wizardStep3, 
-        i18n.wizardStep4, 
-        i18n.wizardStep5
+        'Arrangement',
+        'Drankenpakket', 
+        'Merchandise', 
+        'Contactgegevens', 
+        'Overzicht'
     ];
     
     return (

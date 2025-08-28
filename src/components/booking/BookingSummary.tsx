@@ -14,6 +14,14 @@ interface BookingSummaryProps {
     setPromoInput: (value: string) => void;
     onApplyCode: () => void;
     promoMessage: string;
+    // Navigation props
+    currentStep?: number;
+    totalSteps?: number;
+    onPrevStep?: () => void;
+    onNextStep?: () => void;
+    canGoNext?: boolean;
+    onSubmit?: () => void;
+    isLastStep?: boolean;
 }
 
 export const BookingSummary: React.FC<BookingSummaryProps> = ({
@@ -25,7 +33,15 @@ export const BookingSummary: React.FC<BookingSummaryProps> = ({
     promoInput, 
     setPromoInput, 
     onApplyCode, 
-    promoMessage
+    promoMessage,
+    // Navigation props
+    currentStep,
+    totalSteps,
+    onPrevStep,
+    onNextStep,
+    canGoNext,
+    onSubmit,
+    isLastStep
 }) => {
     const { guests, drinkPackage, preShowDrinks, afterParty, addons } = reservation;
     const merchandiseMap = useMemo(() => new Map(config.shopMerchandise.map(item => [item.id, item])), [config.shopMerchandise]);
@@ -123,6 +139,44 @@ export const BookingSummary: React.FC<BookingSummaryProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Navigation buttons (only show when navigation props are provided) */}
+            {(currentStep && totalSteps && onPrevStep && onNextStep) && (
+                <div className="summary-navigation">
+                    <button 
+                        type="button" 
+                        onClick={onPrevStep}
+                        disabled={currentStep === 1}
+                        className="btn-secondary"
+                    >
+                        Vorige
+                    </button>
+                    
+                    <span className="step-indicator">
+                        Stap {currentStep} van {totalSteps}
+                    </span>
+                    
+                    {isLastStep ? (
+                        <button 
+                            type="button" 
+                            onClick={onSubmit}
+                            disabled={!canGoNext}
+                            className="btn-primary"
+                        >
+                            Bevestigen
+                        </button>
+                    ) : (
+                        <button 
+                            type="button" 
+                            onClick={onNextStep}
+                            disabled={!canGoNext}
+                            className="btn-primary"
+                        >
+                            Volgende
+                        </button>
+                    )}
+                </div>
+            )}
         </>
     );
 };

@@ -41,16 +41,16 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
     
     if (submitted) {
         return (
-            <div className="waitlist-success-container">
-                <div className="waitlist-success">
-                    <div className="success-animation">
-                        <div className="checkmark-circle">
-                            <Icon id="check" className="checkmark-icon" />
-                        </div>
+            <div className="waitlist-success-card modern-card">
+                <div className="success-header">
+                    <div className="success-icon-large">
+                        <Icon id="check" />
                     </div>
-                    <h3 className="success-title">🎉 Succesvol toegevoegd!</h3>
+                    <h3 className="success-title">Toegevoegd aan wachtlijst!</h3>
+                </div>
+                <div className="success-content">
                     <p className="success-message">
-                        U bent toegevoegd aan de wachtlijst voor <strong>{show.name}</strong>. 
+                        U bent succesvol toegevoegd aan de wachtlijst voor <strong>{show.name}</strong>. 
                         We sturen u een email zodra er plaatsen beschikbaar komen.
                     </p>
                     <div className="success-details">
@@ -62,8 +62,13 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
                             <Icon id="users" />
                             <span>{guests} {guests === 1 ? 'persoon' : 'personen'}</span>
                         </div>
+                        <div className="detail-item">
+                            <Icon id="mail" />
+                            <span>{email}</span>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="btn-primary" style={{ marginTop: '20px' }}>
+                    <button onClick={onClose} className="btn-primary btn-wide">
+                        <Icon id="arrow-left" />
                         Terug naar kalender
                     </button>
                 </div>
@@ -72,33 +77,39 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
     }
 
     return (
-        <div className="waitlist-form-simple">
-            <div className="waitlist-header">
-                <div className="waitlist-header-icon">
+        <div className="waitlist-container-modern">
+            <div className="waitlist-header-card modern-card">
+                <div className="header-icon">
                     <Icon id="clock" />
                 </div>
-                <h2 className="waitlist-title">Wachtlijst voor {show.name}</h2>
-                <p className="waitlist-subtitle">{formattedDate}</p>
+                <div className="header-content">
+                    <h2 className="waitlist-title">Wachtlijst - {show.name}</h2>
+                    <p className="waitlist-date">{formattedDate}</p>
+                </div>
+                <button onClick={onClose} className="close-btn" aria-label="Sluiten">
+                    <Icon id="close" />
+                </button>
             </div>
 
-            <div className="waitlist-info-card">
-                <div className="info-icon">
+            <div className="waitlist-info-card modern-card">
+                <div className="info-badge">
                     <Icon id="info" />
+                    <span>Vol</span>
                 </div>
                 <div className="info-content">
-                    <h4>Show is momenteel vol</h4>
-                    <p>Voeg jezelf toe aan de wachtlijst en we informeren je zodra er plaatsen beschikbaar komen.</p>
+                    <h4>Deze show is momenteel vol</h4>
+                    <p>Voeg jezelf toe aan de wachtlijst en we informeren je direct zodra er plaatsen vrijkomen.</p>
                 </div>
             </div>
             
-            <form onSubmit={handleSubmit} className="waitlist-form">
-                <div className="form-section">
-                    <h4 className="section-title">
+            <form onSubmit={handleSubmit} className="waitlist-form-modern modern-card">
+                <div className="form-section-modern">
+                    <div className="section-header">
                         <Icon id="user" />
-                        Persoonlijke gegevens
-                    </h4>
+                        <h4>Contactgegevens</h4>
+                    </div>
                     
-                    <div className="form-row">
+                    <div className="form-grid">
                         <div className="form-group">
                             <label htmlFor="name" className="form-label">Volledige naam *</label>
                             <input 
@@ -111,9 +122,7 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
                                 required 
                             />
                         </div>
-                    </div>
 
-                    <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="email" className="form-label">E-mailadres *</label>
                             <input 
@@ -126,9 +135,7 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
                                 required 
                             />
                         </div>
-                    </div>
 
-                    <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="phone" className="form-label">Telefoonnummer *</label>
                             <input 
@@ -141,39 +148,22 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
                                 required 
                             />
                         </div>
-                    </div>
-                </div>
 
-                <div className="form-section">
-                    <h4 className="section-title">
-                        <Icon id="users" />
-                        Reservering details
-                    </h4>
-                    
-                    <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="guests" className="form-label">Aantal personen *</label>
-                            <div className="number-input-wrapper">
+                            <div className="quantity-selector">
                                 <button 
                                     type="button" 
-                                    className="number-btn minus"
+                                    className="quantity-btn"
                                     onClick={() => setGuests(Math.max(1, guests - 1))}
                                     disabled={guests <= 1}
                                 >
                                     <Icon id="minus" />
                                 </button>
-                                <input 
-                                    id="guests" 
-                                    type="number" 
-                                    className="number-input"
-                                    value={guests} 
-                                    min="1" 
-                                    onChange={e => setGuests(Math.max(1, parseInt(e.target.value, 10) || 1))} 
-                                    required 
-                                />
+                                <span className="quantity-value">{guests}</span>
                                 <button 
                                     type="button" 
-                                    className="number-btn plus"
+                                    className="quantity-btn"
                                     onClick={() => setGuests(guests + 1)}
                                 >
                                     <Icon id="plus" />
@@ -186,7 +176,7 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
                 <div className="form-actions">
                     <button type="button" onClick={onClose} className="btn-secondary">
                         <Icon id="arrow-left" />
-                        Terug
+                        Annuleren
                     </button>
                     <button type="submit" className="btn-primary">
                         <Icon id="plus" />

@@ -59,7 +59,11 @@ export interface Reservation {
     houseNumber: string;
     postalCode: string;
     city: string;
+    country?: string; // Land selectie (BE, NL, DE, FR, LU, OTHER)
+    customCountry?: string; // Aangepast land als OTHER gekozen
     phone: string;
+    phoneCode?: string; // Landcode voor telefoon (+32, +31, etc.)
+    customPhoneCode?: string; // Aangepaste landcode
     email: string;
     guests: number;
     drinkPackage: 'standard' | 'premium';
@@ -79,6 +83,16 @@ export interface Reservation {
     bookingSource: 'internal' | 'external'; // Track booking source
     createdAt: string; // Timestamp for analytics
     approvedBy?: string; // Admin who approved provisional booking
+    // STAP 6: New fields for allergies and billing address
+    allergies?: string; // Allergieën en dieetwensen - heel belangrijk voor restaurant
+    differentBillingAddress?: boolean; // Factuuradres wijkt af van contactadres
+    billingCompany?: string; // Bedrijfsnaam voor factuur
+    billingContact?: string; // Contactpersoon voor factuur
+    billingAddress?: string; // Factuuradres
+    billingHouseNumber?: string; // Huisnummer factuuradres
+    billingPostalCode?: string; // Postcode factuuradres  
+    billingCity?: string; // Plaats factuuradres
+    billingInstructions?: string; // Bijzonderheden factuurafhandeling
 }
 
 export interface WaitingListEntry {

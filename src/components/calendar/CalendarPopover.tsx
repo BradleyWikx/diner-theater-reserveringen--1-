@@ -82,28 +82,17 @@ export const CalendarPopover: React.FC<CalendarPopoverProps> = ({ data, view, co
     }
 
     return (
-        <div className="calendar-popover" ref={popoverRef} style={style}>
+        <div className="calendar-popover calendar-popover-simplified" ref={popoverRef} style={style}>
             <div className="popover-title">{data.event.name}</div>
             <div className="popover-content">
-                <div className={`popover-status ${statusClass}`}>
-                    {statusMessage}
+                <div className="popover-times">
+                    <span>Deuren: {displayStartTime} | Show: {displayStartTime} - {displayEndTime}</span>
                 </div>
-                <div className="popover-info">
-                    <span className="popover-label">Tijd:</span>
-                    <span className="popover-value">{displayStartTime} - {displayEndTime}</span>
+                <div className="popover-prices">
+                    {standardPrice && premiumPrice && (
+                        <span>€{standardPrice} - €{premiumPrice}</span>
+                    )}
                 </div>
-                {standardPrice && (
-                    <div className="popover-info">
-                        <span className="popover-label">Standaard:</span>
-                        <span className="popover-value">€{standardPrice}</span>
-                    </div>
-                )}
-                {premiumPrice && (
-                    <div className="popover-info">
-                        <span className="popover-label">Premium:</span>
-                        <span className="popover-value">€{premiumPrice}</span>
-                    </div>
-                )}
             </div>
         </div>
     );

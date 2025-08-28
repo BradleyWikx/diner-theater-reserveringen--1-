@@ -916,6 +916,7 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
     const [willExceedCapacity, setWillExceedCapacity] = useState(false);
     const [showCapacityWarning, setShowCapacityWarning] = useState(false);
     const isMobile = useMediaQuery('(max-width: 900px)');
+    const { addToast } = useToast();
 
     const initialAddons = useMemo(() => {
         const addons: AddonQuantities = {};
@@ -1090,6 +1091,15 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Laatste validatie voordat formulier wordt ingediend
+        const errors = getStepValidationErrors();
+        if (errors.length > 0) {
+            const errorMessage = `⚠️ Vul eerst de verplichte velden in:\n\n• ${errors.join('\n• ')}`;
+            addToast(errorMessage, 'error');
+            return;
+        }
+        
         const reservationData = { 
             ...reservation, 
             totalPrice: priceDetails.total, 
@@ -1105,7 +1115,16 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         setSubmitted(true);
     };
     
-    const nextStep = () => setCurrentStep(s => Math.min(s + 1, WIZARD_STEPS));
+    const nextStep = () => {
+        const errors = getStepValidationErrors();
+        if (errors.length > 0) {
+            // Toon waarschuwing voor ontbrekende velden met mooie opmaak
+            const errorMessage = `⚠️ Vul eerst de verplichte velden in:\n\n• ${errors.join('\n• ')}`;
+            addToast(errorMessage, 'error');
+            return;
+        }
+        setCurrentStep(s => Math.min(s + 1, WIZARD_STEPS));
+    };
     const prevStep = () => setCurrentStep(s => Math.max(s - 1, 1));
     const goToStep = (step: number) => setCurrentStep(Math.max(1, Math.min(step, WIZARD_STEPS)));
 
@@ -1509,19 +1528,144 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                             <div className="form-group"><label htmlFor="houseNumber">{i18n.formHouseNumber}</label><input id="houseNumber" name="houseNumber" type="text" value={reservation.houseNumber} onChange={handleFormChange} required /></div>
                             <div className="form-group"><label htmlFor="postalCode">{i18n.formPostalCode}</label><input id="postalCode" name="postalCode" type="text" value={reservation.postalCode} onChange={handleFormChange} required /></div>
                             <div className="form-group"><label htmlFor="city">{i18n.formCity}</label><input id="city" name="city" type="text" value={reservation.city} onChange={handleFormChange} required /></div>
-                            <div className="form-group"><label htmlFor="phone">{i18n.formPhone}</label><input id="phone" name="phone" type="tel" value={reservation.phone} onChange={handleFormChange} required /></div>
+                            <div className="form-group">
+                                <label htmlFor="country">Land *</label>
+                                <select id="country" name="country" value={reservation.country || 'BE'} onChange={handleFormChange} required>
+                                    <option value="BE">België</option>
+                                    <option value="NL">Nederland</option>
+                                    <option value="DE">Duitsland</option>
+                                    <option value="FR">Frankrijk</option>
+                                    <option value="LU">Luxemburg</option>
+                                    <option value="OTHER">Ander land...</option>
+                                </select>
+                            </div>
+                            {reservation.country === 'OTHER' && (
+                                <div className="form-group">
+                                    <label htmlFor="customCountry">Geef land op *</label>
+                                    <input id="customCountry" name="customCountry" type="text" value={reservation.customCountry || ''} onChange={handleFormChange} required placeholder="Land invullen" />
+                                </div>
+                            )}
+                            <div className="form-group phone-field-wide">
+                                <label htmlFor="phoneCode">Telefoon *</label>
+                                <div className="phone-input-group">
+                                    <select name="phoneCode" value={reservation.phoneCode || '+32'} onChange={handleFormChange} className="phone-code-select">
+                                        <option value="+32">+32 (BE)</option>
+                                        <option value="+31">+31 (NL)</option>
+                                        <option value="+49">+49 (DE)</option>
+                                        <option value="+33">+33 (FR)</option>
+                                        <option value="+352">+352 (LU)</option>
+                                        <option value="OTHER">Andere</option>
+                                    </select>
+                                    <input 
+                                        id="phone" 
+                                        name="phone" 
+                                        type="tel" 
+                                        value={reservation.phone || ''} 
+                                        onChange={handleFormChange} 
+                                        required 
+                                        placeholder="Telefoonnummer"
+                                        className="phone-number-input"
+                                    />
+                                </div>
+                                {reservation.phoneCode === 'OTHER' && (
+                                    <input 
+                                        name="customPhoneCode" 
+                                        type="text" 
+                                        value={reservation.customPhoneCode || ''} 
+                                        onChange={handleFormChange} 
+                                        placeholder="Bijv. +1" 
+                                        className="custom-phone-code"
+                                    />
+                                )}
+                            </div>
                             <div className="form-group"><label htmlFor="email">{i18n.formEmail}</label><input id="email" name="email" type="email" value={reservation.email} onChange={handleFormChange} required /></div>
                         </div>
+
+                        {/* Allergieën Sectie - Belangrijk voor restaurant */}
+                        <fieldset>
+                            <legend>🥗 Allergieën & Dieetwensen</legend>
+                            <div className="allergy-section">
+                                <div className="form-group single-column">
+                                    <label htmlFor="allergies" className="important-label">
+                                        Vermeld hier eventuele allergieën, dieetwensen of bijzondere verzoeken *
+                                    </label>
+                                    <textarea 
+                                        id="allergies" 
+                                        name="allergies" 
+                                        value={reservation.allergies || ''} 
+                                        onChange={handleFormChange}
+                                        placeholder="Bijvoorbeeld: lactose-intolerant, vegetarisch, glutenvrij, noten-allergie..."
+                                        rows={4}
+                                        className="allergy-textarea"
+                                    />
+                                    <div className="form-help-text">
+                                        Deze informatie wordt direct doorgegeven aan onze keuken voor een veilige en aangename ervaring.
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        {/* Factuuradres Sectie */}
+                        <fieldset>
+                            <legend>📄 Factuurgegevens</legend>
+                            <div className="billing-section">
+                                <div className="form-group single-column">
+                                    <label className="checkbox-label">
+                                        <input 
+                                            type="checkbox" 
+                                            name="differentBillingAddress" 
+                                            checked={reservation.differentBillingAddress || false} 
+                                            onChange={handleFormChange}
+                                        />
+                                        Factuuradres wijkt af van contactadres
+                                    </label>
+                                </div>
+                                
+                                {reservation.differentBillingAddress && (
+                                    <div className="billing-address-fields">
+                                        <div className="form-grid">
+                                            <div className="form-group"><label htmlFor="billingCompany">Bedrijfsnaam</label><input id="billingCompany" name="billingCompany" type="text" value={reservation.billingCompany || ''} onChange={handleFormChange} /></div>
+                                            <div className="form-group"><label htmlFor="billingContact">Contactpersoon</label><input id="billingContact" name="billingContact" type="text" value={reservation.billingContact || ''} onChange={handleFormChange} /></div>
+                                            <div className="form-group"><label htmlFor="billingAddress">Adres *</label><input id="billingAddress" name="billingAddress" type="text" value={reservation.billingAddress || ''} onChange={handleFormChange} required={reservation.differentBillingAddress} /></div>
+                                            <div className="form-group"><label htmlFor="billingHouseNumber">Huisnummer *</label><input id="billingHouseNumber" name="billingHouseNumber" type="text" value={reservation.billingHouseNumber || ''} onChange={handleFormChange} required={reservation.differentBillingAddress} /></div>
+                                            <div className="form-group"><label htmlFor="billingPostalCode">Postcode *</label><input id="billingPostalCode" name="billingPostalCode" type="text" value={reservation.billingPostalCode || ''} onChange={handleFormChange} required={reservation.differentBillingAddress} /></div>
+                                            <div className="form-group"><label htmlFor="billingCity">Plaats *</label><input id="billingCity" name="billingCity" type="text" value={reservation.billingCity || ''} onChange={handleFormChange} required={reservation.differentBillingAddress} /></div>
+                                        </div>
+                                        <div className="form-group single-column">
+                                            <label htmlFor="billingInstructions">Bijzonderheden factuurafhandeling</label>
+                                            <textarea 
+                                                id="billingInstructions" 
+                                                name="billingInstructions" 
+                                                value={reservation.billingInstructions || ''} 
+                                                onChange={handleFormChange}
+                                                placeholder="Bijvoorbeeld: BTW-nummer, PO-nummer, bijzondere verzendwensen..."
+                                                rows={3}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </fieldset>
+
                         <fieldset>
                             <legend>Viering</legend>
-                            <div className="form-grid">
-                                <div className="form-group"><label htmlFor="celebrationName">{i18n.celebrationName}</label><input id="celebrationName" name="celebrationName" type="text" value={reservation.celebrationName} onChange={handleFormChange} /></div>
-                                <div className="form-group"><label htmlFor="celebrationOccasion">{i18n.celebrationOccasion}</label><input id="celebrationOccasion" name="celebrationOccasion" type="text" value={reservation.celebrationOccasion} onChange={handleFormChange} /></div>
+                            <div className="celebration-fields">
+                                <div className="form-group single-column">
+                                    <label htmlFor="celebrationName">{i18n.celebrationName}</label>
+                                    <input id="celebrationName" name="celebrationName" type="text" value={reservation.celebrationName} onChange={handleFormChange} />
+                                </div>
+                                <div className="form-group single-column">
+                                    <label htmlFor="celebrationOccasion">{i18n.celebrationOccasion}</label>
+                                    <input id="celebrationOccasion" name="celebrationOccasion" type="text" value={reservation.celebrationOccasion} onChange={handleFormChange} />
+                                </div>
                             </div>
                         </fieldset>
                          <fieldset>
                             <legend>{i18n.formConsent}</legend>
-                            <div className="form-group"><label htmlFor="remarks">{i18n.formRemarks}</label><textarea id="remarks" name="remarks" value={reservation.remarks} onChange={handleFormChange}></textarea></div>
+                            <div className="form-group single-column">
+                                <label htmlFor="remarks">{i18n.formRemarks}</label>
+                                <textarea id="remarks" name="remarks" value={reservation.remarks} onChange={handleFormChange}></textarea>
+                            </div>
                             <div className="checkbox-group">
                                 <label><input type="checkbox" name="newsletter" checked={reservation.newsletter} onChange={handleFormChange} /> {i18n.consentNewsletter}</label>
                                 <label><input type="checkbox" name="termsAccepted" checked={reservation.termsAccepted} onChange={handleFormChange} required /> {i18n.consentTerms}</label>
@@ -1599,23 +1743,64 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         }
     }
 
-    const isStepValid = () => {
-        if (currentStep === 4) {
-            return reservation.contactName && reservation.address && reservation.houseNumber && reservation.postalCode && reservation.city && reservation.phone && reservation.email && reservation.termsAccepted;
+    const getStepValidationErrors = () => {
+        const errors: string[] = [];
+        
+        if (currentStep === 1) {
+            // Stap 1: Arrangement & Gasten
+            if (!reservation.drinkPackage) {
+                errors.push('Selecteer een arrangement (Standaard of Premium)');
+            }
+            if (!reservation.guests || reservation.guests < 1) {
+                errors.push('Vul een geldig aantal gasten in');
+            }
         }
-        return true;
-    }
+        
+        if (currentStep === 4) {
+            // Stap 4: Contactgegevens
+            if (!reservation.contactName) errors.push('Contactpersoon naam is verplicht');
+            if (!reservation.address) errors.push('Adres is verplicht');
+            if (!reservation.houseNumber) errors.push('Huisnummer is verplicht');
+            if (!reservation.postalCode) errors.push('Postcode is verplicht');
+            if (!reservation.city) errors.push('Plaats is verplicht');
+            if (!reservation.phone) errors.push('Telefoonnummer is verplicht');
+            if (!reservation.email) errors.push('E-mailadres is verplicht');
+            
+            // Validatie voor afwijkend factuuradres indien aangevinkt
+            if (reservation.differentBillingAddress) {
+                if (!reservation.billingAddress) errors.push('Factuuradres is verplicht');
+                if (!reservation.billingHouseNumber) errors.push('Factuur huisnummer is verplicht');
+                if (!reservation.billingPostalCode) errors.push('Factuur postcode is verplicht');
+                if (!reservation.billingCity) errors.push('Factuur plaats is verplicht');
+            }
+        }
+        
+        if (currentStep === 5) {
+            // Stap 5: Overzicht - alleen algemene voorwaarden
+            if (!reservation.termsAccepted) errors.push('Acceptatie van algemene voorwaarden is verplicht');
+        }
+        
+        return errors;
+    };
+    
+    const isStepValid = () => {
+        return getStepValidationErrors().length === 0;
+    };
     
     const summaryProps = {
         show, reservation, priceDetails, config, appliedCode, promoInput, 
-        setPromoInput, onApplyCode: handleApplyCode, promoMessage
+        setPromoInput, onApplyCode: handleApplyCode, promoMessage,
+        // Navigation props
+        currentStep, totalSteps: WIZARD_STEPS, 
+        onPrevStep: prevStep, onNextStep: nextStep,
+        canGoNext: getStepValidationErrors().length === 0,
+        onSubmit: handleSubmit, isLastStep: currentStep === WIZARD_STEPS
     }
 
     return (
         <form className={`wizard-form ${isMobile ? 'is-mobile' : ''}`} onSubmit={handleSubmit}>
              <div className={`wizard-main-content ${isMobile ? 'mobile-padding' : ''}`}>
                 <div className="wizard-header">
-                     {showImage && <img src={showImage} alt={show.name} className="wizard-header-image" />}
                      <button type="button" className="wizard-close-btn" onClick={onClose} aria-label={i18n.close}><Icon id="close"/></button>
                 </div>
                 
@@ -1623,16 +1808,6 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                     <WizardProgress currentStep={currentStep} totalSteps={WIZARD_STEPS} />
                     <div className="wizard-step-container">
                         {renderStepContent()}
-                    </div>
-                </div>
-                <div className="wizard-footer">
-                    <div className="wizard-navigation">
-                        <button type="button" onClick={prevStep} className="btn-secondary" disabled={currentStep === 1}>{i18n.prevStep}</button>
-                        {currentStep < WIZARD_STEPS ? (
-                            <button type="button" onClick={nextStep} className="submit-btn" disabled={!isStepValid()}>{i18n.nextStep}</button>
-                        ) : (
-                            <button type="submit" className="submit-btn wide-btn" disabled={!reservation.termsAccepted}>{i18n.submitBooking}</button>
-                        )}
                     </div>
                 </div>
             </div>
@@ -1654,58 +1829,68 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
     const formattedDate = dateObj.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
 
     return (
-        <div className="show-summary-panel">
+        <div className="show-summary-panel-redesigned">
             <div className="summary-header-image-container">
                 {showImage && <img src={showImage} alt={show.name} className="summary-header-image" />}
             </div>
             
-            {/* Show title and date in overlay box - same style as wizard */}
-            <div className="show-info-overlay">
-                <h3 className="show-title-main">{show.name}</h3>
-                <p className="show-date-main">
-                    {formattedDate}
-                    {/* Show type only if it's in the legend (special shows) */}
-                    {(() => {
-                        const showType = config.showTypes.find(st => st.name === show.type);
-                        return showType?.showInLegend ? ` - ${show.type}` : '';
-                    })()}
+            {/* Show title and date - no longer in overlay box */}
+            <div className="show-header-section">
+                <h3 className="show-title-redesigned">{show.name}</h3>
+                <p className="show-date-redesigned">{formattedDate}</p>
+                {showType?.showInLegend && (
+                    <span className="show-type-badge">{show.type}</span>
+                )}
+            </div>
+
+            {/* Show times as clean text - no boxes */}
+            <div className="show-times-section">
+                <p className="show-times-text">
+                    <strong>Deuren:</strong> {doorsOpenTime} | <strong>Show:</strong> {showTimes.start} - {showTimes.end}
                 </p>
             </div>
 
-            {/* Show times overlapping bottom of overlay */}
-            <div className="show-times-cards">
-                <div className="time-info-card">
-                    <span className="time-icon">🚪</span>
-                    <span className="time-label">Deuren:</span>
-                    <span className="time-value">{doorsOpenTime}</span>
-                </div>
-                <div className="time-info-card">
-                    <span className="time-icon">🎭</span>
-                    <span className="time-label">Show:</span>
-                    <span className="time-value">{showTimes.start} - {showTimes.end}</span>
-                </div>
-            </div>
-
             <div className="summary-content">
-                <div className="summary-pricing">
-                    <h4>{i18n.pricing}</h4>
-                    <div className="price-item">
-                        <span>{i18n.standardPackage}</span>
-                        <span className="price">€{showType.priceStandard.toFixed(2)}</span>
-                    </div>
-                    <div className="price-item">
-                        <span>{i18n.premiumPackage}</span>
-                        <span className="price">€{showType.pricePremium.toFixed(2)}</span>
+                {/* Arrangement prices section with help icons */}
+                <div className="arrangement-prices-section">
+                    <h4>Arrangement Prijzen</h4>
+                    <div className="price-items-with-help">
+                        <div className="price-item-with-tooltip">
+                            <div className="price-item">
+                                <span>{i18n.standardPackage}</span>
+                                <span className="price">€{showType.priceStandard.toFixed(2)}</span>
+                            </div>
+                            <div className="help-icon-container" title="Standaard arrangement bevat: welkomstdrankje, 4-gangen diner en toegang tot de show">
+                                <Icon id="help-circle" />
+                            </div>
+                        </div>
+                        <div className="price-item-with-tooltip">
+                            <div className="price-item">
+                                <span>{i18n.premiumPackage}</span>
+                                <span className="price">€{showType.pricePremium.toFixed(2)}</span>
+                            </div>
+                            <div className="help-icon-container" title="Premium arrangement bevat: champagne ontvangst, 5-gangen diner met wijnarrangement, VIP-plaatsen en toegang tot de show">
+                                <Icon id="help-circle" />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <button onClick={onStartBooking} className="submit-btn wide-btn">
+                <button onClick={onStartBooking} className="submit-btn wide-btn booking-cta">
                     {isUnavailable ? i18n.joinWaitingList : i18n.bookShow.bookButton}
                 </button>
                 
                 {isUnavailable && (
                     <div className="waitinglist-info">
-                        <p><Icon id="info" /> {i18n.waitingListAvailable}</p>
+                        <Icon id="info" />
+                        <p>{i18n.waitingListAvailable}</p>
+                    </div>
+                )}
+
+                {!isUnavailable && remainingCapacity <= 20 && (
+                    <div className="availability-warning">
+                        <Icon id="clock" />
+                        <p>Nog slechts {remainingCapacity} plaatsen beschikbaar!</p>
                     </div>
                 )}
             </div>
@@ -2567,180 +2752,306 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
     };
 
     return (
-        <div className="enhanced-reservations-view">
-            {/* Enhanced Header */}
-            <div className="reservations-header">
-                <div className="reservations-title-section">
-                    <h2 className="reservations-title">🎫 Alle Reserveringen</h2>
-                    <p className="reservations-subtitle">
-                        Beheer alle boekingen en bekijk gedetailleerde klantinformatie
-                    </p>
-                </div>
-
-                {/* Stats Overview */}
-                <div className="reservations-stats-grid">
-                    <div className="stat-item">
-                        <div className="stat-value">{reservationStats.totalReservations}</div>
-                        <div className="stat-label">Totaal Reserveringen</div>
+        <div className="modern-admin-reservations">
+            {/* Modern Header Section */}
+            <div className="admin-header-section">
+                <div className="header-content">
+                    <div className="header-text">
+                        <h1 className="page-title">� Reserveringen Overzicht</h1>
+                        <p className="page-subtitle">
+                            Professioneel beheer van alle theater reserveringen
+                        </p>
                     </div>
-                    <div className="stat-item">
-                        <div className="stat-value">€{reservationStats.totalRevenue.toFixed(0)}</div>
-                        <div className="stat-label">Totale Omzet</div>
-                    </div>
-                    <div className="stat-item">
-                        <div className="stat-value">{reservationStats.totalGuests}</div>
-                        <div className="stat-label">Totaal Gasten</div>
-                    </div>
-                    <div className="stat-item">
-                        <div className="stat-value">€{reservationStats.avgBookingValue.toFixed(0)}</div>
-                        <div className="stat-label">Gem. Boeking</div>
-                    </div>
-                </div>
-
-                {/* Enhanced Controls */}
-                <div className="reservations-controls">
-                    <div className="search-section">
-                        <div className="search-input-wrapper">
-                            <Icon id="search"/>
-                            <input 
-                                type="text" 
-                                className="search-input"
-                                placeholder="Zoek op naam, email, datum of show..." 
-                                value={searchTerm} 
-                                onChange={e => setSearchTerm(e.target.value)} 
-                            />
-                        </div>
-                        
-                        <select 
-                            value={dateFilter} 
-                            onChange={(e) => setDateFilter(e.target.value as any)}
-                            className="filter-select"
-                        >
-                            <option value="all">📅 Alle Datums</option>
-                            <option value="today">Vandaag</option>
-                            <option value="week">Deze Week</option>
-                            <option value="month">Deze Maand</option>
-                        </select>
-                    </div>
-
-                    <div className="export-section">
+                    <div className="header-actions">
                         <button 
                             onClick={() => exportData('csv')} 
-                            className="secondary-action-btn"
+                            className="export-btn primary-export"
                         >
-                            📊 Export CSV
-                        </button>
-                        <button 
-                            onClick={() => exportData('json')} 
-                            className="secondary-action-btn"
-                        >
-                            📄 Export JSON
+                            📊 Exporteer Data
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Enhanced Table */}
-            <div className="enhanced-table-container">
+            {/* Enhanced Stats Dashboard */}
+            <div className="stats-dashboard">
+                <div className="stat-card highlight-card">
+                    <div className="stat-icon">📋</div>
+                    <div className="stat-content">
+                        <div className="stat-number">{reservationStats.totalReservations}</div>
+                        <div className="stat-label">Totaal Reserveringen</div>
+                    </div>
+                </div>
+                <div className="stat-card revenue-card">
+                    <div className="stat-icon">💰</div>
+                    <div className="stat-content">
+                        <div className="stat-number">€{reservationStats.totalRevenue.toLocaleString()}</div>
+                        <div className="stat-label">Totale Omzet</div>
+                    </div>
+                </div>
+                <div className="stat-card guests-card">
+                    <div className="stat-icon">👥</div>
+                    <div className="stat-content">
+                        <div className="stat-number">{reservationStats.totalGuests}</div>
+                        <div className="stat-label">Totaal Gasten</div>
+                    </div>
+                </div>
+                <div className="stat-card average-card">
+                    <div className="stat-icon">📊</div>
+                    <div className="stat-content">
+                        <div className="stat-number">€{Math.round(reservationStats.avgBookingValue)}</div>
+                        <div className="stat-label">Gemiddelde Boeking</div>
+                    </div>
+                </div>
+                <div className="stat-card today-card">
+                    <div className="stat-icon">📅</div>
+                    <div className="stat-content">
+                        <div className="stat-number">
+                            {sortedFilteredReservations.filter(r => {
+                                const today = new Date().toDateString();
+                                return new Date(r.date + 'T12:00:00').toDateString() === today;
+                            }).length}
+                        </div>
+                        <div className="stat-label">Vandaag</div>
+                    </div>
+                </div>
+                <div className="stat-card week-card">
+                    <div className="stat-icon">📆</div>
+                    <div className="stat-content">
+                        <div className="stat-number">
+                            {sortedFilteredReservations.filter(r => {
+                                const now = new Date();
+                                const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                                const resDate = new Date(r.date + 'T12:00:00');
+                                return resDate >= now && resDate <= weekFromNow;
+                            }).length}
+                        </div>
+                        <div className="stat-label">Deze Week</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Advanced Filter Section */}
+            <div className="advanced-filters">
+                <div className="filter-section">
+                    <div className="filter-group">
+                        <label className="filter-label">🔍 Zoeken</label>
+                        <div className="search-wrapper">
+                            <Icon id="search"/>
+                            <input 
+                                type="text" 
+                                className="modern-search-input"
+                                placeholder="Zoek op naam, email, telefoon of bedrijf..." 
+                                value={searchTerm} 
+                                onChange={e => setSearchTerm(e.target.value)} 
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="filter-group">
+                        <label className="filter-label">📅 Periode</label>
+                        <select 
+                            value={dateFilter} 
+                            onChange={(e) => setDateFilter(e.target.value as any)}
+                            className="modern-select"
+                        >
+                            <option value="all">Alle Periodes</option>
+                            <option value="today">Vandaag</option>
+                            <option value="week">Deze Week</option>
+                            <option value="month">Deze Maand</option>
+                        </select>
+                    </div>
+                    
+                    <div className="filter-group">
+                        <label className="filter-label">🎭 Show Filter</label>
+                        <select className="modern-select">
+                            <option>Alle Shows</option>
+                            {Array.from(new Set(sortedFilteredReservations.map(r => showMap.get(r.date)?.name).filter(Boolean))).map(showName => (
+                                <option key={showName} value={showName}>{showName}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Quick Filters */}
+                <div className="quick-filters">
+                    <button 
+                        className={`quick-filter-btn ${dateFilter === 'today' ? 'active' : ''}`}
+                        onClick={() => setDateFilter('today')}
+                    >
+                        � Vandaag
+                    </button>
+                    <button 
+                        className={`quick-filter-btn ${dateFilter === 'week' ? 'active' : ''}`}
+                        onClick={() => setDateFilter('week')}
+                    >
+                        📆 Deze Week  
+                    </button>
+                    <button 
+                        className="quick-filter-btn"
+                        onClick={() => {
+                            setSearchTerm('');
+                            setDateFilter('all');
+                        }}
+                    >
+                        🔄 Reset Filters
+                    </button>
+                </div>
+            </div>
+
+            {/* Professional Data Table */}
+            <div className="professional-table-container">
+                <div className="table-header">
+                    <h2 className="table-title">Reserveringen Database</h2>
+                    <div className="table-info">
+                        <span className="result-count">{sortedFilteredReservations.length} resultaten</span>
+                        <div className="view-options">
+                            <button className="view-btn active">📋 Tabel</button>
+                            <button className="view-btn">🎯 Compact</button>
+                        </div>
+                    </div>
+                </div>
+
                 {currentItems.length > 0 ? (
                     <>
-                        <table className="enhanced-table">
-                            <thead>
-                                <tr>
-                                    <th onClick={() => requestSort('date')} className="sortable-header">
-                                        📅 Datum {getSortIcon('date')}
-                                    </th>
-                                    <th onClick={() => requestSort('showName')} className="sortable-header">
-                                        🎭 Show {getSortIcon('showName')}
-                                    </th>
-                                    <th onClick={() => requestSort('contactName')} className="sortable-header">
-                                        👤 Contact {getSortIcon('contactName')}
-                                    </th>
-                                    <th onClick={() => requestSort('guests')} className="sortable-header">
-                                        👥 Gasten {getSortIcon('guests')}
-                                    </th>
-                                    <th onClick={() => requestSort('totalPrice')} className="sortable-header">
-                                        💰 Bedrag {getSortIcon('totalPrice')}
-                                    </th>
-                                    <th>⚡ Acties</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {currentItems.map(r => (
-                                    <tr key={r.id} className="table-row-interactive">
-                                        <td>
-                                            <div className="date-cell">
-                                                <div className="date-main">{formatDateToNL(new Date(r.date + 'T12:00:00'))}</div>
-                                                <div className="date-time">19:30</div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="show-cell">
-                                                <div className="show-name">{showMap.get(r.date)?.name || 'Onbekend'}</div>
-                                                <div className="show-type">{showMap.get(r.date)?.type || ''}</div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="customer-cell">
-                                                <div className="customer-avatar">
-                                                    {r.contactName ? r.contactName.charAt(0).toUpperCase() : '?'}
-                                                </div>
-                                                <div className="customer-info">
-                                                    <div className="customer-name">{r.contactName || 'Onbekend'}</div>
-                                                    <div className="customer-email">{r.companyName || r.email}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="guests-cell">
-                                                <span className="guests-icon">👥</span>
-                                                <span className="guests-count">{r.guests}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="amount-cell">€{(r.totalPrice || 0).toFixed(2)}</div>
-                                        </td>
-                                        <td className="actions-col">
-                                            <div className="action-buttons">
-                                                <button 
-                                                    onClick={() => onEditReservation(r)} 
-                                                    className="action-btn edit-btn" 
-                                                    title="Bewerk reservering"
-                                                >
-                                                    <Icon id="edit"/>
-                                                </button>
-                                                <button 
-                                                    onClick={() => confirm({ 
-                                                        title: "Reservering Verwijderen", 
-                                                        message: "Weet u zeker dat u deze reservering wilt verwijderen?", 
-                                                        onConfirm: () => onDeleteReservation(r.id), 
-                                                        confirmButtonClass: 'delete-btn'
-                                                    })} 
-                                                    className="action-btn delete-btn" 
-                                                    title="Verwijder reservering"
-                                                >
-                                                    <Icon id="trash"/>
-                                                </button>
-                                            </div>
-                                        </td>
+                        <div className="table-scroll-container">
+                            <table className="professional-table">
+                                <thead>
+                                    <tr>
+                                        <th onClick={() => requestSort('date')} className="sortable-header">
+                                            📅 Datum & Tijd {getSortIcon('date')}
+                                        </th>
+                                        <th onClick={() => requestSort('showName')} className="sortable-header">
+                                            🎭 Show Details {getSortIcon('showName')}
+                                        </th>
+                                        <th onClick={() => requestSort('contactName')} className="sortable-header">
+                                            👤 Klant Informatie {getSortIcon('contactName')}
+                                        </th>
+                                        <th onClick={() => requestSort('guests')} className="sortable-header">
+                                            👥 Gasten {getSortIcon('guests')}
+                                        </th>
+                                        <th onClick={() => requestSort('totalPrice')} className="sortable-header">
+                                            💰 Financieel {getSortIcon('totalPrice')}
+                                        </th>
+                                        <th className="actions-header">⚡ Acties</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {currentItems.map((r, index) => (
+                                        <tr key={r.id} className={`professional-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                                            <td>
+                                                <div className="date-info-cell">
+                                                    <div className="date-primary">{formatDateToNL(new Date(r.date + 'T12:00:00'))}</div>
+                                                    <div className="time-info">🕐 19:30</div>
+                                                    <div className="day-info">
+                                                        {new Date(r.date + 'T12:00:00').toLocaleDateString('nl-NL', { weekday: 'short' })}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="show-info-cell">
+                                                    <div className="show-title">{showMap.get(r.date)?.name || 'Onbekende Show'}</div>
+                                                    <div className="show-type">🎪 {showMap.get(r.date)?.type || 'Standaard'}</div>
+                                                    <div className="venue-info">🏛️ Theater Locatie</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="customer-info-cell">
+                                                    <div className="customer-header">
+                                                        <div className="customer-avatar-modern">
+                                                            {r.contactName ? r.contactName.charAt(0).toUpperCase() : '?'}
+                                                        </div>
+                                                        <div className="customer-details">
+                                                            <div className="customer-name-modern">{r.contactName || 'Onbekende Klant'}</div>
+                                                            <div className="customer-company">🏢 {r.companyName || 'Particulier'}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="contact-details">
+                                                        <div className="email-info">📧 {r.email || 'Geen email'}</div>
+                                                        <div className="phone-info">📱 {r.phone || 'Geen telefoon'}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="guests-info-cell">
+                                                    <div className="guest-count-badge">
+                                                        <span className="guest-icon">👥</span>
+                                                        <span className="guest-number">{r.guests}</span>
+                                                    </div>
+                                                    <div className="capacity-info">
+                                                        {r.guests >= 8 ? '🔥 Grote Groep' : '👤 Standaard'}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="financial-info-cell">
+                                                    <div className="price-main">€{(r.totalPrice || 0).toLocaleString('nl-NL', {minimumFractionDigits: 2})}</div>
+                                                    <div className="price-per-person">
+                                                        €{r.guests > 0 ? ((r.totalPrice || 0) / r.guests).toFixed(0) : '0'}/pers
+                                                    </div>
+                                                    <div className="payment-status">💳 Betaald</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="actions-cell-modern">
+                                                    <button 
+                                                        onClick={() => onEditReservation(r)} 
+                                                        className="action-btn-modern edit-action" 
+                                                        title="Bewerk reservering"
+                                                    >
+                                                        ✏️
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => confirm({ 
+                                                            title: "Reservering Verwijderen", 
+                                                            message: `Weet u zeker dat u de reservering van ${r.contactName} wilt verwijderen?`, 
+                                                            onConfirm: () => onDeleteReservation(r.id), 
+                                                            confirmButtonClass: 'delete-btn'
+                                                        })} 
+                                                        className="action-btn-modern delete-action" 
+                                                        title="Verwijder reservering"
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                    <button className="action-btn-modern view-action" title="Bekijk details">
+                                                        👁️
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                         
-                        {/* Enhanced Pagination */}
-                        <div className="table-footer">
-                            <div className="results-info">
-                                Resultaten {((currentPage - 1) * 15) + 1} - {Math.min(currentPage * 15, sortedFilteredReservations.length)} van {sortedFilteredReservations.length}
+                        {/* Modern Pagination */}
+                        <div className="modern-table-footer">
+                            <div className="pagination-info">
+                                <span className="results-text">
+                                    Resultaten {((currentPage - 1) * 15) + 1} - {Math.min(currentPage * 15, sortedFilteredReservations.length)} van {sortedFilteredReservations.length}
+                                </span>
                             </div>
-                            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={goToPage} />
+                            <div className="pagination-controls">
+                                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={goToPage} />
+                            </div>
                         </div>
                     </>
                 ) : (
-                    <div className="no-data-state">
-                        <div className="no-data-icon">📋</div>
-                        <h3>Geen reserveringen gevonden</h3>
-                        <p>Probeer uw zoekterm aan te passen of wijzig de filters.</p>
+                    <div className="modern-no-data">
+                        <div className="no-data-illustration">�</div>
+                        <h3 className="no-data-title">Geen reserveringen gevonden</h3>
+                        <p className="no-data-description">
+                            Probeer uw zoekterm aan te passen of wijzig de actieve filters om meer resultaten te zien.
+                        </p>
+                        <button 
+                            className="reset-filters-btn"
+                            onClick={() => {
+                                setSearchTerm('');
+                                setDateFilter('all');
+                            }}
+                        >
+                            🔄 Reset alle filters
+                        </button>
                     </div>
                 )}
             </div>
