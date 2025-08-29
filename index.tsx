@@ -7,6 +7,8 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { useAuth } from './src/contexts/AuthContext';
 import { DiscreteAdminButton } from './src/components/admin/DiscreteAdminButton';
 import PremiumDashboard from './PremiumDashboard';
+import AdminApprovalsView from './src/components/views/AdminApprovalsView';
+import AdminScheduleView from './src/components/views/AdminScheduleView';
 import type { 
     ShowEvent, 
     InternalEvent, 
@@ -3449,202 +3451,7 @@ const CustomerDetailView = ({ customer, onBack, showEvents, onEditReservation }:
     );
 };
 
-// 🛡️ Admin Approvals View - Basic Implementation for Phase 1
-const AdminApprovalsView = ({ reservations, showEvents, onUpdateReservation, guestCountMap }: {
-    reservations: Reservation[];
-    showEvents: ShowEvent[];
-    onUpdateReservation: (reservation: Reservation) => void;
-    guestCountMap: Map<string, number>;
-}) => {
-    const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
-
-    // For Phase 1, we'll show provisional bookings as pending approvals
-    const provisionalBookings = reservations.filter(r => r.status === 'provisional');
-    const filteredBookings = filter === 'all' ? reservations.filter(r => r.status !== 'confirmed') : 
-                            filter === 'pending' ? provisionalBookings :
-                            reservations.filter(r => r.status === filter);
-
-    const handleApprove = (reservation: Reservation) => {
-        const updated = { ...reservation, status: 'confirmed' as const };
-        onUpdateReservation(updated);
-    };
-
-    const handleReject = (reservation: Reservation) => {
-        const updated = { ...reservation, status: 'cancelled' as const };
-        onUpdateReservation(updated);
-    };
-
-    const getShowName = (date: string) => {
-        const show = showEvents.find(s => s.date === date);
-        return show ? `${show.name} (${show.type})` : 'Onbekende show';
-    };
-
-    // Calculate capacity impact for each reservation
-    const getCapacityInfo = (reservation: Reservation) => {
-        const currentGuests = guestCountMap.get(reservation.date) || 0;
-        const show = showEvents.find(s => s.date === reservation.date);
-        const showCapacity = show?.capacity || 240;
-        
-        // Calculate what the total would be if this reservation is approved
-        const totalWithThisReservation = currentGuests + reservation.guests;
-        const wouldExceed = totalWithThisReservation > showCapacity;
-        const exceedsBy = Math.max(0, totalWithThisReservation - showCapacity);
-        
-        return {
-            current: currentGuests,
-            capacity: showCapacity,
-            total: totalWithThisReservation,
-            wouldExceed,
-            exceedsBy,
-            remaining: Math.max(0, showCapacity - currentGuests)
-        };
-    };
-
-    return (
-        <div className="approvals-view">
-            <div className="content-header">
-                <h2><Icon id="check-circle" /> {i18n.approvals}</h2>
-                <p>{i18n.approvalsDescription}</p>
-            </div>
-
-            {/* KPI Cards */}
-            <div className="dashboard-kpi-grid">
-                <div className="kpi-card">
-                    <div className="kpi-icon"><Icon id="clock"/></div>
-                    <div className="kpi-content">
-                        <div className="kpi-value">{provisionalBookings.length}</div>
-                        <div className="kpi-label">{i18n.pendingApprovals}</div>
-                    </div>
-                </div>
-                <div className="kpi-card">
-                    <div className="kpi-icon"><Icon id="check"/></div>
-                    <div className="kpi-content">
-                        <div className="kpi-value">{reservations.filter(r => r.status === 'confirmed').length}</div>
-                        <div className="kpi-label">{i18n.approvedToday}</div>
-                    </div>
-                </div>
-                <div className="kpi-card">
-                    <div className="kpi-icon"><Icon id="close"/></div>
-                    <div className="kpi-content">
-                        <div className="kpi-value">{reservations.filter(r => r.status === 'cancelled').length}</div>
-                        <div className="kpi-label">{i18n.rejectedToday}</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Filter Controls */}
-            <div className="enhanced-controls">
-                <div className="filter-section">
-                    <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-                        <option value="pending">{i18n.pendingApprovals}</option>
-                        <option value="all">Alle</option>
-                        <option value="approved">Goedgekeurd</option>
-                        <option value="rejected">Afgewezen</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* Approvals Table */}
-            <div className="card">
-                <div className="table-wrapper">
-                    {filteredBookings.length > 0 ? (
-                        <table className="enhanced-table">
-                            <thead>
-                                <tr>
-                                    <th>Klant</th>
-                                    <th>Show</th>
-                                    <th>Datum</th>
-                                    <th>Gasten</th>
-                                    <th>Capaciteit Impact</th>
-                                    <th>Status</th>
-                                    <th>Acties</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredBookings.map(reservation => {
-                                    const capacityInfo = getCapacityInfo(reservation);
-                                    return (
-                                    <tr key={reservation.id}>
-                                        <td>
-                                            <div className="customer-cell">
-                                                <div className="customer-avatar">
-                                                    {reservation.contactName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                                </div>
-                                                <div className="customer-info">
-                                                    <div className="customer-name">{reservation.contactName}</div>
-                                                    <div className="customer-email">{reservation.email}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>{getShowName(reservation.date)}</td>
-                                        <td>{formatDateToNL(new Date(reservation.date + 'T12:00:00'))}</td>
-                                        <td>
-                                            <span className="guests-count">{reservation.guests}</span>
-                                        </td>
-                                        <td>
-                                            <div className="capacity-info-cell">
-                                                <div className={`capacity-status ${capacityInfo.wouldExceed ? 'over-capacity' : 'within-capacity'}`}>
-                                                    <strong>{capacityInfo.total}</strong> / {capacityInfo.capacity}
-                                                </div>
-                                                <div className="capacity-details">
-                                                    {capacityInfo.wouldExceed ? (
-                                                        <span className="capacity-warning">
-                                                            ⚠️ +{capacityInfo.exceedsBy} over capaciteit
-                                                        </span>
-                                                    ) : (
-                                                        <span className="capacity-ok">
-                                                            ✅ {capacityInfo.remaining} plaatsen resterend
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className={`status-badge status-${reservation.status}`}>
-                                                {reservation.status === 'provisional' ? i18n.statusProvisional :
-                                                 reservation.status === 'confirmed' ? i18n.statusConfirmed :
-                                                 reservation.status === 'cancelled' ? i18n.statusCancelled :
-                                                 reservation.status}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {reservation.status === 'provisional' && (
-                                                <div className="action-buttons">
-                                                    <button 
-                                                        onClick={() => handleApprove(reservation)}
-                                                        className="btn-success"
-                                                        title={`${i18n.approveBooking} ${capacityInfo.wouldExceed ? '(Overschrijdt capaciteit!)' : ''}`}
-                                                    >
-                                                        <Icon id="check" />
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleReject(reservation)}
-                                                        className="btn-danger"
-                                                        title={i18n.denyBooking}
-                                                    >
-                                                        <Icon id="close" />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                )})}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <div className="no-data-state">
-                            <div className="no-data-icon">✅</div>
-                            <h3>Geen wachtende goedkeuringen</h3>
-                            <p>Alle boekingen zijn verwerkt.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// 📋 Admin Waitlist View - Basic Implementation for Phase 1  
+//  Admin Waitlist View - Basic Implementation for Phase 1  
 const AdminWaitlistView = ({ waitingList, showEvents }: {
     waitingList: WaitingListEntry[];
     showEvents: ShowEvent[];
@@ -7447,18 +7254,15 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                 );
             case 'schedule': 
                 return (
-                    <>
-                        <div className="content-header"><h2>{i18n.schedule}</h2></div>
-                        <ScheduleView 
-                            showEvents={showEvents} 
-                            internalEvents={internalEvents}
-                            onAddInternalEvent={onAddInternalEvent}
-                            onUpdateInternalEvent={onUpdateInternalEvent}
-                            onDeleteInternalEvent={onDeleteInternalEvent}
-                            config={config}
-                            reservations={reservations}
-                        />
-                    </>
+                    <AdminScheduleView 
+                        showEvents={showEvents} 
+                        internalEvents={internalEvents}
+                        onAddInternalEvent={onAddInternalEvent}
+                        onUpdateInternalEvent={onUpdateInternalEvent}
+                        onDeleteInternalEvent={onDeleteInternalEvent}
+                        config={config}
+                        reservations={reservations}
+                    />
                 );
             case 'customers':
                 return <AdminCustomersView customers={customers} onSelectCustomer={handleSelectCustomer} />;
