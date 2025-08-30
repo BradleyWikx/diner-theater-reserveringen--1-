@@ -285,9 +285,6 @@ export const logAuditEvent = (auditLog: AuditLog) => {
   }
   
   sessionStorage.setItem('auditLogs', JSON.stringify(existingLogs));
-  
-  // Also log to console for development
-  console.log('🔍 Audit Log:', auditLog);
 };
 
 // Security Headers Helper

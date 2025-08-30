@@ -54,7 +54,7 @@ export class ShowEventsService {
         } as unknown as ShowEvent;
       });
     } catch (error) {
-      console.error('Error fetching shows:', error);
+      
       throw new Error('Failed to fetch shows');
     }
   }
@@ -69,20 +69,20 @@ export class ShowEventsService {
         ...docSnap.data()
       } as unknown as ShowEvent;
     } catch (error) {
-      console.error('Error fetching show:', error);
+      
       throw new Error('Failed to fetch show');
     }
   }
 
   async addShow(show: Omit<ShowEvent, 'id'>): Promise<ShowEvent> {
     try {
-      console.log('🔥 Firebase: Adding show to Firestore:', show);
+      
       const docRef = await addDoc(this.collection, {
         ...show,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-      console.log('🔥 Firebase: Show added with ID:', docRef.id);
+      
       
       // Return the complete show object with the new ID
       const savedShow: ShowEvent = {
@@ -92,7 +92,7 @@ export class ShowEventsService {
       
       return savedShow;
     } catch (error) {
-      console.error('🔥 Firebase Error adding show:', error);
+      
       throw new Error('Failed to add show');
     }
   }
@@ -115,7 +115,7 @@ export class ShowEventsService {
       await batch.commit();
       return docRefs;
     } catch (error) {
-      console.error('Error adding multiple shows:', error);
+      
       throw new Error('Failed to add shows');
     }
   }
@@ -127,18 +127,18 @@ export class ShowEventsService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating show:', error);
+      
       throw new Error('Failed to update show');
     }
   }
 
   async deleteShow(id: string): Promise<void> {
     try {
-      console.log('🔥 Firebase: Deleting show with ID:', id);
+      
       await deleteDoc(doc(this.collection, id));
-      console.log('✅ Firebase: Show successfully deleted from Firestore');
+      
     } catch (error) {
-      console.error('❌ Firebase: Error deleting show:', error);
+      
       throw new Error('Failed to delete show');
     }
   }
@@ -163,7 +163,7 @@ export class ShowEventsService {
       
       await batch.commit();
     } catch (error) {
-      console.error('Error bulk deleting shows:', error);
+      
       throw new Error('Failed to bulk delete shows');
     }
   }
@@ -183,7 +183,7 @@ export class ShowEventsService {
         callback(shows);
       },
       (error) => {
-        console.error('Error listening to shows:', error);
+        
       }
     );
   }
@@ -195,13 +195,13 @@ export class ReservationsService {
 
   async getAllReservations(): Promise<Reservation[]> {
     try {
-      console.log('🔥 Firebase: Fetching all reservations from Firestore');
+      
       const snapshot = await getDocs(query(this.collection, orderBy('createdAt', 'desc')));
-      console.log('🔥 Firebase: Found', snapshot.docs.length, 'reservation documents');
+      
       
       const reservations = snapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('🔥 Firebase: Processing reservation doc:', doc.id, data);
+        
         return {
           ...data,
           id: doc.id, // Use Firestore document ID as string
@@ -209,10 +209,10 @@ export class ReservationsService {
         } as unknown as Reservation;
       });
       
-      console.log('✅ Firebase: Processed reservations:', reservations);
+      
       return reservations;
     } catch (error) {
-      console.error('❌ Firebase: Error fetching reservations:', error);
+      
       throw new Error('Failed to fetch reservations');
     }
   }
@@ -231,14 +231,14 @@ export class ReservationsService {
         createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt
       } as unknown as Reservation;
     } catch (error) {
-      console.error('Error fetching reservation:', error);
+      
       throw new Error('Failed to fetch reservation');
     }
   }
 
   async addReservation(reservation: Omit<Reservation, 'id'>): Promise<Reservation> {
     try {
-      console.log('🔥 Firebase: Adding reservation to Firestore:', reservation);
+      
       
       // Filter out undefined values to prevent Firestore errors
       const cleanedReservation = Object.keys(reservation).reduce((acc, key) => {
@@ -253,7 +253,7 @@ export class ReservationsService {
         ...cleanedReservation,
         createdAt: serverTimestamp()
       });
-      console.log('✅ Firebase: Reservation added successfully with document ID:', docRef.id);
+      
       
       // Return the complete reservation object with the new ID
       const savedReservation: Reservation = {
@@ -263,7 +263,7 @@ export class ReservationsService {
       
       return savedReservation;
     } catch (error) {
-      console.error('❌ Firebase: Error adding reservation:', error);
+      
       throw new Error('Failed to add reservation');
     }
   }
@@ -275,9 +275,9 @@ export class ReservationsService {
         ...updates,
         updatedAt: serverTimestamp()
       });
-      console.log('✅ Firebase: Reservation updated with ID:', id);
+      
     } catch (error) {
-      console.error('Error updating reservation:', error);
+      
       throw new Error('Failed to update reservation');
     }
   }
@@ -286,9 +286,9 @@ export class ReservationsService {
     try {
       // Use doc ID directly since Firebase uses string IDs
       await deleteDoc(doc(this.collection, id));
-      console.log('🗑️ Firebase: Reservation deleted with ID:', id);
+      
     } catch (error) {
-      console.error('Error deleting reservation:', error);
+      
       throw new Error('Failed to delete reservation');
     }
   }
@@ -303,32 +303,32 @@ export class ReservationsService {
         createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt
       })) as Reservation[];
     } catch (error) {
-      console.error('Error fetching reservations by date:', error);
+      
       throw new Error('Failed to fetch reservations by date');
     }
   }
 
   // Real-time listener for reservations
   onReservationsChange(callback: (reservations: Reservation[]) => void): () => void {
-    console.log('🔥 Firebase: Setting up reservations real-time listener');
+    
     return onSnapshot(
       query(this.collection, orderBy('createdAt', 'desc')),
       (snapshot) => {
-        console.log('🔥 Firebase: Reservations snapshot received, doc count:', snapshot.docs.length);
+        
         const reservations = snapshot.docs.map(doc => {
           const data = doc.data();
-          console.log('🔥 Firebase: Processing reservation doc:', doc.id, data);
+          
           return {
             ...data,
             id: doc.id,
             createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt
           };
         }) as Reservation[];
-        console.log('✅ Firebase: Processed reservations:', reservations.length, reservations);
+        
         callback(reservations);
       },
       (error) => {
-        console.error('❌ Firebase: Error listening to reservations:', error);
+        
       }
     );
   }
@@ -340,13 +340,13 @@ export class WaitingListService {
 
   async getAllWaitingList(): Promise<WaitingListEntry[]> {
     try {
-      console.log('🔥 Firebase: Fetching all waiting list entries from Firestore');
+      
       const snapshot = await getDocs(query(this.collection, orderBy('addedAt', 'asc')));
-      console.log('🔥 Firebase: Found', snapshot.docs.length, 'waiting list documents');
+      
       
       const waitingList = snapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('🔥 Firebase: Processing waiting list doc:', doc.id, data);
+        
         return {
           ...data,
           id: doc.id, // Use Firestore document ID as string
@@ -354,22 +354,22 @@ export class WaitingListService {
         } as unknown as WaitingListEntry;
       });
       
-      console.log('✅ Firebase: Processed waiting list entries:', waitingList);
+      
       return waitingList;
     } catch (error) {
-      console.error('❌ Firebase: Error fetching waiting list:', error);
+      
       throw new Error('Failed to fetch waiting list');
     }
   }
 
   async addWaitingListEntry(entry: Omit<WaitingListEntry, 'id'>): Promise<WaitingListEntry> {
     try {
-      console.log('🔥 Firebase: Adding waiting list entry to Firestore:', entry);
+      
       const docRef = await addDoc(this.collection, {
         ...entry,
         addedAt: serverTimestamp()
       });
-      console.log('✅ Firebase: Waiting list entry added successfully with document ID:', docRef.id);
+      
       
       // Return the complete waiting list entry with the new ID
       const savedEntry: WaitingListEntry = {
@@ -379,7 +379,7 @@ export class WaitingListService {
       
       return savedEntry;
     } catch (error) {
-      console.error('❌ Firebase: Error adding waiting list entry:', error);
+      
       throw new Error('Failed to add waiting list entry');
     }
   }
@@ -392,7 +392,7 @@ export class WaitingListService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating waiting list entry:', error);
+      
       throw new Error('Failed to update waiting list entry');
     }
   }
@@ -401,9 +401,9 @@ export class WaitingListService {
     try {
       // Use doc ID directly since Firebase uses string IDs
       await deleteDoc(doc(this.collection, id));
-      console.log('🗑️ Firebase: Waiting list entry deleted with ID:', id);
+      
     } catch (error) {
-      console.error('Error deleting waiting list entry:', error);
+      
       throw new Error('Failed to delete waiting list entry');
     }
   }
@@ -421,7 +421,7 @@ export class WaitingListService {
         callback(waitingList);
       },
       (error) => {
-        console.error('Error listening to waiting list:', error);
+        
       }
     );
   }
@@ -442,7 +442,7 @@ export class WaitlistService {
         responseDeadline: doc.data().responseDeadline?.toDate?.() || undefined
       })) as WaitlistEntry[];
     } catch (error) {
-      console.error('Error fetching waitlist entries:', error);
+      
       throw new Error('Failed to fetch waitlist entries');
     }
   }
@@ -455,7 +455,7 @@ export class WaitlistService {
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error adding waitlist entry:', error);
+      
       throw new Error('Failed to add waitlist entry');
     }
   }
@@ -467,7 +467,7 @@ export class WaitlistService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating waitlist entry:', error);
+      
       throw new Error('Failed to update waitlist entry');
     }
   }
@@ -476,7 +476,7 @@ export class WaitlistService {
     try {
       await deleteDoc(doc(this.collection, id));
     } catch (error) {
-      console.error('Error deleting waitlist entry:', error);
+      
       throw new Error('Failed to delete waitlist entry');
     }
   }
@@ -496,7 +496,7 @@ export class WaitlistService {
         callback(waitlist);
       },
       (error) => {
-        console.error('Error listening to waitlist:', error);
+        
       }
     );
   }
@@ -514,7 +514,7 @@ export class InternalEventsService {
         ...doc.data()
       })) as InternalEvent[];
     } catch (error) {
-      console.error('Error fetching internal events:', error);
+      
       throw new Error('Failed to fetch internal events');
     }
   }
@@ -527,7 +527,7 @@ export class InternalEventsService {
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error adding internal event:', error);
+      
       throw new Error('Failed to add internal event');
     }
   }
@@ -539,7 +539,7 @@ export class InternalEventsService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating internal event:', error);
+      
       throw new Error('Failed to update internal event');
     }
   }
@@ -548,7 +548,7 @@ export class InternalEventsService {
     try {
       await deleteDoc(doc(this.collection, id));
     } catch (error) {
-      console.error('Error deleting internal event:', error);
+      
       throw new Error('Failed to delete internal event');
     }
   }
@@ -565,7 +565,7 @@ export class InternalEventsService {
         callback(events);
       },
       (error) => {
-        console.error('Error listening to internal events:', error);
+        
       }
     );
   }
@@ -585,7 +585,7 @@ export class ConfigService {
       
       return docSnap.data() as AppConfig;
     } catch (error) {
-      console.error('Error fetching config:', error);
+      
       throw new Error('Failed to fetch configuration');
     }
   }
@@ -597,7 +597,7 @@ export class ConfigService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating config:', error);
+      
       throw new Error('Failed to update configuration');
     }
   }
@@ -611,7 +611,7 @@ export class ConfigService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error initializing config:', error);
+      
       throw new Error('Failed to initialize configuration');
     }
   }
@@ -628,7 +628,7 @@ export class ConfigService {
         }
       },
       (error) => {
-        console.error('Error listening to config:', error);
+        
       }
     );
   }
@@ -646,7 +646,7 @@ export class TheaterVouchersService {
         ...doc.data()
       })) as TheaterVoucher[];
     } catch (error) {
-      console.error('Error fetching vouchers:', error);
+      
       throw new Error('Failed to fetch vouchers');
     }
   }
@@ -659,7 +659,7 @@ export class TheaterVouchersService {
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error adding voucher:', error);
+      
       throw new Error('Failed to add voucher');
     }
   }
@@ -671,7 +671,7 @@ export class TheaterVouchersService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating voucher:', error);
+      
       throw new Error('Failed to update voucher');
     }
   }
@@ -680,7 +680,7 @@ export class TheaterVouchersService {
     try {
       await deleteDoc(doc(this.collection, id));
     } catch (error) {
-      console.error('Error deleting voucher:', error);
+      
       throw new Error('Failed to delete voucher');
     }
   }
@@ -697,7 +697,7 @@ export class TheaterVouchersService {
         ...snapshot.docs[0].data()
       } as TheaterVoucher;
     } catch (error) {
-      console.error('Error fetching voucher by code:', error);
+      
       throw new Error('Failed to fetch voucher');
     }
   }
@@ -715,7 +715,7 @@ export class CustomersService {
         ...doc.data()
       })) as Customer[];
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      
       throw new Error('Failed to fetch customers');
     }
   }
@@ -730,7 +730,7 @@ export class CustomersService {
         ...docSnap.data()
       } as Customer;
     } catch (error) {
-      console.error('Error fetching customer:', error);
+      
       throw new Error('Failed to fetch customer');
     }
   }
@@ -742,7 +742,7 @@ export class CustomersService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating customer:', error);
+      
       throw new Error('Failed to update customer');
     }
   }
@@ -762,7 +762,7 @@ export class BookingApprovalsService {
         processedAt: doc.data().processedAt?.toDate?.() || undefined
       })) as BookingApproval[];
     } catch (error) {
-      console.error('Error fetching approvals:', error);
+      
       throw new Error('Failed to fetch approvals');
     }
   }
@@ -775,7 +775,7 @@ export class BookingApprovalsService {
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error adding approval:', error);
+      
       throw new Error('Failed to add approval');
     }
   }
@@ -788,7 +788,7 @@ export class BookingApprovalsService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating approval:', error);
+      
       throw new Error('Failed to update approval');
     }
   }
@@ -810,7 +810,7 @@ export class PromoCodesService {
         callback(promoCodes);
       },
       (error) => {
-        console.error('Error listening to promo codes:', error);
+        
         callback([]);
       }
     );
@@ -827,7 +827,7 @@ export class PromoCodesService {
       };
       await addDoc(this.collection, docData);
     } catch (error) {
-      console.error('Error adding promo code:', error);
+      
       throw new Error('Failed to add promo code');
     }
   }
@@ -841,7 +841,7 @@ export class PromoCodesService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating promo code:', error);
+      
       throw new Error('Failed to update promo code');
     }
   }
@@ -851,7 +851,7 @@ export class PromoCodesService {
     try {
       await deleteDoc(doc(this.collection, id));
     } catch (error) {
-      console.error('Error deleting promo code:', error);
+      
       throw new Error('Failed to delete promo code');
     }
   }
@@ -881,7 +881,7 @@ export class PromoCodesService {
 
       return promo;
     } catch (error) {
-      console.error('Error validating promo code:', error);
+      
       return null;
     }
   }
@@ -896,7 +896,7 @@ export class PromoCodesService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error using promo code:', error);
+      
       throw new Error('Failed to use promo code');
     }
   }
@@ -919,7 +919,7 @@ export class NotificationsService {
         callback(notifications);
       },
       (error) => {
-        console.error('Error listening to notifications:', error);
+        
         callback([]);
       }
     );
@@ -942,7 +942,7 @@ export class NotificationsService {
       };
       await addDoc(this.collection, docData);
     } catch (error) {
-      console.error('Error adding notification:', error);
+      
       throw new Error('Failed to add notification');
     }
   }
@@ -955,7 +955,7 @@ export class NotificationsService {
         readAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      
     }
   }
 
@@ -964,7 +964,7 @@ export class NotificationsService {
     try {
       await deleteDoc(doc(this.collection, id));
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      
       throw new Error('Failed to delete notification');
     }
   }
@@ -987,7 +987,7 @@ export class AdminLogsService {
         callback(logs);
       },
       (error) => {
-        console.error('Error listening to admin logs:', error);
+        
         callback([]);
       }
     );
@@ -1009,7 +1009,7 @@ export class AdminLogsService {
       };
       await addDoc(this.collection, docData);
     } catch (error) {
-      console.error('Error adding admin log:', error);
+      
       // Don't throw error for logging failures
     }
   }
@@ -1031,7 +1031,7 @@ export class AdminLogsService {
         await batch.commit();
       }
     } catch (error) {
-      console.error('Error clearing old logs:', error);
+      
     }
   }
 }
@@ -1048,7 +1048,7 @@ export class TablesService {
         ...doc.data()
       } as Table));
     } catch (error) {
-      console.error('Error fetching tables:', error);
+      
       throw new Error('Failed to fetch tables');
     }
   }
@@ -1063,7 +1063,7 @@ export class TablesService {
         ...docSnap.data()
       } as Table;
     } catch (error) {
-      console.error('Error fetching table:', error);
+      
       throw new Error('Failed to fetch table');
     }
   }
@@ -1077,7 +1077,7 @@ export class TablesService {
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error adding table:', error);
+      
       throw new Error('Failed to add table');
     }
   }
@@ -1089,7 +1089,7 @@ export class TablesService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating table:', error);
+      
       throw new Error('Failed to update table');
     }
   }
@@ -1098,7 +1098,7 @@ export class TablesService {
     try {
       await deleteDoc(doc(this.collection, id));
     } catch (error) {
-      console.error('Error deleting table:', error);
+      
       throw new Error('Failed to delete table');
     }
   }
@@ -1116,7 +1116,7 @@ export class MenuItemsService {
         ...doc.data()
       } as MenuItem));
     } catch (error) {
-      console.error('Error fetching menu items:', error);
+      
       throw new Error('Failed to fetch menu items');
     }
   }
@@ -1131,7 +1131,7 @@ export class MenuItemsService {
         ...docSnap.data()
       } as MenuItem;
     } catch (error) {
-      console.error('Error fetching menu item:', error);
+      
       throw new Error('Failed to fetch menu item');
     }
   }
@@ -1146,7 +1146,7 @@ export class MenuItemsService {
         ...doc.data()
       } as MenuItem));
     } catch (error) {
-      console.error('Error fetching menu items by category:', error);
+      
       throw new Error('Failed to fetch menu items by category');
     }
   }
@@ -1160,7 +1160,7 @@ export class MenuItemsService {
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error adding menu item:', error);
+      
       throw new Error('Failed to add menu item');
     }
   }
@@ -1172,7 +1172,7 @@ export class MenuItemsService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating menu item:', error);
+      
       throw new Error('Failed to update menu item');
     }
   }
@@ -1181,7 +1181,7 @@ export class MenuItemsService {
     try {
       await deleteDoc(doc(this.collection, id));
     } catch (error) {
-      console.error('Error deleting menu item:', error);
+      
       throw new Error('Failed to delete menu item');
     }
   }
@@ -1201,7 +1201,7 @@ export class MerchandiseService {
         updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
       } as MerchItem));
     } catch (error) {
-      console.error('Error fetching merch items:', error);
+      
       throw new Error('Failed to fetch merch items');
     }
   }
@@ -1219,7 +1219,7 @@ export class MerchandiseService {
         updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
       } as MerchItem;
     } catch (error) {
-      console.error('Error fetching merch item:', error);
+      
       throw new Error('Failed to fetch merch item');
     }
   }
@@ -1236,7 +1236,7 @@ export class MerchandiseService {
         updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
       } as MerchItem));
     } catch (error) {
-      console.error('Error fetching merch items by category:', error);
+      
       throw new Error('Failed to fetch merch items by category');
     }
   }
@@ -1253,7 +1253,7 @@ export class MerchandiseService {
         updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
       } as MerchItem));
     } catch (error) {
-      console.error('Error fetching featured merch items:', error);
+      
       throw new Error('Failed to fetch featured merch items');
     }
   }
@@ -1267,7 +1267,7 @@ export class MerchandiseService {
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error adding merch item:', error);
+      
       throw new Error('Failed to add merch item');
     }
   }
@@ -1279,7 +1279,7 @@ export class MerchandiseService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating merch item:', error);
+      
       throw new Error('Failed to update merch item');
     }
   }
@@ -1291,7 +1291,7 @@ export class MerchandiseService {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating merch item stock:', error);
+      
       throw new Error('Failed to update merch item stock');
     }
   }
@@ -1300,7 +1300,7 @@ export class MerchandiseService {
     try {
       await deleteDoc(doc(this.collection, id));
     } catch (error) {
-      console.error('Error deleting merch item:', error);
+      
       throw new Error('Failed to delete merch item');
     }
   }
@@ -1347,7 +1347,7 @@ export class FirebaseService {
     try {
       await Promise.all(operations.map(op => op()));
     } catch (error) {
-      console.error('Batch operation failed:', error);
+      
       throw new Error('Batch operation failed');
     }
   }
@@ -1358,7 +1358,7 @@ export class FirebaseService {
       await getDoc(doc(db, 'health', 'check'));
       return true;
     } catch (error) {
-      console.error('Firebase health check failed:', error);
+      
       return false;
     }
   }
@@ -1371,7 +1371,7 @@ export class FirebaseService {
         await this.config.initializeConfig(defaultConfig);
       }
     } catch (error) {
-      console.error('Error initializing app:', error);
+      
       throw new Error('Failed to initialize app');
     }
   }

@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(session); // Set basic user data
       }
     } catch (err) {
-      console.error('Auth initialization error:', err);
+      
       setError('Session initialization failed');
       await logout();
     } finally {
@@ -124,7 +124,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error('Invalid email format');
       }
       
-      // TODO: Replace with Firebase Auth
       const isValid = await validateCredentials(cleanEmail, cleanPassword);
       
       if (isValid) {
@@ -208,7 +207,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setError(null);
       
     } catch (err) {
-      console.error('Logout error:', err);
+      
     }
   };
 
@@ -237,8 +236,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Security utilities
   const validateCredentials = async (email: string, password: string): Promise<boolean> => {
-    // TODO: Implement proper Firebase Auth validation
-    // This is a placeholder implementation
+    // Placeholder implementation
     
     // Basic security checks
     if (password.length < 6) return false;
@@ -257,7 +255,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logSecurityEvent = (event: string, data: any) => {
-    // TODO: Integrate with proper logging service (e.g., Firebase Analytics, Sentry)
     const logEntry = {
       event,
       data,
@@ -266,7 +263,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       ip: 'unknown' // Would need server-side logging for real IP
     };
     
-    console.log('🔒 Security Event:', logEntry);
+    
     
     // Store in sessionStorage for demo (in production, send to secure logging service)
     const existingLogs = JSON.parse(sessionStorage.getItem('securityLogs') || '[]');

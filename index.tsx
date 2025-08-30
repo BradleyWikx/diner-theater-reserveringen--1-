@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useCallback, ReactNode, Fragment, useRef, createContext, useContext } from 'react';
 import { createRoot } from 'react-dom/client';
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { AuthProvider } from './src/contexts/AuthContext';
 import { useAuth } from './src/contexts/AuthContext';
 import { DiscreteAdminButton } from './src/components/admin/DiscreteAdminButton';
 import PremiumDashboard from './PremiumDashboard';
+import { AdminDashboardView } from './src/components/views/AdminDashboardView';
 import AdminApprovalsView from './src/components/views/AdminApprovalsView';
 import AdminScheduleView from './src/components/views/AdminScheduleView';
 import { AdminWaitlistView as NewAdminWaitlistView } from './src/components/views/AdminWaitlistView';
@@ -66,64 +66,44 @@ import { WizardProgress, DynamicStyles } from './src/components/shared';
 
 // Import Firebase services
 import { firebaseService } from './src/firebase/services/firebaseService';
+import { useInternalEvents } from './src/hooks/firebase/useFirebaseData';
 
 // Import Email service
-import { sendBookingNotification, type BookingEmailData } from './src/services/emailService';
+import { 
+    sendBookingNotification, 
+    sendProvisionalBookingEmail,
+    sendAdminNotificationEmail,
+    sendBookingConfirmedEmail,
+    sendBookingRejectedEmail,
+    sendBookingModifiedEmail,
+    resendConfirmationEmail,
+    type BookingEmailData 
+} from './src/services/emailService';
 
 // Import mobile utilities
 import { initMobileOptimizations } from './src/utils/mobileUtils';
 
-// 🏗️ Initialize Firebase Collections with sample data
+// 🔥 FIREBASE-FIRST INITIALIZATION - PROPER CONFIG MIGRATION
 const initializeFirebaseCollections = async () => {
-    console.log('🏗️ Initializing Firebase Collections...');
-    
     try {
-        // Check if collections already exist
-        const existingShows = await firebaseService.shows.getAllShows();
-        console.log('📊 Existing shows found:', existingShows.length);
+        // ✅ FIREBASE-ONLY: Check if application configuration exists
+        const existingConfig = await firebaseService.config.getConfig();
         
-        if (existingShows.length === 0) {
-            console.log('🎭 Creating sample shows...');
+        if (!existingConfig) {
+            // Initialize with proper default configuration from config file
+            // Import defaultConfig from the config file
+            const { defaultConfig: configDefault } = await import('./src/config/config');
+            await firebaseService.config.initializeConfig(configDefault);
             
-            // Create sample shows
-            const sampleShows = [
-                {
-                    name: 'Romeo & Juliet',
-                    date: '2025-09-15',
-                    time: '20:00',
-                    description: 'Klassieke romantische tragedie van Shakespeare',
-                    type: 'theater' as any,
-                    ticketPrice: 35.00,
-                    capacity: 120,
-                    reservedSeats: 0,
-                    isArchived: false,
-                    weekNumber: 37
-                },
-                {
-                    name: 'Murder Mystery Dinner',
-                    date: '2025-09-22',
-                    time: '19:00',
-                    description: 'Interactieve moord mysterie tijdens het diner',
-                    type: 'dinner' as any,
-                    ticketPrice: 65.00,
-                    capacity: 80,
-                    reservedSeats: 0,
-                    isArchived: false,
-                    weekNumber: 38
-                }
-            ];
-            
-            for (const show of sampleShows) {
-                const addedShow = await firebaseService.shows.addShow(show);
-                console.log(`✅ Created show: ${show.name} (ID: ${addedShow.id})`);
-            }
         }
         
-        console.log('🎉 Firebase Collections Successfully Initialized!');
+        // ✅ NO SAMPLE DATA: All shows should be added through admin panel
+        // This ensures proper data management and intentional show creation
+        
         return true;
         
     } catch (error) {
-        console.error('❌ Failed to initialize Firebase Collections:', error);
+        console.error('Firebase initialization error:', error);
         return false;
     }
 };
@@ -233,7 +213,7 @@ const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatc
             }
             return defaultValue;
         } catch (error) {
-            console.error(`Error reading localStorage key “${key}”:`, error);
+            
             return defaultValue;
         }
     });
@@ -242,7 +222,7 @@ const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatc
         try {
             localStorage.setItem(key, JSON.stringify(state));
         } catch (error) {
-            console.error(`Error setting localStorage key “${key}”:`, error);
+            
         }
     }, [key, state]);
 
@@ -1864,8 +1844,8 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                             <div className="summary-section">
                                 <div className="summary-header"><h4>{i18n.formAddons}</h4><button type="button" onClick={() => goToStep(2)} className="btn-text">{i18n.edit}</button></div>
                                 <ul>
-                                    {preShowDrinks && <li>Pre-show drinks</li>}
-                                    {afterParty && <li>After party</li>}
+                                    {preShowDrinks && <li>Pre-show borrel ({guests} personen)</li>}
+                                    {afterParty && <li>After party ({guests} personen)</li>}
                                     {Object.entries(addons).filter(([, val]) => typeof val === 'number' && val > 0).map(([key, val]) => (
                                         <li key={key}>
                                           {config.merchandise.find(m => m.id === key)?.name || key} x {val}
@@ -2094,37 +2074,11 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
         setError('');
         setAiSummary('');
         try {
-            if (!process.env.API_KEY) {
-                setError(i18n.apiKeyMissing);
-                return;
-            }
-            const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
-            
-            const prompt = `
-                Je bent een theatermanager die een dagelijkse briefing schrijft voor de show van vanavond.
-                De show is '${show?.name}' (${show?.type}). Capaciteit: ${show?.capacity} gasten.
-                Geboekte gasten: ${reservations.reduce((acc, r) => acc + r.guests, 0)}.
-                Wachtlijst: ${waitingList.length > 0 ? waitingList.reduce((acc, wl) => acc + wl.guests, 0) + ' gasten' : 'geen'}.
-
-                Reserveringen:
-                ${reservations.map(r => `- ${r.contactName}: ${r.guests} pers. Pakket: ${r.drinkPackage}. Opmerkingen: ${r.remarks || 'geen'}. Viering: ${r.celebrationOccasion || 'geen'}`).join('\n')}
-
-                Analyseer deze gegevens en geef een korte, duidelijke samenvatting in Markdown formaat. Focus op:
-                1. **Bezetting**: Algemene bezetting (hoe vol is het?).
-                2. **Belangrijke Aandachtspunten**: Grote groepen (>8 personen), VIPs (op basis van opmerkingen), of belangrijke vieringen.
-                3. **Keuken & Bar**: Speciale verzoeken, allergieën, of opvallende trends in arrangementkeuzes of extra's.
-                Schrijf de samenvatting in het Nederlands.
-            `;
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-            });
-            setAiSummary(response.text);
-
+            // AI functionality removed - feature disabled
+            setError('AI samenvatting is momenteel niet beschikbaar.');
+            return;
         } catch (e) {
-            console.error("AI summary generation failed:", e);
-            setError(i18n.aiError);
+            setError("AI samenvatting generatie mislukt.");
         } finally {
             setIsGenerating(false);
         }
@@ -2197,11 +2151,16 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
         
         return (
             <div className="reservation-details">
-                <div className="detail-section"><strong>{i18n.formPackage}:</strong> {reservation.drinkPackage}</div>
-                {(reservation.celebrationName || reservation.celebrationOccasion) && <div className="detail-section"><strong>Viering:</strong> {reservation.celebrationOccasion} ({reservation.celebrationName})</div>}
+                <div className="detail-section"><strong>📞 Contact:</strong> {reservation.email} | {reservation.phone}</div>
+                <div className="detail-section"><strong>📍 Adres:</strong> {reservation.address} {reservation.houseNumber}, {reservation.postalCode} {reservation.city}</div>
+                <div className="detail-section"><strong>{i18n.formPackage}:</strong> {reservation.drinkPackage === 'premium' ? 'Premium' : 'Standaard'}</div>
+                {(reservation.celebrationName || reservation.celebrationOccasion) && <div className="detail-section"><strong>🎉 Viering:</strong> {reservation.celebrationOccasion} ({reservation.celebrationName})</div>}
+                {allAddons.length > 0 && <div className="detail-section"><strong>🍹 Borrels & Extra's:</strong> {allAddons.join(', ')}</div>}
+                {reservation.allergies && <div className="detail-section"><strong>🥗 Allergieën/Dieet:</strong> {reservation.allergies}</div>}
                 {reservation.remarks && <div className="detail-section"><strong>{i18n.formRemarks}:</strong> {reservation.remarks}</div>}
-                {allAddons.length > 0 && <div className="detail-section"><strong>{i18n.formAddons}:</strong> {allAddons.join(', ')}</div>}
-                 <div className="detail-section"><strong>{i18n.totalPrice}:</strong> €{(reservation.totalPrice || 0).toFixed(2)}</div>
+                {reservation.promoCode && <div className="detail-section"><strong>🎟️ Promocode:</strong> {reservation.promoCode} (-€{(reservation.discountAmount || 0).toFixed(2)})</div>}
+                <div className="detail-section"><strong>{i18n.totalPrice}:</strong> €{(reservation.totalPrice || 0).toFixed(2)}</div>
+                <div className="detail-section"><strong>📅 Geboekt op:</strong> {reservation.createdAt ? new Date(reservation.createdAt).toLocaleDateString('nl-NL') : 'Onbekend'}</div>
             </div>
         );
     };
@@ -3633,18 +3592,15 @@ const AdminWaitlistView = ({ waitingList, showEvents }: {
 
     const handleNotify = (entry: WaitingListEntry) => {
         // For Phase 1, just console log - will implement email in later phase
-        console.log('Notify waitlist entry:', entry);
-    };
+        };
 
     const handleConvert = (entry: WaitingListEntry) => {
         // For Phase 1, just console log - will implement conversion in later phase
-        console.log('Convert waitlist entry to booking:', entry);
-    };
+        };
 
     const handleRemove = (entry: WaitingListEntry) => {
         // For Phase 1, just console log - will implement removal in later phase
-        console.log('Remove waitlist entry:', entry);
-    };
+        };
 
     const getStatusColor = (status?: string) => {
         switch (status) {
@@ -5998,6 +5954,7 @@ const EditReservationModal = ({ reservation, show, onClose, onSave }: {
     onSave: (updatedReservation: Reservation) => void;
 }) => {
     const [formData, setFormData] = useState<Reservation>(reservation);
+    const [emailSending, setEmailSending] = useState(false);
 
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -6009,6 +5966,47 @@ const EditReservationModal = ({ reservation, show, onClose, onSave }: {
         onSave(formData);
     };
 
+    const handleSendEmail = async (emailType: 'provisional' | 'confirmed' = 'confirmed') => {
+        setEmailSending(true);
+        try {
+            const emailData: BookingEmailData = {
+                customerName: formData.contactName || 'Onbekend',
+                customerEmail: formData.email || 'Niet opgegeven',
+                customerPhone: formData.phone || 'Niet opgegeven',
+                customerAddress: `${formData.address || ''} ${formData.houseNumber || ''}`.trim() || undefined,
+                customerCity: formData.city || undefined,
+                customerPostalCode: formData.postalCode || undefined,
+                customerCountry: formData.country || 'Nederland',
+                companyName: formData.companyName,
+                showTitle: show?.name || 'Onbekende show',
+                showDate: formData.date,
+                showTime: show?.startTime || undefined,
+                packageType: formData.drinkPackage || 'standard',
+                numberOfGuests: formData.guests,
+                totalPrice: formData.totalPrice || 0,
+                reservationId: formData.id,
+                allergies: formData.allergies,
+                preShowDrinks: formData.preShowDrinks,
+                afterParty: formData.afterParty ? formData.guests : undefined,
+                remarks: formData.remarks,
+                promoCode: formData.promoCode,
+                discountAmount: formData.discountAmount
+            };
+
+            const success = await resendConfirmationEmail(emailData, emailType);
+            if (success) {
+                alert(`Email ${emailType === 'provisional' ? 'voorlopige boeking' : 'bevestiging'} succesvol verstuurd naar ${formData.email}!`);
+            } else {
+                alert('Er is een fout opgetreden bij het versturen van de email');
+            }
+        } catch (error) {
+            console.error('Email send failed:', error);
+            alert('Er is een fout opgetreden bij het versturen van de email');
+        } finally {
+            setEmailSending(false);
+        }
+    };
+
     return (
         <div className="modal-backdrop" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -6018,27 +6016,103 @@ const EditReservationModal = ({ reservation, show, onClose, onSave }: {
                 </div>
                 <form onSubmit={handleSave} className="modal-body">
                     <h4>{show.name} - {formatDateToNL(new Date(show.date + 'T12:00:00'))}</h4>
-                    <div className="form-grid">
-                        <div className="form-group"><label>{i18n.numberOfGuests}</label><input value={formData.guests} disabled /></div>
-                        <div className="form-group"><label>{i18n.formPackage}</label><input value={formData.drinkPackage} disabled /></div>
-                        <div className="form-group"><label>{i18n.totalPrice}</label><input value={`€${formData.totalPrice.toFixed(2)}`} disabled /></div>
+                    
+                    {/* Booking Details Section */}
+                    <div className="form-section">
+                        <h5>📋 Boeking Details</h5>
+                        <div className="form-grid">
+                            <div className="form-group"><label>{i18n.numberOfGuests}</label><input value={formData.guests} disabled /></div>
+                            <div className="form-group"><label>{i18n.formPackage}</label><input value={formData.drinkPackage === 'premium' ? 'Premium' : 'Standaard'} disabled /></div>
+                            <div className="form-group"><label>{i18n.totalPrice}</label><input value={`€${formData.totalPrice.toFixed(2)}`} disabled /></div>
+                        </div>
                     </div>
+
+                    {/* Borrels & Extra's Section */}
+                    <div className="form-section">
+                        <h5>🍹 Borrels & Extra's</h5>
+                        <div className="form-grid">
+                            <div className="form-group">
+                                <label>Pre-show borrel</label>
+                                <input value={formData.preShowDrinks ? `✅ Ja (${formData.guests} personen)` : '❌ Nee'} disabled />
+                            </div>
+                            <div className="form-group">
+                                <label>After party</label>
+                                <input value={formData.afterParty ? `✅ Ja (${formData.guests} personen)` : '❌ Nee'} disabled />
+                            </div>
+                            {formData.promoCode && (
+                                <div className="form-group">
+                                    <label>Promocode</label>
+                                    <input value={`${formData.promoCode} (-€${(formData.discountAmount || 0).toFixed(2)})`} disabled />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
                     <hr style={{border: 'none', borderTop: '1px solid var(--border-color)', margin: 'var(--space-md) 0'}}/>
-                    <div className="form-grid">
-                        <div className="form-group"><label htmlFor="companyName">{i18n.formCompany}</label><input id="companyName" name="companyName" type="text" value={formData.companyName} onChange={handleFormChange} /></div>
-                        <div className="form-group"><label htmlFor="salutation">{i18n.formSalutation}</label><select id="salutation" name="salutation" value={formData.salutation} onChange={handleFormChange} required><option>Dhr.</option><option>Mevr.</option><option>N.v.t.</option></select></div>
-                        <div className="form-group"><label htmlFor="contactName">{i18n.formContactPerson}</label><input id="contactName" name="contactName" type="text" value={formData.contactName} onChange={handleFormChange} required /></div>
-                        <div className="form-group"><label htmlFor="address">{i18n.formAddress}</label><input id="address" name="address" type="text" value={formData.address} onChange={handleFormChange} required /></div>
-                        <div className="form-group"><label htmlFor="houseNumber">{i18n.formHouseNumber}</label><input id="houseNumber" name="houseNumber" type="text" value={formData.houseNumber} onChange={handleFormChange} required /></div>
-                        <div className="form-group"><label htmlFor="postalCode">{i18n.formPostalCode}</label><input id="postalCode" name="postalCode" type="text" value={formData.postalCode} onChange={handleFormChange} required /></div>
-                        <div className="form-group"><label htmlFor="city">{i18n.formCity}</label><input id="city" name="city" type="text" value={formData.city} onChange={handleFormChange} required /></div>
-                        <div className="form-group"><label htmlFor="phone">{i18n.formPhone}</label><input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleFormChange} required /></div>
-                        <div className="form-group"><label htmlFor="email">{i18n.formEmail}</label><input id="email" name="email" type="email" value={formData.email} onChange={handleFormChange} required /></div>
+                    
+                    {/* Contact Details Section */}
+                    <div className="form-section">
+                        <h5>👤 Contact Gegevens</h5>
+                        <div className="form-grid">
+                            <div className="form-group"><label htmlFor="companyName">{i18n.formCompany}</label><input id="companyName" name="companyName" type="text" value={formData.companyName} onChange={handleFormChange} /></div>
+                            <div className="form-group"><label htmlFor="salutation">{i18n.formSalutation}</label><select id="salutation" name="salutation" value={formData.salutation} onChange={handleFormChange} required><option>Dhr.</option><option>Mevr.</option><option>N.v.t.</option></select></div>
+                            <div className="form-group"><label htmlFor="contactName">{i18n.formContactPerson}</label><input id="contactName" name="contactName" type="text" value={formData.contactName} onChange={handleFormChange} required /></div>
+                            <div className="form-group"><label htmlFor="address">{i18n.formAddress}</label><input id="address" name="address" type="text" value={formData.address} onChange={handleFormChange} required /></div>
+                            <div className="form-group"><label htmlFor="houseNumber">{i18n.formHouseNumber}</label><input id="houseNumber" name="houseNumber" type="text" value={formData.houseNumber} onChange={handleFormChange} required /></div>
+                            <div className="form-group"><label htmlFor="postalCode">{i18n.formPostalCode}</label><input id="postalCode" name="postalCode" type="text" value={formData.postalCode} onChange={handleFormChange} required /></div>
+                            <div className="form-group"><label htmlFor="city">{i18n.formCity}</label><input id="city" name="city" type="text" value={formData.city} onChange={handleFormChange} required /></div>
+                            <div className="form-group"><label htmlFor="phone">{i18n.formPhone}</label><input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleFormChange} required /></div>
+                            <div className="form-group"><label htmlFor="email">{i18n.formEmail}</label><input id="email" name="email" type="email" value={formData.email} onChange={handleFormChange} required /></div>
+                        </div>
                     </div>
-                    <div className="form-group"><label htmlFor="remarks">{i18n.formRemarks}</label><textarea id="remarks" name="remarks" value={formData.remarks} onChange={handleFormChange}></textarea></div>
+                    
+                    {/* Special Requirements Section */}
+                    <div className="form-section">
+                        <h5>🥗 Speciale Wensen</h5>
+                        <div className="form-group">
+                            <label htmlFor="allergies">Allergieën & Dieetwensen</label>
+                            <textarea 
+                                id="allergies" 
+                                name="allergies" 
+                                value={formData.allergies || ''} 
+                                onChange={handleFormChange}
+                                placeholder="Vermeld hier eventuele allergieën, dieetwensen of bijzondere verzoeken..."
+                                rows={3}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="remarks">{i18n.formRemarks}</label>
+                            <textarea id="remarks" name="remarks" value={formData.remarks} onChange={handleFormChange} rows={2} />
+                        </div>
+                    </div>
+                    
                     <div className="modal-footer">
-                        <button type="button" onClick={onClose} className="btn-secondary">{i18n.cancel}</button>
-                        <button type="submit" className="submit-btn">{i18n.save}</button>
+                        <div className="modal-footer-left">
+                            <button 
+                                type="button" 
+                                onClick={() => handleSendEmail('confirmed')} 
+                                className="btn-secondary"
+                                disabled={emailSending}
+                                title="Bevestiging email versturen naar klant"
+                            >
+                                📧 {emailSending ? 'Versturen...' : 'Email Versturen'}
+                            </button>
+                            {formData.status === 'provisional' && (
+                                <button 
+                                    type="button" 
+                                    onClick={() => handleSendEmail('provisional')} 
+                                    className="btn-tertiary"
+                                    disabled={emailSending}
+                                    title="Voorlopige booking email versturen naar klant"
+                                >
+                                    📨 Voorlopig Email
+                                </button>
+                            )}
+                        </div>
+                        <div className="modal-footer-right">
+                            <button type="button" onClick={onClose} className="btn-secondary">{i18n.cancel}</button>
+                            <button type="submit" className="submit-btn">{i18n.save}</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -6673,10 +6747,77 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
         setEditingReservation(reservation);
     };
 
-    const handleSaveReservation = (updatedReservation: Reservation) => {
-        onUpdateReservation(updatedReservation);
-        addToast(i18n.reservationUpdated, 'success');
-        setEditingReservation(null);
+    const handleSaveReservation = async (updatedReservation: Reservation) => {
+        const originalReservation = editingReservation;
+        if (!originalReservation) return;
+        
+        try {
+            // Detect changes for email notification
+            const changes: string[] = [];
+            if (originalReservation.contactName !== updatedReservation.contactName) {
+                changes.push(`Naam: ${originalReservation.contactName} → ${updatedReservation.contactName}`);
+            }
+            if (originalReservation.email !== updatedReservation.email) {
+                changes.push(`Email: ${originalReservation.email} → ${updatedReservation.email}`);
+            }
+            if (originalReservation.phone !== updatedReservation.phone) {
+                changes.push(`Telefoon: ${originalReservation.phone} → ${updatedReservation.phone}`);
+            }
+            if (originalReservation.address !== updatedReservation.address || originalReservation.city !== updatedReservation.city) {
+                changes.push(`Adres gewijzigd`);
+            }
+            if (originalReservation.allergies !== updatedReservation.allergies) {
+                changes.push(`Allergieën: ${originalReservation.allergies || 'Geen'} → ${updatedReservation.allergies || 'Geen'}`);
+            }
+            if (originalReservation.remarks !== updatedReservation.remarks) {
+                changes.push(`Opmerkingen gewijzigd`);
+            }
+            
+            // Update reservation
+            onUpdateReservation(updatedReservation);
+            
+            // Send modification email if there are changes
+            if (changes.length > 0) {
+                try {
+                    const show = showEvents.find(e => e.date === updatedReservation.date);
+                    const emailData: BookingEmailData = {
+                        customerName: updatedReservation.contactName || 'Onbekend',
+                        customerEmail: updatedReservation.email || 'Niet opgegeven',
+                        customerPhone: updatedReservation.phone || 'Niet opgegeven',
+                        customerAddress: `${updatedReservation.address || ''} ${updatedReservation.houseNumber || ''}`.trim() || undefined,
+                        customerCity: updatedReservation.city || undefined,
+                        customerPostalCode: updatedReservation.postalCode || undefined,
+                        customerCountry: updatedReservation.country || 'Nederland',
+                        companyName: updatedReservation.companyName,
+                        showTitle: show?.name || 'Onbekende show',
+                        showDate: updatedReservation.date,
+                        showTime: show?.startTime || undefined,
+                        packageType: updatedReservation.drinkPackage || 'standard',
+                        numberOfGuests: updatedReservation.guests,
+                        totalPrice: updatedReservation.totalPrice || 0,
+                        reservationId: updatedReservation.id,
+                        allergies: updatedReservation.allergies,
+                        preShowDrinks: updatedReservation.preShowDrinks,
+                        afterParty: updatedReservation.afterParty ? updatedReservation.guests : undefined,
+                        remarks: updatedReservation.remarks,
+                        promoCode: updatedReservation.promoCode,
+                        discountAmount: updatedReservation.discountAmount
+                    };
+                    
+                    await sendBookingModifiedEmail(emailData, changes);
+                    console.log('📧 Modification email sent successfully');
+                } catch (emailError) {
+                    console.error('📧 Modification email failed:', emailError);
+                    // Don't fail the reservation update for email errors
+                }
+            }
+            
+            addToast(i18n.reservationUpdated, 'success');
+            setEditingReservation(null);
+        } catch (error) {
+            console.error('Failed to save reservation:', error);
+            addToast('Fout bij opslaan reservering', 'error');
+        }
     };
 
     const editingShowEvent = useMemo(() => {
@@ -6688,31 +6829,13 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
         switch(adminView) {
             case 'dashboard':
                 return (
-                    <PremiumDashboard 
+                    <AdminDashboardView 
                         reservations={reservations} 
                         showEvents={showEvents} 
                         waitingList={waitingList}
-                        config={config} 
-                        i18n={{}} // Temporary empty i18n object
-                        onNavigate={(view: string, date?: string) => {
-                            console.log('Dashboard navigation:', view, date);
-                            // Handle navigation based on view
-                            if (view === 'reservations') {
-                                setAdminView('reservations');
-                            } else if (view === 'calendar') {
-                                setAdminView('calendar');
-                            } else if (view === 'waitlist') {
-                                setAdminView('waitlist');
-                            } else if (view === 'customers') {
-                                setAdminView('customers');
-                            } else if (view === 'analytics') {
-                                setAdminView('analytics');
-                            } else if (view === 'approvals') {
-                                setAdminView('approvals');
-                            } else if (view === 'settings') {
-                                setAdminView('settings');
-                            }
-                        }}
+                        guestCountMap={guestCountMap}
+                        config={config}
+                        setActiveView={setAdminView} // Zorgt dat de knoppen werken
                     />
                 );
                 
@@ -6929,7 +7052,6 @@ const withErrorBoundary = <P extends object>(Component: React.ComponentType<P>) 
         try {
             return <Component {...props} />;
         } catch (error) {
-            console.error('Component error:', error);
             return (
                 <div className="error-boundary">
                     <h2>Er is iets misgegaan</h2>
@@ -7950,7 +8072,13 @@ const AppContent = () => {
     const [events, setEvents] = useState<ShowEvent[]>([]);
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [waitingList, setWaitingList] = useState<WaitingListEntry[]>([]);
-    const [internalEvents, setInternalEvents] = useState<InternalEvent[]>([]);
+    // ✅ FIREBASE: Internal events now use Firebase hooks instead of local state
+    const { 
+        internalEvents, 
+        addInternalEvent: firebaseAddInternalEvent,
+        updateInternalEvent: firebaseUpdateInternalEvent,
+        deleteInternalEvent: firebaseDeleteInternalEvent
+    } = useInternalEvents();
     const [config, setConfig] = useState<AppConfig>(defaultConfig);
     const [loading, setLoading] = useState(true);
     const { addToast } = useToast();
@@ -7958,8 +8086,6 @@ const AppContent = () => {
 
     // Beveiligde view setter - admin views alleen voor ingelogde admins
     const setViewSecure = useCallback((newView: View, bypassCheck = false) => {
-        console.log('🔄 setViewSecure called:', { newView, isAdmin, bypassCheck, loading, adminSession });
-        
         if (newView === 'admin' && !isAdmin && !bypassCheck) {
             addToast('⚠️ Admin toegang vereist. Log eerst in via de © knop linksonder.', 'warning');
             return;
@@ -7968,16 +8094,13 @@ const AppContent = () => {
         // Als we naar admin gaan met bypass (na login), start admin session
         if (newView === 'admin' && bypassCheck) {
             setAdminSession(true);
-            console.log('✅ Starting admin session');
-        }
+            }
         
         // Als we weg gaan van admin, stop admin session
         if (view === 'admin' && newView !== 'admin') {
             setAdminSession(false);
-            console.log('🚫 Ending admin session');
-        }
+            }
         
-        console.log('✅ Setting view to:', newView);
         setView(newView);
     }, [isAdmin, addToast, loading, adminSession, view]);
 
@@ -7985,7 +8108,6 @@ const AppContent = () => {
     useEffect(() => {
         // Alleen redirect als we in admin view zijn EN geen actieve admin session EN gebruiker is niet admin
         if (view === 'admin' && !adminSession && !isAdmin && !loading) {
-            console.log('🚫 No active admin session - redirecting to book');
             setView('book');
         }
     }, [isAdmin, view, loading, adminSession]);
@@ -7993,8 +8115,6 @@ const AppContent = () => {
     // Function to reload all data from Firebase (no local state updates)
     const reloadFirebaseData = useCallback(async () => {
         try {
-            console.log('🔄 Reloading all data from Firebase...');
-            
             const [showsData, reservationsData, waitingListData, configData] = await Promise.all([
                 firebaseService.shows.getAllShows(),
                 firebaseService.reservations.getAllReservations(),
@@ -8003,7 +8123,6 @@ const AppContent = () => {
             ]);
             
             // Update state with fresh Firebase data
-            console.log('📊 Setting events state with Firebase data:', showsData.length, 'shows');
             setEvents(showsData);
             setReservations(reservationsData);
             setWaitingList(waitingListData);
@@ -8012,14 +8131,7 @@ const AppContent = () => {
                 setConfig(configData);
             }
             
-            console.log('✅ Firebase data reloaded:', {
-                shows: showsData.length,
-                reservations: reservationsData.length,
-                waitingList: waitingListData.length
-            });
-            console.log('📋 Shows loaded:', showsData);
-        } catch (error) {
-            console.error('❌ Error reloading Firebase data:', error);
+            } catch (error) {
             addToast('Error reloading data from Firebase', 'error');
         }
     }, [addToast]);
@@ -8037,25 +8149,23 @@ const AppContent = () => {
                     showsData,
                     reservationsData, 
                     waitingListData,
-                    configData,
-                    internalEventsData
+                    configData
+                    // ✅ FIREBASE: Internal events now loaded via useInternalEvents hook
                 ] = await Promise.all([
                     firebaseService.shows.getAllShows(),
                     firebaseService.reservations.getAllReservations(),
                     firebaseService.waitingList.getAllWaitingList(),
-                    firebaseService.config.getConfig(),
-                    [] // Start with empty internal events for now
+                    firebaseService.config.getConfig()
+                    // ✅ FIREBASE: Internal events now loaded via useInternalEvents hook
                 ]);
                 
                 setEvents(showsData);
                 setReservations(reservationsData);
                 setWaitingList(waitingListData);
-                setInternalEvents(internalEventsData);
+                // ✅ FIREBASE: Internal events no longer set here - managed by Firebase hook
                 
                 // Load config from Firebase or use default
                 if (configData) {
-                    console.log('📝 Config loaded from Firebase');
-                    
                     // Migratie: upgrade bestaande promoCodes met nieuwe velden
                     let needsConfigUpdate = false;
                     const upgradedPromoCodes = configData.promoCodes.map(promo => {
@@ -8072,29 +8182,19 @@ const AppContent = () => {
                     });
                     
                     if (needsConfigUpdate) {
-                        console.log('🔄 Migrating promoCodes to new format...');
                         const upgradedConfig = { ...configData, promoCodes: upgradedPromoCodes };
                         await firebaseService.config.updateConfig(upgradedConfig);
                         setConfig(upgradedConfig);
-                        console.log('✅ PromoCodes migration completed');
-                    } else {
+                        } else {
                         setConfig(configData);
                     }
                 } else {
-                    console.log('📝 No config found, initializing default config in Firebase');
                     await firebaseService.config.initializeConfig(defaultConfig);
                     setConfig(defaultConfig);
                 }
                 
-                console.log('Firebase data loaded successfully - Items loaded:', {
-                    shows: showsData.length,
-                    reservations: reservationsData.length,
-                    waitingList: waitingListData.length,
-                    configLoaded: !!configData
-                });
-            } catch (error) {
-                console.error('Error loading Firebase data:', error);
-            } finally {
+                } catch (error) {
+                } finally {
                 setLoading(false);
             }
         };
@@ -8128,10 +8228,8 @@ const AppContent = () => {
             // ✅ NO LOCAL STATE - Reload data from Firebase instead
             await reloadFirebaseData();
             
-            console.log('✅ Shows added to Firebase - data reloaded');
             addToast(`${dates.length === 1 ? 'Show' : dates.length + ' shows'} succesvol toegevoegd!`, 'success');
         } catch (error) {
-            console.error('Error adding events:', error);
             addToast('Fout bij toevoegen van shows', 'error');
         }
     }, [addToast, reloadFirebaseData]);
@@ -8144,10 +8242,8 @@ const AppContent = () => {
             // ✅ NO LOCAL STATE - Reload data from Firebase instead
             await reloadFirebaseData();
             
-            console.log('✅ Event deleted from Firebase - data reloaded');
             addToast('Show verwijderd!', 'success');
         } catch (error) {
-            console.error('Error deleting event:', error);
             addToast('Fout bij verwijderen van show', 'error');
         }
     }, [addToast, reloadFirebaseData]);
@@ -8177,8 +8273,6 @@ const AppContent = () => {
 
     const handleAddShow = async (newShow: Omit<ShowEvent, 'id'>, dates: string[]) => {
         try {
-            console.log('🎭 Adding shows to Firebase for dates:', dates);
-            
             // Add each show to Firebase
             for (const date of dates) {
                 const showForDate = {
@@ -8186,18 +8280,14 @@ const AppContent = () => {
                     date: date,
                 };
                 
-                console.log('🔥 Adding show to Firebase:', showForDate);
                 const addedShow = await firebaseService.shows.addShow(showForDate);
-                console.log('✅ Show added to Firebase:', addedShow.id);
-            }
+                }
             
             // ✅ NO LOCAL STATE - Reload data from Firebase instead
             await reloadFirebaseData();
             
-            console.log('🎉 All shows successfully added to Firebase - data reloaded');
             addToast('Shows toegevoegd', 'success');
         } catch (error) {
-            console.error('❌ Error adding shows:', error);
             addToast('Error bij toevoegen shows', 'error');
         }
     };
@@ -8207,18 +8297,14 @@ const AppContent = () => {
             const showToDelete = events.find(e => e.id === showId);
             if(!showToDelete) return;
 
-            console.log('🗑️ Deleting show from Firebase:', showId);
-            
             // Delete from Firebase
             await firebaseService.shows.deleteShow(showId);
             
             // ✅ NO LOCAL STATE - Reload data from Firebase instead
             await reloadFirebaseData();
             
-            console.log('✅ Show deleted from Firebase - data reloaded');
             addToast('Show verwijderd', 'success');
         } catch (error) {
-            console.error('❌ Error deleting show:', error);
             addToast('Fout bij verwijderen show', 'error');
         }
     };
@@ -8233,11 +8319,8 @@ const AppContent = () => {
             
             // Voorkom heropening als er 240+ gasten zijn
             if (newStatus === false && currentGuests >= 240) {
-                console.log('🚫 Cannot reopen show with 240+ guests');
                 return; // Geen wijziging
             }
-            
-            console.log('🔄 Updating show status in Firebase:', showId, 'isClosed:', newStatus);
             
             // Update in Firebase
             await firebaseService.shows.updateShow(showId, { isClosed: newStatus });
@@ -8245,22 +8328,33 @@ const AppContent = () => {
             // ✅ NO LOCAL STATE - Reload data from Firebase instead
             await reloadFirebaseData();
             
-            console.log('✅ Show status updated in Firebase - data reloaded');
-        } catch (error) {
-            console.error('❌ Error updating show status:', error);
-        }
+            } catch (error) {
+            }
     };
     
     const handleAddReservation = useCallback(async (newReservation: Omit<Reservation, 'id'>) => {
         try {
+            console.log('🎭 [DEBUG] Starting reservation process:', {
+                customerName: newReservation.contactName,
+                email: newReservation.email,
+                status: newReservation.status,
+                date: newReservation.date,
+                guests: newReservation.guests
+            });
+
             // Add to Firebase (Firebase will generate the ID automatically)
             const savedReservation = await firebaseService.reservations.addReservation(newReservation);
+            console.log('🎭 [DEBUG] Reservation saved to Firebase:', savedReservation.id);
             
             // ✅ OPTIMISTIC UPDATE - Update local state immediately
-            setReservations(prev => [...prev, savedReservation]);
+            setReservations(prev => {
+                console.log('🎭 [DEBUG] Local state updated, total reservations:', prev.length + 1);
+                return [...prev, savedReservation];
+            });
             
-            // 📧 Send email notification for new booking
+            // 📧 COMPLETE EMAIL WORKFLOW - Send both provisional and admin notification emails
             try {
+                console.log('🎭 [DEBUG] Starting email workflow...');
                 const show = events.find(e => e.date === newReservation.date);
                 const emailData: BookingEmailData = {
                     customerName: newReservation.contactName || 'Onbekend',
@@ -8269,7 +8363,8 @@ const AppContent = () => {
                     customerAddress: `${newReservation.address || ''} ${newReservation.houseNumber || ''}`.trim() || undefined,
                     customerCity: newReservation.city || undefined,
                     customerPostalCode: newReservation.postalCode || undefined,
-                    customerCountry: 'Nederland',
+                    customerCountry: newReservation.country || 'Nederland',
+                    companyName: newReservation.companyName,
                     showTitle: show?.name || 'Onbekende show',
                     showDate: newReservation.date,
                     showTime: show?.time || undefined,
@@ -8277,6 +8372,12 @@ const AppContent = () => {
                     numberOfGuests: newReservation.guests,
                     totalPrice: newReservation.totalPrice || 0,
                     reservationId: savedReservation.id,
+                    allergies: newReservation.allergies,
+                    preShowDrinks: newReservation.preShowDrinks,
+                    afterParty: newReservation.afterParty ? newReservation.guests : undefined, // Assume all guests for afterparty
+                    remarks: newReservation.remarks,
+                    promoCode: newReservation.promoCode,
+                    discountAmount: newReservation.discountAmount,
                     selectedAddons: [
                         ...(newReservation.preShowDrinks ? ['Pre-show drinks'] : []),
                         ...(newReservation.afterParty ? ['After party'] : []),
@@ -8285,9 +8386,23 @@ const AppContent = () => {
                     ]
                 };
                 
-                await sendBookingNotification(emailData);
+                console.log('🎭 [DEBUG] Email data prepared:', {
+                    customerEmail: emailData.customerEmail,
+                    showTitle: emailData.showTitle,
+                    reservationId: emailData.reservationId
+                });
+                
+                // 1. Send provisional booking email to customer
+                console.log('🎭 [DEBUG] Sending provisional booking email...');
+                await sendProvisionalBookingEmail(emailData);
+                
+                // 2. Send admin notification email
+                console.log('🎭 [DEBUG] Sending admin notification email...');
+                await sendAdminNotificationEmail(emailData);
+                
+                console.log('📧 Complete email workflow executed successfully');
             } catch (emailError) {
-                console.error('❌ Email notification failed:', emailError);
+                console.error('📧 Email workflow failed:', emailError);
                 // Don't fail the entire reservation for email errors
             }
             
@@ -8349,36 +8464,42 @@ const AppContent = () => {
                 }
             }
             
-            console.log('✅ Reservation added to Firebase with optimistic updates');
             addToast('Reservering succesvol toegevoegd!', 'success');
         } catch (error) {
-            console.error('Error adding reservation:', error);
             addToast('Fout bij toevoegen van reservering', 'error');
             // Fallback: reload from Firebase on error
             await reloadFirebaseData();
         }
     }, [config.theaterVouchers, addToast, guestCountMap, events, reloadFirebaseData]);
 
-    // Internal Events handlers
-    const handleAddInternalEvent = useCallback((event: Omit<InternalEvent, 'id'>) => {
-        const newEvent: InternalEvent = {
-            ...event,
-            id: `internal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        };
-        setInternalEvents(prev => [...prev, newEvent]);
-        addToast(`Intern event "${event.title}" toegevoegd`, 'success');
-    }, [setInternalEvents, addToast]);
+    // ✅ FIREBASE: Internal Events handlers now use Firebase
+    const handleAddInternalEvent = useCallback(async (event: Omit<InternalEvent, 'id'>) => {
+        try {
+            await firebaseAddInternalEvent(event);
+            addToast(`Intern event "${event.title}" toegevoegd`, 'success');
+        } catch (error) {
+            addToast('Fout bij toevoegen van intern event', 'error');
+        }
+    }, [firebaseAddInternalEvent, addToast]);
 
-    const handleUpdateInternalEvent = useCallback((event: InternalEvent) => {
-        setInternalEvents(prev => prev.map(e => e.id === event.id ? event : e));
-        addToast(`Intern event "${event.title}" bijgewerkt`, 'success');
-    }, [setInternalEvents, addToast]);
+    const handleUpdateInternalEvent = useCallback(async (event: InternalEvent) => {
+        try {
+            await firebaseUpdateInternalEvent(event.id, event);
+            addToast(`Intern event "${event.title}" bijgewerkt`, 'success');
+        } catch (error) {
+            addToast('Fout bij bijwerken van intern event', 'error');
+        }
+    }, [firebaseUpdateInternalEvent, addToast]);
 
-    const handleDeleteInternalEvent = useCallback((id: string) => {
-        const event = internalEvents.find(e => e.id === id);
-        setInternalEvents(prev => prev.filter(e => e.id !== id));
-        addToast(`Intern event${event ? ` "${event.title}"` : ''} verwijderd`, 'success');
-    }, [setInternalEvents, internalEvents, addToast]);
+    const handleDeleteInternalEvent = useCallback(async (id: string) => {
+        try {
+            const event = internalEvents.find(e => e.id === id);
+            await firebaseDeleteInternalEvent(id);
+            addToast(`Intern event${event ? ` "${event.title}"` : ''} verwijderd`, 'success');
+        } catch (error) {
+            addToast('Fout bij verwijderen van intern event', 'error');
+        }
+    }, [firebaseDeleteInternalEvent, internalEvents, addToast]);
 
     // Effect voor auto-sluiting van boekingen 12 uur voor voorstelling
     useEffect(() => {
@@ -8402,7 +8523,6 @@ const AppContent = () => {
                     const cutoffTime = new Date(showDateTime.getTime() - (12 * 60 * 60 * 1000));
                     
                     if (now > cutoffTime) {
-                        console.log(`Auto-sluiting boekingen voor ${event.name} op ${event.date} (12 uur cutoff bereikt)`);
                         return {...event, isClosed: true};
                     }
                     
@@ -8416,19 +8536,58 @@ const AppContent = () => {
 
     const handleUpdateReservation = async (updatedReservation: Reservation) => {
         try {
-            console.log('🔄 Attempting to update reservation:', updatedReservation.id, updatedReservation.status);
+            const previousReservation = reservations.find(r => r.id === updatedReservation.id);
             
             // Update in Firebase first - use string id directly
             await firebaseService.reservations.updateReservation(updatedReservation.id, updatedReservation);
-            console.log('✅ Firebase update successful');
-            
             // ✅ OPTIMISTIC UPDATE - Update local state after successful Firebase update
             setReservations(prev => prev.map(r => r.id === updatedReservation.id ? updatedReservation : r));
             
-            console.log('✅ Reservering status bijgewerkt in Firebase:', updatedReservation.status);
+            // 📧 SEND APPROPRIATE EMAIL BASED ON STATUS CHANGE
+            if (previousReservation && previousReservation.status !== updatedReservation.status) {
+                try {
+                    const show = events.find(e => e.date === updatedReservation.date);
+                    const emailData: BookingEmailData = {
+                        customerName: updatedReservation.contactName || 'Onbekend',
+                        customerEmail: updatedReservation.email || 'Niet opgegeven',
+                        customerPhone: updatedReservation.phone || 'Niet opgegeven',
+                        customerAddress: `${updatedReservation.address || ''} ${updatedReservation.houseNumber || ''}`.trim() || undefined,
+                        customerCity: updatedReservation.city || undefined,
+                        customerPostalCode: updatedReservation.postalCode || undefined,
+                        customerCountry: updatedReservation.country || 'Nederland',
+                        companyName: updatedReservation.companyName,
+                        showTitle: show?.name || 'Onbekende show',
+                        showDate: updatedReservation.date,
+                        showTime: show?.time || undefined,
+                        packageType: updatedReservation.drinkPackage || 'standard',
+                        numberOfGuests: updatedReservation.guests,
+                        totalPrice: updatedReservation.totalPrice || 0,
+                        reservationId: updatedReservation.id,
+                        allergies: updatedReservation.allergies,
+                        preShowDrinks: updatedReservation.preShowDrinks,
+                        afterParty: updatedReservation.afterParty ? updatedReservation.guests : undefined,
+                        remarks: updatedReservation.remarks,
+                        promoCode: updatedReservation.promoCode,
+                        discountAmount: updatedReservation.discountAmount
+                    };
+
+                    if (updatedReservation.status === 'confirmed') {
+                        // Send booking confirmed email
+                        await sendBookingConfirmedEmail(emailData);
+                        console.log('📧 Booking confirmed email sent');
+                    } else if (updatedReservation.status === 'cancelled') {
+                        // Send booking rejected email
+                        await sendBookingRejectedEmail(emailData);
+                        console.log('📧 Booking rejected email sent');
+                    }
+                } catch (emailError) {
+                    console.error('📧 Status change email failed:', emailError);
+                    // Don't fail the reservation update for email errors
+                }
+            }
+            
             addToast(`Reservering ${updatedReservation.status === 'confirmed' ? 'goedgekeurd' : 'geannuleerd'}!`, 'success');
         } catch (error) {
-            console.error('❌ Failed to update reservation:', error);
             addToast('Er is een fout opgetreden bij het bijwerken van de reservering', 'error');
         }
     };
@@ -8459,10 +8618,8 @@ const AppContent = () => {
                 }
             }
             
-            console.log('✅ Reservation deleted from Firebase with optimistic updates');
             addToast('Reservering verwijderd', 'success');
         } catch (error) {
-            console.error('Error deleting reservation:', error);
             addToast('Fout bij verwijderen van reservering', 'error');
             // Fallback: reload from Firebase on error
             await reloadFirebaseData();
@@ -8476,10 +8633,8 @@ const AppContent = () => {
             // ✅ NO LOCAL STATE - Reload data from Firebase instead
             await reloadFirebaseData();
             
-            console.log('✅ Waiting list entry added to Firebase - data reloaded');
             addToast(i18n.waitingListConfirmed, 'success');
         } catch (error) {
-            console.error('Error adding to waiting list:', error);
             addToast('Fout bij toevoegen aan wachtlijst', 'error');
         }
     };
@@ -8491,10 +8646,8 @@ const AppContent = () => {
             // ✅ NO LOCAL STATE - Reload data from Firebase instead
             await reloadFirebaseData();
             
-            console.log('✅ Waiting list entry deleted from Firebase - data reloaded');
             addToast('Wachtlijst item verwijderd', 'success');
         } catch (error) {
-            console.error('Error deleting from waiting list:', error);
             addToast('Fout bij verwijderen van wachtlijst', 'error');
         }
     };
@@ -8526,7 +8679,6 @@ const AppContent = () => {
             const availableSpots = show.capacity - currentGuests;
             
             if (availableSpots >= entry.guests) {
-                console.log(`🎯 Auto-detected ${availableSpots} available spots for ${entry.name}`);
                 // Set response deadline (24 hours)
                 const deadline = new Date();
                 deadline.setHours(deadline.getHours() + 24);
@@ -8618,7 +8770,6 @@ const AppContent = () => {
         const nextInQueue = activeWaitlist.find(w => w.guests <= availableSpots);
         
         if (nextInQueue) {
-            console.log(`🔔 Auto-notifying next in queue: ${nextInQueue.name}`);
             // Delay to avoid immediate notification spam
             setTimeout(() => {
                 handleNotifyWaitlist(nextInQueue);
@@ -8636,34 +8787,24 @@ const AppContent = () => {
     
     const handleBulkDelete = async (criteria: { type: 'name' | 'type' | 'date', value: string }, month?: Date) => {
         try {
-            console.log('🗑️ Bulk deleting shows with criteria:', criteria);
-            
             if(criteria.type === 'date') {
                 const datesToDelete = criteria.value.split(',');
-                console.log('📅 Deleting shows for dates:', datesToDelete);
-                
                 // Find shows to delete
                 const showsToDelete = events.filter(e => datesToDelete.includes(e.date));
-                console.log('🎭 Shows to delete:', showsToDelete.length);
-                
                 // Delete each show from Firebase
                 for (const show of showsToDelete) {
-                    console.log('🔥 Deleting show from Firebase:', show.id);
                     await firebaseService.shows.deleteShow(show.id);
                 }
                 
                 // ✅ NO LOCAL STATE - Reload data from Firebase instead
                 await reloadFirebaseData();
                 
-                console.log('✅ Bulk delete completed for dates - data reloaded from Firebase');
                 addToast(`${showsToDelete.length} shows verwijderd`, 'success');
                 return;
             }
 
             if(!month) return;
 
-            console.log('📅 Bulk deleting shows for month:', month, 'with criteria:', criteria);
-            
             const year = month.getFullYear();
             const monthIndex = month.getMonth();
             
@@ -8673,22 +8814,17 @@ const AppContent = () => {
                 return e[criteria.type] === criteria.value && eventDate.getFullYear() === year && eventDate.getMonth() === monthIndex;
             });
             
-            console.log('🎭 Shows to delete for month:', showsToDelete.length);
-            
             // Delete each show from Firebase
             for (const show of showsToDelete) {
-                console.log('🔥 Deleting show from Firebase:', show.id);
                 await firebaseService.shows.deleteShow(show.id);
             }
             
             // ✅ NO LOCAL STATE - Reload data from Firebase instead
             await reloadFirebaseData();
             
-            console.log('✅ Bulk delete completed for month - data reloaded from Firebase');
             addToast(`${showsToDelete.length} shows verwijderd`, 'success');
             
         } catch (error) {
-            console.error('❌ Error during bulk delete:', error);
             addToast('Er is een fout opgetreden bij het verwijderen', 'error');
         }
     };
@@ -8766,9 +8902,7 @@ const AppContent = () => {
             // Update local state after successful Firebase update
             setReservations(prev => prev.map(r => r.id === id ? updatedReservation : r));
             
-            console.log('✅ Check-in status bijgewerkt in Firebase voor reservering:', id);
-        } catch (error) {
-            console.error('❌ Failed to update check-in status:', error);
+            } catch (error) {
             addToast('Er is een fout opgetreden bij het bijwerken van de check-in status', 'error');
         }
     };
@@ -8776,18 +8910,14 @@ const AppContent = () => {
     // 🔧 Config update handler that saves to Firebase
     const handleConfigUpdate = async (newConfig: AppConfig) => {
         try {
-            console.log('📝 Updating config in Firebase:', newConfig);
-            
             // Save to Firebase first
             await firebaseService.config.updateConfig(newConfig);
             
             // Update local state
             setConfig(newConfig);
             
-            console.log('✅ Config successfully updated in Firebase and local state');
-        } catch (error) {
-            console.error('❌ Error updating config:', error);
-        }
+            } catch (error) {
+            }
     };
 
     return (

@@ -1,4 +1,4 @@
-import emailjs from '@emailjs/browser';
+import emailjs from 'emailjs-com';
 
 /* 
 🎭 VOLLEDIG EMAIL SYSTEEM GEACTIVEERD 🎭
@@ -14,8 +14,8 @@ Complete Email Workflow:
 EmailJS Service: service_nh0qgkw
 */
 
-// ⚠️ TIJDELIJK UITGESCHAKELD voor testing
-const EMAIL_ENABLED = false;
+// ✅ VOLLEDIG GEACTIVEERD
+const EMAIL_ENABLED = true;
 
 export interface BookingEmailData {
     customerName: string;
@@ -93,12 +93,14 @@ export const sendProvisionalBookingEmail = async (bookingData: BookingEmailData)
             EMAILJS_SERVICE_ID,
             EMAIL_TEMPLATES.PROVISIONAL_BOOKING,
             {
+                // Email settings
                 to_email: bookingData.customerEmail,
                 to_name: bookingData.customerName,
                 from_name: 'Theater Reserveringen',
                 reply_to: 'info@theater.nl',
                 subject: `🎭 Voorlopige Boeking Ontvangen - ${bookingData.showTitle}`,
                 
+                // Customer info
                 customer_name: bookingData.customerName,
                 customer_email: bookingData.customerEmail,
                 customer_phone: bookingData.customerPhone,
@@ -107,15 +109,18 @@ export const sendProvisionalBookingEmail = async (bookingData: BookingEmailData)
                 customer_postal_code: bookingData.customerPostalCode || '',
                 company_name: bookingData.companyName || '',
                 
+                // Show details
                 show_title: bookingData.showTitle,
                 show_date: formatDate(bookingData.showDate),
                 show_time: bookingData.showTime || 'Nog te bevestigen',
                 number_of_guests: bookingData.numberOfGuests.toString(),
                 
+                // Package info
                 package_type: bookingData.packageType === 'premium' ? 'Premium Pakket' : 'Standaard Pakket',
                 pre_show_drinks: bookingData.preShowDrinks ? 'Ja' : 'Nee',
                 after_party: bookingData.afterParty ? `Ja (${bookingData.afterParty} personen)` : 'Nee',
                 
+                // Additional info
                 allergies: bookingData.allergies || 'Geen aangegeven',
                 remarks: bookingData.remarks || 'Geen opmerkingen',
                 total_price: formatPrice(bookingData.totalPrice),
@@ -123,6 +128,7 @@ export const sendProvisionalBookingEmail = async (bookingData: BookingEmailData)
                 discount_amount: bookingData.discountAmount ? formatPrice(bookingData.discountAmount) : '',
                 reservation_id: bookingData.reservationId,
                 
+                // Processing info
                 processing_time: '1-3 werkdagen',
                 contact_email: 'info@theater.nl',
                 contact_phone: '+32 123 456 789'
@@ -170,7 +176,8 @@ export const sendAdminNotificationEmail = async (bookingData: BookingEmailData):
                 number_of_guests: bookingData.numberOfGuests.toString(),
                 package_type: bookingData.packageType === 'premium' ? 'Premium' : 'Standaard',
                 
-                extras: `Borrels: ${bookingData.preShowDrinks ? 'Ja' : 'Nee'}
+                extras: `
+Borrels: ${bookingData.preShowDrinks ? 'Ja' : 'Nee'}
 Afterparty: ${bookingData.afterParty ? `Ja (${bookingData.afterParty} personen)` : 'Nee'}
 Allergieën: ${bookingData.allergies || 'Geen'}
 Opmerkingen: ${bookingData.remarks || 'Geen'}`,
@@ -224,6 +231,7 @@ export const sendBookingConfirmedEmail = async (bookingData: BookingEmailData): 
                 total_price: formatPrice(bookingData.totalPrice),
                 reservation_id: bookingData.reservationId,
                 
+                // Instructions
                 arrival_time: 'Gelieve 30 minuten voor aanvang aanwezig te zijn',
                 parking_info: 'Gratis parking beschikbaar achter het theater',
                 contact_info: 'Bij vragen: info@theater.nl of +32 123 456 789'

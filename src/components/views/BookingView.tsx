@@ -46,15 +46,15 @@ export const BookingView: React.FC<BookingViewProps> = ({
         const archivedShowNames = new Set(config.showNames.filter(s => s.archived).map(s => s.name));
         const archivedShowTypes = new Set(config.showTypes.filter(t => t.archived).map(t => t.name));
         
-        console.log('🔍 BookingView - Total showEvents received:', showEvents.length);
-        console.log('🔍 BookingView - showEvents:', showEvents);
-        console.log('🔍 BookingView - Archived show names:', Array.from(archivedShowNames));
-        console.log('🔍 BookingView - Archived show types:', Array.from(archivedShowTypes));
+        
+        
+        
+        
         
         const filtered = showEvents.filter(e => {
             // Filter gearchiveerde shows
             if (archivedShowNames.has(e.name) || archivedShowTypes.has(e.type)) {
-                console.log('🚫 BookingView - Filtering out archived show:', e.name, e.type);
+                
                 return false;
             }
             
@@ -71,14 +71,14 @@ export const BookingView: React.FC<BookingViewProps> = ({
             // Show is verlopen als huidige tijd voorbij showtijd is
             const isExpired = now > showDateTime;
             
-            console.log(`🕐 BookingView - Show "${e.name}" on ${e.date}: isExpired=${isExpired}, showDateTime=${showDateTime}, now=${now}`);
+            
             
             // Verberg verstreken shows van booking kalender
             return !isExpired;
         });
         
-        console.log('✅ BookingView - Active show events after filtering:', filtered.length);
-        console.log('✅ BookingView - Active events:', filtered);
+        
+        
         return filtered;
     }, [showEvents, config]);
     

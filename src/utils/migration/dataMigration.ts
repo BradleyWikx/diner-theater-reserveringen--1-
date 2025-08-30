@@ -24,97 +24,97 @@ export class DataMigrationService {
     const errors: string[] = [];
     
     try {
-      console.log('🚀 Starting Firebase migration...');
+      
       
       // Migrate Shows
       if (localData.shows && localData.shows.length > 0) {
-        console.log(`📅 Migrating ${localData.shows.length} shows...`);
+        
         try {
           await this.migrateShows(localData.shows);
-          console.log('✅ Shows migrated successfully');
+          
         } catch (error) {
           const errorMsg = `Failed to migrate shows: ${error}`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg);
+          
         }
       }
       
       // Migrate Reservations
       if (localData.reservations && localData.reservations.length > 0) {
-        console.log(`🎫 Migrating ${localData.reservations.length} reservations...`);
+        
         try {
           await this.migrateReservations(localData.reservations);
-          console.log('✅ Reservations migrated successfully');
+          
         } catch (error) {
           const errorMsg = `Failed to migrate reservations: ${error}`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg);
+          
         }
       }
       
       // Migrate Waiting List
       if (localData.waitingList && localData.waitingList.length > 0) {
-        console.log(`📋 Migrating ${localData.waitingList.length} waiting list entries...`);
+        
         try {
           await this.migrateWaitingList(localData.waitingList);
-          console.log('✅ Waiting list migrated successfully');
+          
         } catch (error) {
           const errorMsg = `Failed to migrate waiting list: ${error}`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg);
+          
         }
       }
       
       // Migrate Internal Events
       if (localData.internalEvents && localData.internalEvents.length > 0) {
-        console.log(`🎭 Migrating ${localData.internalEvents.length} internal events...`);
+        
         try {
           await this.migrateInternalEvents(localData.internalEvents);
-          console.log('✅ Internal events migrated successfully');
+          
         } catch (error) {
           const errorMsg = `Failed to migrate internal events: ${error}`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg);
+          
         }
       }
       
       // Migrate Theater Vouchers
       if (localData.vouchers && localData.vouchers.length > 0) {
-        console.log(`🎫 Migrating ${localData.vouchers.length} theater vouchers...`);
+        
         try {
           await this.migrateTheaterVouchers(localData.vouchers);
-          console.log('✅ Theater vouchers migrated successfully');
+          
         } catch (error) {
           const errorMsg = `Failed to migrate theater vouchers: ${error}`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg);
+          
         }
       }
       
       // Migrate Config (should be last)
       if (localData.config) {
-        console.log('⚙️ Migrating app configuration...');
+        
         try {
           await this.migrateConfig(localData.config);
-          console.log('✅ Configuration migrated successfully');
+          
         } catch (error) {
           const errorMsg = `Failed to migrate config: ${error}`;
           errors.push(errorMsg);
-          console.error('❌', errorMsg);
+          
         }
       }
       
       if (errors.length === 0) {
-        console.log('🎉 Migration completed successfully!');
+        
         return { success: true, errors: [] };
       } else {
-        console.log(`⚠️ Migration completed with ${errors.length} errors`);
+        
         return { success: false, errors };
       }
       
     } catch (error) {
       const errorMsg = `Migration failed: ${error}`;
-      console.error('💥', errorMsg);
+      
       return { success: false, errors: [errorMsg, ...errors] };
     }
   }
@@ -130,7 +130,7 @@ export class DataMigrationService {
       });
       
       await firebaseService.shows.addMultipleShows(showsWithoutId);
-      console.log(`✅ Migrated shows batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(shows.length / batchSize)}`);
+      
       
       // Small delay to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -246,7 +246,7 @@ export class DataMigrationService {
   
   // 🧹 CLEANUP UTILITIES
   async clearAllFirebaseData(): Promise<void> {
-    console.log('⚠️ Clearing all Firebase data...');
+    
     
     try {
       // Clear shows
@@ -279,9 +279,9 @@ export class DataMigrationService {
         await firebaseService.vouchers.deleteVoucher(voucher.id);
       }
       
-      console.log('🧹 Firebase data cleared successfully');
+      
     } catch (error) {
-      console.error('❌ Error clearing Firebase data:', error);
+      
       throw error;
     }
   }
@@ -296,7 +296,7 @@ export class DataMigrationService {
     vouchers: TheaterVoucher[];
     timestamp: string;
   }> {
-    console.log('📦 Creating Firebase backup...');
+    
     
     try {
       const [shows, reservations, waitingList, internalEvents, config, vouchers] = await Promise.all([
@@ -318,10 +318,10 @@ export class DataMigrationService {
         timestamp: new Date().toISOString()
       };
       
-      console.log('✅ Firebase backup created successfully');
+      
       return backup;
     } catch (error) {
-      console.error('❌ Error creating Firebase backup:', error);
+      
       throw error;
     }
   }

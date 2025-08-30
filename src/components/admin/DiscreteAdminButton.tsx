@@ -18,9 +18,6 @@ export const DiscreteAdminButton: React.FC<DiscreteAdminButtonProps> = memo(({ o
     return null;
   }
 
-  // Debug logging
-  console.log('DiscreteAdminButton render:', { isAdmin, userEmail: user?.email, loading });
-
   const handleClick = () => {
     if (isAdmin) {
       // Als admin ingelogd is, toon admin opties
@@ -54,7 +51,7 @@ export const DiscreteAdminButton: React.FC<DiscreteAdminButtonProps> = memo(({ o
       onAdminLogout?.(); // Call the logout callback first
       window.location.reload();
     } catch (error) {
-      console.error('Logout error:', error);
+      // Silent error handling
     }
   };
 
@@ -106,7 +103,6 @@ export const DiscreteAdminButton: React.FC<DiscreteAdminButtonProps> = memo(({ o
         <AdminLogin 
           onClose={() => setShowLogin(false)}
           onSuccess={() => {
-            console.log('🔐 Admin login success - triggering onAdminLogin callback');
             setShowLogin(false);
             onAdminLogin?.();
           }}

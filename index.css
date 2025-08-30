@@ -13475,11 +13475,46 @@ tr.detail-row td {
     padding: var(--space-sm) var(--space-lg);
     border-top: 2px solid var(--theater-gold);
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     gap: var(--space-sm);
     flex-shrink: 0;
     background: var(--theater-cream);
     border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
+}
+
+.modal-footer-left {
+    display: flex;
+    gap: var(--space-xs);
+    align-items: center;
+}
+
+.modal-footer-right {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.modal-footer .btn-tertiary {
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    border: 1px solid var(--admin-border);
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+}
+
+.modal-footer .btn-tertiary:hover:not(:disabled) {
+    background: var(--admin-primary);
+    color: white;
+    border-color: var(--admin-primary);
+}
+
+.modal-footer .btn-tertiary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* Ã°Å¸Å½Â­ Multi-Date Modal Specific Styles - Luxury Wonderland */
@@ -28257,6 +28292,110 @@ fieldset legend {
 .submenu .submenu-link:hover::before {
   background: #6366f1;
   transform: translateY(-50%) scale(1.2);
+}
+
+/* ========================================================= */
+/* === TOAST NOTIFICATION SYSTEM === */
+/* ========================================================= */
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.toast {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 12px 16px;
+    min-width: 300px;
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    pointer-events: auto;
+    animation: toastSlideIn 0.3s ease-out;
+    transition: all 0.3s ease;
+}
+
+.toast-success {
+    border-left: 4px solid var(--text-color-success);
+    background: var(--surface-color);
+}
+
+.toast-error {
+    border-left: 4px solid var(--text-color-error);
+    background: var(--surface-color);
+}
+
+.toast-warning {
+    border-left: 4px solid var(--accent-color-gold);
+    background: var(--surface-color);
+}
+
+.toast-info {
+    border-left: 4px solid var(--primary-color);
+    background: var(--surface-color);
+}
+
+.toast-message {
+    color: var(--text-color);
+    font-size: 0.9rem;
+    flex-grow: 1;
+    margin-right: 8px;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: var(--text-color-light);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.toast-close:hover {
+    background: var(--border-color);
+    color: var(--text-color);
+}
+
+@keyframes toastSlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+    .toast-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+    }
+    
+    .toast {
+        min-width: auto;
+        width: 100%;
+    }
 }
 
 .submenu .submenu-link.active {

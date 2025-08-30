@@ -23,7 +23,7 @@ export class AdminErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('🚨 Admin Error Boundary caught an error:', error, errorInfo);
+    
     
     this.setState({
       error,
@@ -153,7 +153,7 @@ export class AdminErrorBoundary extends Component<Props, State> {
 // Hook for error reporting
 export const useErrorHandler = () => {
   const reportError = (error: Error, context?: string) => {
-    console.error('🚨 Error reported:', error);
+    
     
     const errorLog = {
       message: error.message,

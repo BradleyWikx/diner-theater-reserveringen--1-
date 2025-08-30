@@ -1,4 +1,4 @@
-import emailjs from '@emailjs/browser';
+import emailjs from 'emailjs-com';
 
 /* 
 🎭 VOLLEDIG EMAIL SYSTEEM GEACTIVEERD 🎭
@@ -14,8 +14,8 @@ Complete Email Workflow:
 EmailJS Service: service_nh0qgkw
 */
 
-// ⚠️ TIJDELIJK UITGESCHAKELD voor testing
-const EMAIL_ENABLED = false;
+// ✅ VOLLEDIG GEACTIVEERD
+const EMAIL_ENABLED = true;
 
 export interface BookingEmailData {
     customerName: string;
@@ -56,25 +56,6 @@ const EMAIL_TEMPLATES = {
     RESEND_CONFIRMATION: 'template_resend'             // Voor handmatig opnieuw versturen
 };
 
-// Helper Functions
-const formatDate = (dateString: string): string => {
-    try {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('nl-BE', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        });
-    } catch {
-        return dateString;
-    }
-};
-
-const formatPrice = (price: number): string => {
-    return `€${price.toFixed(2).replace('.', ',')}`;
-};
-
 /**
  * 🎭 SEND PROVISIONAL BOOKING EMAIL - Direct na wizard submit
  * Deze email wordt verstuurd zodra de klant de wizard heeft ingediend
@@ -93,12 +74,14 @@ export const sendProvisionalBookingEmail = async (bookingData: BookingEmailData)
             EMAILJS_SERVICE_ID,
             EMAIL_TEMPLATES.PROVISIONAL_BOOKING,
             {
+                // Email settings
                 to_email: bookingData.customerEmail,
                 to_name: bookingData.customerName,
                 from_name: 'Theater Reserveringen',
                 reply_to: 'info@theater.nl',
                 subject: `🎭 Voorlopige Boeking Ontvangen - ${bookingData.showTitle}`,
                 
+                // Customer info
                 customer_name: bookingData.customerName,
                 customer_email: bookingData.customerEmail,
                 customer_phone: bookingData.customerPhone,
@@ -107,15 +90,18 @@ export const sendProvisionalBookingEmail = async (bookingData: BookingEmailData)
                 customer_postal_code: bookingData.customerPostalCode || '',
                 company_name: bookingData.companyName || '',
                 
+                // Show details
                 show_title: bookingData.showTitle,
                 show_date: formatDate(bookingData.showDate),
                 show_time: bookingData.showTime || 'Nog te bevestigen',
-                number_of_guests: bookingData.numberOfGuests.toString(),
+                number_of_guests: bookingData.numberOfGuests,
                 
+                // Package info
                 package_type: bookingData.packageType === 'premium' ? 'Premium Pakket' : 'Standaard Pakket',
                 pre_show_drinks: bookingData.preShowDrinks ? 'Ja' : 'Nee',
                 after_party: bookingData.afterParty ? `Ja (${bookingData.afterParty} personen)` : 'Nee',
                 
+                // Additional info
                 allergies: bookingData.allergies || 'Geen aangegeven',
                 remarks: bookingData.remarks || 'Geen opmerkingen',
                 total_price: formatPrice(bookingData.totalPrice),
@@ -123,6 +109,7 @@ export const sendProvisionalBookingEmail = async (bookingData: BookingEmailData)
                 discount_amount: bookingData.discountAmount ? formatPrice(bookingData.discountAmount) : '',
                 reservation_id: bookingData.reservationId,
                 
+                // Processing info
                 processing_time: '1-3 werkdagen',
                 contact_email: 'info@theater.nl',
                 contact_phone: '+32 123 456 789'
@@ -167,10 +154,11 @@ export const sendAdminNotificationEmail = async (bookingData: BookingEmailData):
                 
                 show_title: bookingData.showTitle,
                 show_date: formatDate(bookingData.showDate),
-                number_of_guests: bookingData.numberOfGuests.toString(),
+                number_of_guests: bookingData.numberOfGuests,
                 package_type: bookingData.packageType === 'premium' ? 'Premium' : 'Standaard',
                 
-                extras: `Borrels: ${bookingData.preShowDrinks ? 'Ja' : 'Nee'}
+                extras: `
+Borrels: ${bookingData.preShowDrinks ? 'Ja' : 'Nee'}
 Afterparty: ${bookingData.afterParty ? `Ja (${bookingData.afterParty} personen)` : 'Nee'}
 Allergieën: ${bookingData.allergies || 'Geen'}
 Opmerkingen: ${bookingData.remarks || 'Geen'}`,
@@ -214,7 +202,7 @@ export const sendBookingConfirmedEmail = async (bookingData: BookingEmailData): 
                 show_title: bookingData.showTitle,
                 show_date: formatDate(bookingData.showDate),
                 show_time: bookingData.showTime || 'Zie tickets voor exacte tijd',
-                number_of_guests: bookingData.numberOfGuests.toString(),
+                number_of_guests: bookingData.numberOfGuests,
                 package_type: bookingData.packageType === 'premium' ? 'Premium Pakket' : 'Standaard Pakket',
                 
                 pre_show_drinks: bookingData.preShowDrinks ? 'Inbegrepen' : 'Niet geselecteerd',
@@ -224,6 +212,7 @@ export const sendBookingConfirmedEmail = async (bookingData: BookingEmailData): 
                 total_price: formatPrice(bookingData.totalPrice),
                 reservation_id: bookingData.reservationId,
                 
+                // Instructions
                 arrival_time: 'Gelieve 30 minuten voor aanvang aanwezig te zijn',
                 parking_info: 'Gratis parking beschikbaar achter het theater',
                 contact_info: 'Bij vragen: info@theater.nl of +32 123 456 789'
@@ -338,6 +327,208 @@ export const resendConfirmationEmail = async (bookingData: BookingEmailData, ema
         return false;
     }
 };
+                
+                // Pakket informatie
+                package_type: bookingData.packageType,
+                number_of_guests: bookingData.numberOfGuests.toString(),
+                total_price: `€${bookingData.totalPrice.toFixed(2)}`,
+                
+                // Add-ons
+                selected_addons: bookingData.selectedAddons && bookingData.selectedAddons.length > 0 
+                    ? bookingData.selectedAddons.join(', ') 
+                    : 'Geen add-ons geselecteerd',
+                
+                // Reservering details
+                reservation_id: bookingData.reservationId,
+                
+                // Volledige geformatteerde bericht
+                message: emailContent.text,
+                html_content: emailContent.html
+            }
+        );
+        
+        
+        return true;
+        
+    } catch (error) {
+        
+        
+        return false;
+    }
+};
 
-// Legacy support - backward compatibility
-export const sendBookingNotification = sendAdminNotificationEmail;
+/**
+ * Send booking confirmation email after approval (TIJDELIJK UITGESCHAKELD)
+ */
+export const sendBookingConfirmationEmail = async (bookingData: BookingEmailData & { bookingNumber: string }): Promise<boolean> => {
+    try {
+        
+        
+        // 🚫 TIJDELIJK UITGESCHAKELD - Alleen logging
+        if (!EMAIL_ENABLED) {
+            
+            return true;
+        }
+
+        
+        
+        // EmailJS implementation would go here when enabled
+        
+        return true;
+        
+    } catch (error) {
+        
+        return false;
+    }
+};
+
+/**
+ * Send test email
+ */
+export const sendTestEmail = async (): Promise<boolean> => {
+    try {
+        
+        
+        // 🚫 TIJDELIJK UITGESCHAKELD
+        if (!EMAIL_ENABLED) {
+            
+            
+            return true;
+        }
+
+        
+        
+        // For now, just log the test email since we need EmailJS setup
+        
+        
+        
+        
+        
+        
+        
+        // Initialize EmailJS with your public key
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+        
+        const result = await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            {
+                to_email: 'bradleywielockx@gmail.com',
+                to_name: 'Bradley',
+                from_name: 'Theater Reserveringen',
+                subject: '🧪 Test Email from Theater System',
+                message: 'This is a test email from the theater reservation system using EmailJS.',
+            }
+        );
+        
+        
+        return true;
+        
+    } catch (error) {
+        
+        return false;
+    }
+};
+
+/**
+ * Format booking data into email content
+ */
+function formatBookingContent(bookingData: BookingEmailData): { text: string; html: string } {
+    const text = `
+🎭 NIEUWE THEATERBOEKING
+
+KLANTGEGEVENS:
+Naam: ${bookingData.customerName}
+E-mail: ${bookingData.customerEmail}
+Telefoon: ${bookingData.customerPhone}
+
+ADRESGEGEVENS:
+Adres: ${bookingData.customerAddress || 'Niet opgegeven'}
+Stad: ${bookingData.customerCity || 'Niet opgegeven'}
+Postcode: ${bookingData.customerPostalCode || 'Niet opgegeven'}
+Land: ${bookingData.customerCountry || 'Nederland'}
+
+SHOWDETAILS:
+Voorstelling: ${bookingData.showTitle}
+Datum: ${bookingData.showDate}
+Tijd: ${bookingData.showTime || 'Niet gespecificeerd'}
+
+RESERVERINGSDETAILS:
+Pakket type: ${bookingData.packageType}
+Aantal personen: ${bookingData.numberOfGuests}
+Totaalprijs: €${bookingData.totalPrice.toFixed(2)}
+Reserveringsnummer: ${bookingData.reservationId}
+
+ADD-ONS:
+${bookingData.selectedAddons && bookingData.selectedAddons.length > 0 
+    ? bookingData.selectedAddons.map(addon => `- ${addon}`).join('\n')
+    : 'Geen add-ons geselecteerd'}
+`;
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 30px;">
+            <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #A00000;">
+                <h1 style="color: #A00000; margin: 0; font-size: 24px;">🎭 Nieuwe Theaterboeking</h1>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #A00000; margin: 0 0 15px 0;">👤 Klantgegevens</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Naam:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.customerName}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>E-mail:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><a href="mailto:${bookingData.customerEmail}" style="color: #A00000;">${bookingData.customerEmail}</a></td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Telefoon:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><a href="tel:${bookingData.customerPhone}" style="color: #A00000;">${bookingData.customerPhone}</a></td></tr>
+                </table>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #FFD700; margin: 0 0 15px 0;">📍 Adresgegevens</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Adres:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.customerAddress || 'Niet opgegeven'}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Stad:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.customerCity || 'Niet opgegeven'}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Postcode:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.customerPostalCode || 'Niet opgegeven'}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Land:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.customerCountry || 'Nederland'}</td></tr>
+                </table>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #FF9800; margin: 0 0 15px 0;">� Showdetails</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Voorstelling:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #FF9800;">${bookingData.showTitle}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Datum:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold;">${bookingData.showDate}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Tijd:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.showTime || 'Niet gespecificeerd'}</td></tr>
+                </table>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #FFD700; margin: 0 0 15px 0;">🎫 Reserveringsdetails</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Pakket type:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.packageType}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Aantal personen:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #FFD700; font-size: 16px;">${bookingData.numberOfGuests} personen</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Totaalprijs:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #32CD32; font-size: 18px;">€${bookingData.totalPrice.toFixed(2)}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Reserveringsnummer:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-family: monospace; background: #f5f5f5; padding: 5px; border-radius: 3px;">${bookingData.reservationId}</td></tr>
+                </table>
+            </div>
+            
+            ${bookingData.selectedAddons && bookingData.selectedAddons.length > 0 ? `
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #A00000; margin: 0 0 15px 0;">🎁 Add-ons</h3>
+                <ul style="margin: 0; padding-left: 20px;">
+                    ${bookingData.selectedAddons.map(addon => `<li style="padding: 3px 0; color: #555;">${addon}</li>`).join('')}
+                </ul>
+            </div>
+            ` : `
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #A00000; margin: 0 0 15px 0;">🎁 Add-ons</h3>
+                <p style="color: #777; font-style: italic;">Geen add-ons geselecteerd</p>
+            </div>
+            `}
+            
+            <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0; text-align: center;">
+                <p style="margin: 0; color: #666; font-size: 14px;">Deze boeking is automatisch ontvangen via het online reserveringssysteem.</p>
+                <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Tijd van boeking: ${new Date().toLocaleString('nl-NL')}</p>
+            </div>
+        </div>
+    `;
+
+    return { text, html };
+}

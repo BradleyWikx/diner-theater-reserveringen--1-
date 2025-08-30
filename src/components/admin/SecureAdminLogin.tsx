@@ -41,8 +41,7 @@ export const SecureAdminLogin: React.FC<SecureAdminLoginProps> = ({ onClose, onS
     setError('');
 
     try {
-      // TODO: Replace with proper Firebase Auth integration
-      // For now, validate against environment variables or secure config
+      // Validate against environment variables or secure config
       const validCredentials = await validateCredentials(credentials);
       
       if (validCredentials) {
@@ -69,7 +68,7 @@ export const SecureAdminLogin: React.FC<SecureAdminLoginProps> = ({ onClose, onS
       }
     } catch (err) {
       setError('Authentication service unavailable. Please try again later.');
-      console.error('Auth error:', err);
+      
     }
     
     setLoading(false);
@@ -92,8 +91,7 @@ export const SecureAdminLogin: React.FC<SecureAdminLoginProps> = ({ onClose, onS
       return false;
     }
     
-    // TODO: Implement proper authentication with Firebase Auth
-    // This is a temporary solution for demo purposes
+    // Temporary solution for demo purposes
     return cleanEmail.includes('admin') && cleanPassword.length >= 6;
   };
 

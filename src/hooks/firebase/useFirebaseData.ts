@@ -30,9 +30,7 @@ export const useShows = () => {
       setLoading(true);
       const showsToAdd = dates.map(date => ({ ...show, date }));
       await firebaseService.shows.addMultipleShows(showsToAdd);
-      console.log(`✅ ${dates.length === 1 ? 'Show' : dates.length + ' shows'} toegevoegd!`);
     } catch (error) {
-      console.error('Error adding shows:', error);
       setError('Failed to add shows');
     } finally {
       setLoading(false);
@@ -42,9 +40,7 @@ export const useShows = () => {
   const updateShow = useCallback(async (id: string, updates: Partial<ShowEvent>) => {
     try {
       await firebaseService.shows.updateShow(id, updates);
-      console.log('✅ Show bijgewerkt!');
     } catch (error) {
-      console.error('Error updating show:', error);
       setError('Failed to update show');
     }
   }, []);
@@ -52,9 +48,7 @@ export const useShows = () => {
   const deleteShow = useCallback(async (id: string) => {
     try {
       await firebaseService.shows.deleteShow(id);
-      console.log('✅ Show verwijderd!');
     } catch (error) {
-      console.error('Error deleting show:', error);
       setError('Failed to delete show');
     }
   }, []);
@@ -63,9 +57,7 @@ export const useShows = () => {
     try {
       setLoading(true);
       await firebaseService.shows.bulkDeleteShows(criteria);
-      console.log('✅ Shows verwijderd!');
     } catch (error) {
-      console.error('Error bulk deleting shows:', error);
       setError('Failed to bulk delete shows');
     } finally {
       setLoading(false);
@@ -90,29 +82,22 @@ export const useReservations = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🔥 React Hook: Setting up reservations listener');
     const unsubscribe = firebaseService.reservations.onReservationsChange((newReservations) => {
-      console.log('🔥 React Hook: Received reservations update:', newReservations.length, newReservations);
       setReservations(newReservations);
       setLoading(false);
       setError(null);
     });
 
     return () => {
-      console.log('🔥 React Hook: Cleaning up reservations listener');
       unsubscribe();
     };
   }, []);
 
   const addReservation = useCallback(async (reservation: Omit<Reservation, 'id'>) => {
     try {
-      console.log('🔥 React Hook: Adding reservation:', reservation);
       const id = await firebaseService.reservations.addReservation(reservation);
-      console.log('✅ React Hook: Reservation added successfully with ID:', id);
-      console.log('✅ Reservering toegevoegd!');
       return id;
     } catch (error) {
-      console.error('❌ React Hook: Error adding reservation:', error);
       setError('Failed to add reservation');
       throw error;
     }
@@ -121,19 +106,15 @@ export const useReservations = () => {
   const updateReservation = useCallback(async (id: string, updates: Partial<Reservation>) => {
     try {
       await firebaseService.reservations.updateReservation(id, updates);
-      console.log('✅ Reservering bijgewerkt!');
     } catch (error) {
-      console.error('Error updating reservation:', error);
       setError('Failed to update reservation');
     }
   }, []);
 
   const deleteReservation = useCallback(async (id: string) => {
     try {
-      await firebaseService.reservations.deleteReservation(parseInt(id));
-      console.log('✅ Reservering verwijderd!');
+      await firebaseService.reservations.deleteReservation(id);
     } catch (error) {
-      console.error('Error deleting reservation:', error);
       setError('Failed to delete reservation');
     }
   }, []);
@@ -155,29 +136,22 @@ export const useWaitingList = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🔥 React Hook: Setting up waiting list listener');
     const unsubscribe = firebaseService.waitingList.onWaitingListChange((newEntries) => {
-      console.log('🔥 React Hook: Received waiting list update:', newEntries.length, newEntries);
       setWaitingList(newEntries);
       setLoading(false);
       setError(null);
     });
 
     return () => {
-      console.log('🔥 React Hook: Cleaning up waiting list listener');
       unsubscribe();
     };
   }, []);
 
   const addToWaitingList = useCallback(async (entry: Omit<WaitingListEntry, 'id'>) => {
     try {
-      console.log('🔥 React Hook: Adding to waiting list:', entry);
       const id = await firebaseService.waitingList.addWaitingListEntry(entry);
-      console.log('✅ React Hook: Added to waiting list with ID:', id);
-      console.log('✅ Toegevoegd aan wachtlijst!');
       return id;
     } catch (error) {
-      console.error('❌ React Hook: Error adding to waiting list:', error);
       setError('Failed to add to waiting list');
       throw error;
     }
@@ -185,20 +159,16 @@ export const useWaitingList = () => {
 
   const updateWaitingListEntry = useCallback(async (id: string, updates: Partial<WaitingListEntry>) => {
     try {
-      await firebaseService.waitingList.updateWaitingListEntry(parseInt(id), updates);
-      console.log('✅ Wachtlijst bijgewerkt!');
+      await firebaseService.waitingList.updateWaitingListEntry(id, updates);
     } catch (error) {
-      console.error('Error updating waiting list entry:', error);
       setError('Failed to update waiting list entry');
     }
   }, []);
 
   const deleteWaitingListEntry = useCallback(async (id: string) => {
     try {
-      await firebaseService.waitingList.deleteWaitingListEntry(parseInt(id));
-      console.log('✅ Wachtlijst entry verwijderd!');
+      await firebaseService.waitingList.deleteWaitingListEntry(id);
     } catch (error) {
-      console.error('Error deleting waiting list entry:', error);
       setError('Failed to delete waiting list entry');
     }
   }, []);
@@ -232,10 +202,8 @@ export const useInternalEvents = () => {
   const addInternalEvent = useCallback(async (event: Omit<InternalEvent, 'id'>) => {
     try {
       const id = await firebaseService.internalEvents.addInternalEvent(event);
-      console.log('✅ Intern evenement toegevoegd!');
       return id;
     } catch (error) {
-      console.error('Error adding internal event:', error);
       setError('Failed to add internal event');
       throw error;
     }
@@ -244,9 +212,7 @@ export const useInternalEvents = () => {
   const updateInternalEvent = useCallback(async (id: string, updates: Partial<InternalEvent>) => {
     try {
       await firebaseService.internalEvents.updateInternalEvent(id, updates);
-      console.log('✅ Intern evenement bijgewerkt!');
     } catch (error) {
-      console.error('Error updating internal event:', error);
       setError('Failed to update internal event');
     }
   }, []);
@@ -254,9 +220,7 @@ export const useInternalEvents = () => {
   const deleteInternalEvent = useCallback(async (id: string) => {
     try {
       await firebaseService.internalEvents.deleteInternalEvent(id);
-      console.log('✅ Intern evenement verwijderd!');
     } catch (error) {
-      console.error('Error deleting internal event:', error);
       setError('Failed to delete internal event');
     }
   }, []);
@@ -293,10 +257,8 @@ export const useAppConfig = () => {
       if (config) {
         const fullConfig = { ...config, ...updates };
         await firebaseService.config.updateConfig(fullConfig);
-        console.log('✅ Configuratie bijgewerkt!');
       }
     } catch (error) {
-      console.error('Error updating config:', error);
       setError('Failed to update config');
     }
   }, [config]);
@@ -326,7 +288,7 @@ export const useFirebaseData = () => {
     updatePromoCode: async () => {},
     deletePromoCode: async () => {},
     validatePromoCode: async (code: string) => {
-      console.log('🎟️ Mock promo code validation for:', code);
+      // Mock promo code validation
       return null; // No valid promo codes for now
     }
   };

@@ -125,7 +125,7 @@ export const PrintableListModal: React.FC<PrintableListModalProps> = ({
             }, 100);
             
         } catch (error) {
-            console.error('PDF export failed:', error);
+            
         }
     };
 

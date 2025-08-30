@@ -30,7 +30,7 @@ export const loginAdmin = async (email: string, password: string) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   } catch (error) {
-    console.error('Login error:', error);
+    
     throw error;
   }
 };
@@ -39,7 +39,7 @@ export const logoutAdmin = async () => {
   try {
     await signOut(auth);
   } catch (error) {
-    console.error('Logout error:', error);
+    
     throw error;
   }
 };

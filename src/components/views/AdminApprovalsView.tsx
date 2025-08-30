@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Reservation, ShowEvent } from '../../types/types';
 import { AdminLayout, AdminCard, AdminButton, AdminBadge, AdminGrid, AdminDataTable } from '../layout/AdminLayout';
+import { resendConfirmationEmail, type BookingEmailData } from '../../services/emailService';
 
 interface AdminApprovalsViewProps {
   reservations: Reservation[];
@@ -140,6 +141,46 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
     onUpdateReservation(updated);
   };
 
+  // Handle email resend
+  const handleResendEmail = async (reservation: Reservation, emailType: 'provisional' | 'confirmed' = 'confirmed') => {
+    try {
+      const show = showEvents.find(e => e.date === reservation.date);
+      const emailData: BookingEmailData = {
+        customerName: reservation.contactName || 'Onbekend',
+        customerEmail: reservation.email || 'Niet opgegeven',
+        customerPhone: reservation.phone || 'Niet opgegeven',
+        customerAddress: `${reservation.address || ''} ${reservation.houseNumber || ''}`.trim() || undefined,
+        customerCity: reservation.city || undefined,
+        customerPostalCode: reservation.postalCode || undefined,
+        customerCountry: reservation.country || 'Nederland',
+        companyName: reservation.companyName,
+        showTitle: show?.name || 'Onbekende show',
+        showDate: reservation.date,
+        showTime: show?.time || undefined,
+        packageType: reservation.drinkPackage || 'standard',
+        numberOfGuests: reservation.guests,
+        totalPrice: reservation.totalPrice || 0,
+        reservationId: reservation.id,
+        allergies: reservation.allergies,
+        preShowDrinks: reservation.preShowDrinks,
+        afterParty: reservation.afterParty ? reservation.guests : undefined,
+        remarks: reservation.remarks,
+        promoCode: reservation.promoCode,
+        discountAmount: reservation.discountAmount
+      };
+
+      const success = await resendConfirmationEmail(emailData, emailType);
+      if (success) {
+        alert(`Email ${emailType === 'provisional' ? 'voorlopige boeking' : 'bevestiging'} succesvol verstuurd naar ${reservation.email}`);
+      } else {
+        alert('Er is een fout opgetreden bij het versturen van de email');
+      }
+    } catch (error) {
+      console.error('Email resend failed:', error);
+      alert('Er is een fout opgetreden bij het versturen van de email');
+    }
+  };
+
   // Handle sorting
   const handleSort = (key: string, direction: 'asc' | 'desc') => {
     setSortKey(key);
@@ -236,6 +277,38 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
       )
     },
     {
+      key: 'details',
+      label: 'Borrels & Extra\'s',
+      render: (reservation: Reservation) => {
+        const details = [];
+        
+        // Drankenpakket
+        details.push(`📦 ${reservation.drinkPackage === 'premium' ? 'Premium' : 'Standaard'} pakket`);
+        
+        // Borrels
+        if (reservation.preShowDrinks) details.push(`🍹 Pre-show borrel (${reservation.guests}x)`);
+        if (reservation.afterParty) details.push(`🎉 After party (${reservation.guests}x)`);
+        
+        // Allergieën
+        if (reservation.allergies) details.push(`🥗 Allergieën: ${reservation.allergies.length > 50 ? reservation.allergies.substring(0, 50) + '...' : reservation.allergies}`);
+        
+        // Promocode
+        if (reservation.promoCode) details.push(`🎟️ ${reservation.promoCode}`);
+        
+        return (
+          <div className="text-xs space-y-1">
+            {details.length > 0 ? details.map((detail, i) => (
+              <div key={i} className="text-admin-text-tertiary">
+                {detail}
+              </div>
+            )) : (
+              <span className="text-admin-text-tertiary italic">Geen extra's</span>
+            )}
+          </div>
+        );
+      }
+    },
+    {
       key: 'guests',
       label: 'Gasten',
       sortable: true,
@@ -302,7 +375,17 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
     if (reservation.status !== 'provisional') {
       return (
         <div className="flex items-center gap-xs">
-          <span className="text-xs text-admin-text-tertiary">Verwerkt</span>
+          <AdminButton
+            variant="ghost"
+            size="sm"
+            onClick={() => handleResendEmail(reservation, reservation.status === 'confirmed' ? 'confirmed' : 'provisional')}
+            title="Email opnieuw versturen"
+          >
+            📧
+          </AdminButton>
+          <span className="text-xs text-admin-text-tertiary">
+            {reservation.status === 'confirmed' ? 'Goedgekeurd' : 'Afgewezen'}
+          </span>
         </div>
       );
     }
@@ -326,6 +409,14 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
           title="Afwijzen"
         >
           ❌
+        </AdminButton>
+        <AdminButton
+          variant="ghost"
+          size="sm"
+          onClick={() => handleResendEmail(reservation, 'provisional')}
+          title="Voorlopige email opnieuw versturen"
+        >
+          📧
         </AdminButton>
       </div>
     );

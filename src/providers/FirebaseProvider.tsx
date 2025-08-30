@@ -50,16 +50,16 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         // Check if config exists, if not and we have defaultConfig, initialize it
         if (!firebaseData.config.config && !firebaseData.config.loading) {
           if (defaultConfig) {
-            console.log('🚀 Initializing Firebase with default configuration...');
+            
             // await firebaseData.config.initializeConfig(defaultConfig);
           } else {
-            console.log('⚠️ No configuration found and no default provided');
+            
           }
         }
         
         setIsInitialized(true);
       } catch (error) {
-        console.error('Firebase initialization failed:', error);
+        
         setConnectionError(`Firebase connection failed: ${error}`);
         setIsConnected(false);
         setIsInitialized(true); // Still set to true so app can render with offline fallback
@@ -75,11 +75,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       
       // Generate and log migration report
       const report = migrationService.generateMigrationReport(localData, result);
-      console.log(report);
+      
       
       return result;
     } catch (error) {
-      console.error('Migration failed:', error);
+      
       return { success: false, errors: [`Migration failed: ${error}`] };
     }
   };
@@ -88,7 +88,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     try {
       return await migrationService.validateMigration();
     } catch (error) {
-      console.error('Migration validation failed:', error);
+      
       throw error;
     }
   };
@@ -97,7 +97,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     try {
       return await migrationService.createFirebaseBackup();
     } catch (error) {
-      console.error('Backup creation failed:', error);
+      
       throw error;
     }
   };
@@ -107,7 +107,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       // await firebaseData.config.initializeConfig(config);
       setIsInitialized(true);
     } catch (error) {
-      console.error('App initialization failed:', error);
+      
       throw error;
     }
   };

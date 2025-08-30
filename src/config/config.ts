@@ -172,9 +172,9 @@ export const i18n = {
     premiumPackage: 'Premium Pakket',
     packagePremium: 'Premium',
     provisionalBookingWarning: 'Dit is een voorlopige reservering',
-    wizardStep2Title: 'Stap 2: Extra opties',
-    wizardStep2SubTitle: 'Selecteer eventuele extra opties',
-    addonMin25: 'Minimum 25 euro',
+    wizardStep2Title: 'Stap 2: Borrels & Extra\'s',
+    wizardStep2SubTitle: 'Selecteer gewenste borrels en extra opties',
+    addonMin25: 'Minimum 25 personen',
     wizardStep4Title: 'Stap 4: Persoonlijke gegevens',
     celebrationName: 'Naam viering',
     celebrationOccasion: 'Gelegenheid',
@@ -405,6 +405,20 @@ export const defaultConfig: AppConfig = {
     ],
     merchandise: [
         {
+            id: 'preShowDrinks',
+            name: 'Pre-show borrel',
+            price: 15.00,
+            description: 'Welkomstdrankje voor aanvang van de voorstelling',
+            imageUrl: 'https://placehold.co/100x100/2a2a2a/f0b429?text=Borrel'
+        },
+        {
+            id: 'afterParty',
+            name: 'After party',
+            price: 15.00,
+            description: 'Nazit met drankjes na de voorstelling',
+            imageUrl: 'https://placehold.co/100x100/2a2a2a/f0b429?text=Party'
+        },
+        {
             id: 'merch_1',
             name: 'Luxe Programmaboekje',
             price: 12.50,
@@ -420,9 +434,9 @@ export const defaultConfig: AppConfig = {
         }
     ],
     promoCodes: [
-        { id: 'VROEGBOEK', code: 'VROEGBOEK', type: 'percentage', value: 10, isActive: true },
-        { id: 'GROEP20', code: 'GROEP20', type: 'fixed', value: 50, isActive: true },
-        { id: 'NIEUWKLANT', code: 'NIEUWKLANT', type: 'percentage', value: 5, isActive: true },
+        { id: 'VROEGBOEK', code: 'VROEGBOEK', type: 'percentage', value: 10, isActive: true, description: 'Vroegboek korting', usageCount: 0 },
+        { id: 'GROEP20', code: 'GROEP20', type: 'fixed', value: 50, isActive: true, description: 'Groepskorting vanaf 20 personen', usageCount: 0 },
+        { id: 'NIEUWKLANT', code: 'NIEUWKLANT', type: 'percentage', value: 5, isActive: true, description: 'Nieuwklant korting', usageCount: 0 },
     ],
     theaterVouchers: [
         {
