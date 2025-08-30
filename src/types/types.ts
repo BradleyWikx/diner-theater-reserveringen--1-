@@ -359,18 +359,25 @@ export interface Customer {
     reservations: Reservation[];
 }
 
-// 🎭 NIEUWE THEATERBON INTERFACE - Volledig gebruik systeem
+// 🎭 NIEUWE THEATERBON INTERFACE - Flexibel systeem met waardebon en personenbon
 export interface TheaterVoucher {
     id: string;
     code: string;
-    value: number;                    // Vaste waarde die volledig gebruikt moet worden
+    type: 'value' | 'persons'; // HET NIEUWE TYPE VELD
+
+    value: number; // Voor type 'value', het bedrag in euro's
+    persons: number; // Voor type 'persons', het aantal personen
+    packageType: 'standard' | 'premium'; // Voor type 'persons', welk arrangement
+
     issueDate: string;               // Uitgiftedatum
     expiryDate: string;              // Vervaldatum (standaard 1 jaar)
     status: 'active' | 'used' | 'expired' | 'extended' | 'archived';
+    notes?: string;                  // Optionele notities
+
+    // Velden die bijgehouden worden na gebruik
     usedDate?: string;               // Datum van gebruik
     usedReservationId?: string;      // Reservering waar bon gebruikt is - changed to string
     extendedCount: number;           // Aantal keer verlengd
-    notes?: string;                  // Optionele notities
     archivedDate?: string;           // Datum van archivering
     archivedReason?: string;         // Reden van archivering
 }

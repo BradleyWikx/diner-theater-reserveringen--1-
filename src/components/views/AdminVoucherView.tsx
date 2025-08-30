@@ -27,8 +27,14 @@ export const AdminVoucherView: React.FC<AdminVoucherViewProps> = ({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<TheaterVoucher | null>(null);
+  
+  // State voor nieuwe bon aanmaken - uitgebreid met type support
+  const [voucherType, setVoucherType] = useState<'value' | 'persons'>('value');
   const [newVoucher, setNewVoucher] = useState({
+    code: '', // Optioneel eigen code
     value: 50,
+    persons: 2,
+    packageType: 'standard' as 'standard' | 'premium',
     notes: ''
   });
 
@@ -65,6 +71,19 @@ export const AdminVoucherView: React.FC<AdminVoucherViewProps> = ({
     const date = new Date(issueDate);
     date.setFullYear(date.getFullYear() + 1);
     return formatDate(date);
+  };
+
+  // Helper functions voor nieuwe vouchertypes
+  const getVoucherDisplayValue = (voucher: TheaterVoucher) => {
+    if (voucher.type === 'value') {
+      return `€${voucher.value.toLocaleString()}`;
+    } else {
+      return `${voucher.persons}x ${voucher.packageType}`;
+    }
+  };
+
+  const getVoucherTypeDisplayName = (voucher: TheaterVoucher) => {
+    return voucher.type === 'value' ? 'Waardebon' : 'Personenbon';
   };
 
   // Statistics
@@ -112,18 +131,41 @@ export const AdminVoucherView: React.FC<AdminVoucherViewProps> = ({
 
   // Event handlers
   const handleCreateVoucher = () => {
-    const voucher: Omit<TheaterVoucher, 'id'> = {
-      code: generateVoucherCode(),
-      value: newVoucher.value,
+    const baseVoucher = {
+      code: newVoucher.code.trim() || generateVoucherCode(),
+      type: voucherType,
       issueDate: formatDate(new Date()),
       expiryDate: calculateExpiryDate(formatDate(new Date())),
-      status: 'active',
+      status: 'active' as const,
       extendedCount: 0,
       notes: newVoucher.notes || undefined
     };
+
+    const voucher: Omit<TheaterVoucher, 'id'> = voucherType === 'value' 
+      ? {
+          ...baseVoucher,
+          value: newVoucher.value,
+          persons: 0, // Default voor value type
+          packageType: 'standard' // Default voor value type
+        }
+      : {
+          ...baseVoucher,
+          value: 0, // Default voor persons type
+          persons: newVoucher.persons,
+          packageType: newVoucher.packageType
+        };
     
     onCreateVoucher(voucher);
-    setNewVoucher({ value: 50, notes: '' });
+    
+    // Reset form
+    setNewVoucher({ 
+      code: '',
+      value: 50, 
+      persons: 2, 
+      packageType: 'standard',
+      notes: '' 
+    });
+    setVoucherType('value');
     setShowCreateModal(false);
   };
 
@@ -179,6 +221,7 @@ export const AdminVoucherView: React.FC<AdminVoucherViewProps> = ({
   // Table configuration
   const tableColumns = [
     { key: 'code', label: 'Code', sortable: true },
+    { key: 'type', label: 'Type', sortable: true },
     { key: 'value', label: 'Waarde', sortable: true },
     { key: 'issueDate', label: 'Uitgegeven', sortable: true },
     { key: 'expiryDate', label: 'Verloopt', sortable: true },
@@ -190,7 +233,12 @@ export const AdminVoucherView: React.FC<AdminVoucherViewProps> = ({
   const tableData = filteredVouchers.map(voucher => ({
     id: voucher.id,
     code: voucher.code,
-    value: `€${voucher.value}`,
+    type: (
+      <AdminBadge variant={voucher.type === 'value' ? 'success' : 'info'}>
+        {getVoucherTypeDisplayName(voucher)}
+      </AdminBadge>
+    ),
+    value: getVoucherDisplayValue(voucher),
     issueDate: new Date(voucher.issueDate).toLocaleDateString('nl-NL'),
     expiryDate: new Date(voucher.expiryDate).toLocaleDateString('nl-NL'),
     status: getStatusBadge(voucher),
@@ -366,23 +414,86 @@ export const AdminVoucherView: React.FC<AdminVoucherViewProps> = ({
         }
       />
 
-      {/* Create Voucher Card */}
+      {/* Create Voucher Card - UITGEBREID MET TYPE SUPPORT */}
       {showCreateModal && (
         <AdminCard title="Nieuwe Theaterbon Aanmaken" className="mb-lg">
           <div className="space-y-md">
             <div>
               <label className="block text-sm font-medium text-admin-text-primary mb-xs">
-                Waarde (€)
+                Bon Type
+              </label>
+              <select 
+                value={voucherType} 
+                onChange={e => setVoucherType(e.target.value as 'value' | 'persons')}
+                className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
+              >
+                <option value="value">Waardebon (Vast Bedrag)</option>
+                <option value="persons">Personenbon (Aantal Tickets)</option>
+              </select>
+            </div>
+
+            {voucherType === 'value' ? (
+              <div>
+                <label className="block text-sm font-medium text-admin-text-primary mb-xs">
+                  Bedrag (€)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={newVoucher.value}
+                  onChange={(e) => setNewVoucher(prev => ({ ...prev, value: Number(e.target.value) }))}
+                  className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
+                  placeholder="Bedrag in euro's"
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-admin-text-primary mb-xs">
+                    Aantal Personen
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={newVoucher.persons}
+                    onChange={(e) => setNewVoucher(prev => ({ ...prev, persons: Number(e.target.value) }))}
+                    className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
+                    placeholder="Aantal personen"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-admin-text-primary mb-xs">
+                    Arrangement
+                  </label>
+                  <select 
+                    value={newVoucher.packageType}
+                    onChange={(e) => setNewVoucher(prev => ({ ...prev, packageType: e.target.value as 'standard' | 'premium' }))}
+                    className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
+                  >
+                    <option value="standard">Standaard</option>
+                    <option value="premium">Premium</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-admin-text-primary mb-xs">
+                Code (optioneel)
               </label>
               <input
-                type="number"
-                min="1"
-                max="500"
-                value={newVoucher.value}
-                onChange={(e) => setNewVoucher(prev => ({ ...prev, value: Number(e.target.value) }))}
+                type="text"
+                value={newVoucher.code}
+                onChange={(e) => setNewVoucher(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
                 className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
+                placeholder="Laat leeg om automatisch te genereren"
+                maxLength={20}
               />
+              <small className="text-admin-text-secondary">Laat leeg voor automatische generatie</small>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-admin-text-primary mb-xs">
                 Notities (optioneel)
@@ -413,7 +524,7 @@ export const AdminVoucherView: React.FC<AdminVoucherViewProps> = ({
         </AdminCard>
       )}
 
-      {/* Edit Voucher Card */}
+      {/* Edit Voucher Card - UITGEBREID MET TYPE SUPPORT */}
       {showEditModal && editingVoucher && (
         <AdminCard title="Theaterbon Bewerken" className="mb-lg">
           <div className="space-y-md">
@@ -424,23 +535,69 @@ export const AdminVoucherView: React.FC<AdminVoucherViewProps> = ({
               <input
                 type="text"
                 value={editingVoucher.code}
-                disabled
-                className="w-full px-sm py-xs border border-admin-border rounded-md bg-gray-50"
+                onChange={(e) => setEditingVoucher(prev => prev ? { ...prev, code: e.target.value.toUpperCase() } : null)}
+                className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-admin-text-primary mb-xs">
-                Waarde (€)
+                Type
               </label>
-              <input
-                type="number"
-                min="1"
-                max="500"
-                value={editingVoucher.value}
-                onChange={(e) => setEditingVoucher(prev => prev ? { ...prev, value: Number(e.target.value) } : null)}
+              <select 
+                value={editingVoucher.type} 
+                onChange={(e) => setEditingVoucher(prev => prev ? { ...prev, type: e.target.value as 'value' | 'persons' } : null)}
                 className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
-              />
+              >
+                <option value="value">Waardebon</option>
+                <option value="persons">Personenbon</option>
+              </select>
             </div>
+
+            {editingVoucher.type === 'value' ? (
+              <div>
+                <label className="block text-sm font-medium text-admin-text-primary mb-xs">
+                  Bedrag (€)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={editingVoucher.value}
+                  onChange={(e) => setEditingVoucher(prev => prev ? { ...prev, value: Number(e.target.value) } : null)}
+                  className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-admin-text-primary mb-xs">
+                    Aantal Personen
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={editingVoucher.persons}
+                    onChange={(e) => setEditingVoucher(prev => prev ? { ...prev, persons: Number(e.target.value) } : null)}
+                    className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-admin-text-primary mb-xs">
+                    Arrangement
+                  </label>
+                  <select 
+                    value={editingVoucher.packageType}
+                    onChange={(e) => setEditingVoucher(prev => prev ? { ...prev, packageType: e.target.value as 'standard' | 'premium' } : null)}
+                    className="w-full px-sm py-xs border border-admin-border rounded-md focus:ring-2 focus:ring-admin-primary focus:border-transparent"
+                  >
+                    <option value="standard">Standaard</option>
+                    <option value="premium">Premium</option>
+                  </select>
+                </div>
+              </>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-admin-text-primary mb-xs">
                 Vervaldatum

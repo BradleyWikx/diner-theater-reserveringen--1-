@@ -428,23 +428,55 @@ export const defaultConfig: AppConfig = {
         {
             id: 'tv1',
             code: 'TB2024-A1B2',
+            type: 'value' as const,
             value: 100,
+            persons: 0, // Default voor value type
+            packageType: 'standard' as const,
             issueDate: '2024-01-15',
             expiryDate: '2025-01-15',
-            status: 'active',
+            status: 'active' as const,
             extendedCount: 0,
             notes: 'Nieuwjaarsactie'
         },
         {
             id: 'tv2',
             code: 'TB2024-C3D4',
+            type: 'value' as const,
             value: 50,
+            persons: 0, // Default voor value type
+            packageType: 'standard' as const,
             issueDate: '2024-06-01',
             expiryDate: '2025-06-01',
-            status: 'used',
+            status: 'used' as const,
             usedDate: '2024-08-15',
             usedReservationId: '123',
             extendedCount: 0
+        },
+        {
+            id: 'tv3',
+            code: 'TB2024-DEMO1',
+            type: 'persons' as const,
+            value: 0, // Default voor persons type
+            persons: 2,
+            packageType: 'standard' as const,
+            issueDate: '2024-08-01',
+            expiryDate: '2025-08-01',
+            status: 'active' as const,
+            extendedCount: 0,
+            notes: 'Demo personenbon voor 2 personen standaard'
+        },
+        {
+            id: 'tv4',
+            code: 'TB2024-DEMO2',
+            type: 'persons' as const,
+            value: 0, // Default voor persons type
+            persons: 4,
+            packageType: 'premium' as const,
+            issueDate: '2024-08-01',
+            expiryDate: '2025-08-01',
+            status: 'active' as const,
+            extendedCount: 0,
+            notes: 'Demo personenbon voor 4 personen premium'
         },
     ],
     bookingSettings: {

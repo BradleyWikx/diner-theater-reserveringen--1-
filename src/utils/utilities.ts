@@ -112,7 +112,12 @@ export const validateVoucherForUse = (voucher: TheaterVoucher | undefined, total
         return { valid: false, error: 'Deze theaterbon is verlopen' };
     }
     
-    // Allow voucher use if value is >= totalAmount
+    // Voor personenbonnen geven we alleen basisvalidatie - de werkelijke waarde wordt berekend in handleApplyCode
+    if (voucher.type === 'persons') {
+        return { valid: true, warning: `Personenbon voor ${voucher.persons} personen wordt toegepast.` };
+    }
+    
+    // Voor waardebonnen gebruiken we de bestaande logica
     if (voucher.value < totalAmount) {
         // Voucher value is less than total - customer pays remaining amount later
         const remainingAmount = totalAmount - voucher.value;

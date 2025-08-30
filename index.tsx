@@ -1110,7 +1110,7 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
             return;
         }
         
-        // Dan proberen als nieuwe theaterbon
+        // Dan proberen als nieuwe theaterbon met flexibele type support
         const theaterVoucher = config.theaterVouchers.find(v => v.code.toUpperCase() === code);
         if (theaterVoucher) {
             const validation = validateVoucherForUse(theaterVoucher, priceDetails.subtotal);
@@ -1118,16 +1118,50 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                 setPromoMessage(i18n.voucherValidationError.replace('{error}', validation.error || ''));
                 return;
             }
-            
-            setAppliedCode({ code: theaterVoucher.code, type: 'gift', value: theaterVoucher.value });
-            
-            // Show warning if there's unused value, otherwise success message
+
+            let discountAmount = 0;
+            let discountDisplay = "";
+
+            if (theaterVoucher.type === 'persons') {
+                // Logica voor Personenbon
+                const showTypeConfig = config.showTypes.find(st => st.name === show.type || st.id === show.type);
+                if (showTypeConfig) {
+                    const pricePerPerson = theaterVoucher.packageType === 'premium' 
+                        ? showTypeConfig.pricePremium 
+                        : showTypeConfig.priceStandard;
+
+                    discountAmount = theaterVoucher.persons * pricePerPerson;
+                    discountDisplay = `${theaterVoucher.persons}x ${theaterVoucher.packageType} arrangement`;
+
+                    if (reservation.guests < theaterVoucher.persons) {
+                        setPromoMessage(`⚠️ Let op: deze bon is voor ${theaterVoucher.persons} personen, maar je hebt ${reservation.guests} personen geselecteerd.`);
+                        // Je kunt hier besluiten de boeking te blokkeren of een waarschuwing te geven.
+                        return;
+                    }
+                } else {
+                    setPromoMessage('⚠️ Kan prijsinformatie niet vinden voor dit type voorstelling.');
+                    return;
+                }
+            } else {
+                // Logica voor Waardebon (bestaande logica)
+                discountAmount = theaterVoucher.value;
+                discountDisplay = `€${theaterVoucher.value.toFixed(2)}`;
+            }
+
+            // Pas de state aan met de berekende korting
+            setAppliedCode({ 
+                code: theaterVoucher.code, 
+                type: 'gift', 
+                value: discountAmount // Gebruik de berekende korting
+            });
+
+            // Success bericht
             if (validation.warning) {
                 setPromoMessage(`⚠️ ${validation.warning}`);
             } else {
                 setPromoMessage(i18n.voucherAppliedSuccess
                     .replace('{code}', theaterVoucher.code)
-                    .replace('{value}', theaterVoucher.value.toFixed(2)));
+                    .replace('{value}', discountDisplay));
             }
             return;
         }
@@ -3515,9 +3549,13 @@ const TheaterVoucherManagement = ({
     };
 
     const handleCreateVoucher = () => {
+        // Voor nu maken we een standaard waardebon - dit zou eigenlijk via de AdminVoucherView moeten gaan
         const voucher: Omit<TheaterVoucher, 'id'> = {
             code: generateVoucherCode(),
+            type: 'value', // Default type
             value: newVoucher.value,
+            persons: 0, // Default voor value type
+            packageType: 'standard', // Default
             issueDate: formatDate(new Date()),
             expiryDate: calculateExpiryDate(formatDate(new Date())),
             status: 'active',
@@ -5292,7 +5330,7 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
 
         switch(activeTab) {
             case 'shows': return (
-                <div className="settings-section-layout">
+                <>
                     <div className="card settings-card">
                          <div className="settings-card-header">
                             <h3>{i18n.showTitles}</h3>
@@ -5407,15 +5445,14 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
                              });
                          }}>{i18n.addNew}</button>
                     </div>
-                </div>
+                </>
             );
             case 'booking': return (
-                 <div className="settings-section-layout">
-                    <div className="card settings-card">
-                         <div className="settings-card-header">
-                             <h3>{i18n.bookingRules}</h3>
-                             <p className="settings-description">{i18n.settingsBookingDescription}</p>
-                         </div>
+                <div className="card settings-card">
+                     <div className="settings-card-header">
+                         <h3>{i18n.bookingRules}</h3>
+                         <p className="settings-description">{i18n.settingsBookingDescription}</p>
+                     </div>
                          <div className="modal-body">
                             <div className="form-group">
                                 <label>{i18n.minGuestsPerBooking}</label>
@@ -5431,7 +5468,6 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
                             </div>
                          </div>
                     </div>
-                </div>
             );
             case 'merchandise': return (
                 <div className="card settings-card">
@@ -5549,21 +5585,43 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
         }
     }
 
+    const settingsTabs: { id: SettingsTab, label: string, icon: string }[] = [
+        { id: 'shows', label: i18n.showsTypesCapacity, icon: 'show' },
+        { id: 'booking', label: i18n.bookingSettings, icon: 'settings' },
+        { id: 'merchandise', label: 'Extra\'s', icon: 'tag' },
+        { id: 'promo', label: i18n.promoAndGifts, icon: 'receipt' },
+        { id: 'archive', label: i18n.archive, icon: 'archive' },
+    ];
+
     return (
-        <div className="settings-view">
-            <div className="card" style={{flexShrink: 0}}>
-                <div className="settings-tabs">
-                    <button className={activeTab === 'shows' ? 'active' : ''} onClick={() => setActiveTab('shows')}>{i18n.showsTypesCapacity}</button>
-                    <button className={activeTab === 'booking' ? 'active' : ''} onClick={() => setActiveTab('booking')}>{i18n.bookingSettings}</button>
-                    <button className={activeTab === 'promo' ? 'active' : ''} onClick={() => setActiveTab('promo')}>{i18n.promoAndGifts}</button>
-                    <button className={activeTab === 'archive' ? 'active' : ''} onClick={() => setActiveTab('archive')}>{i18n.archive}</button>
+        <div className="new-settings-view">
+            <div className="settings-sidebar">
+                <div className="sidebar-header">
+                    <h3>Instellingen</h3>
                 </div>
+                <nav className="settings-nav">
+                    {settingsTabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
+                            onClick={() => setActiveTab(tab.id)}
+                        >
+                            <Icon id={tab.icon} />
+                            <span>{tab.label}</span>
+                        </button>
+                    ))}
+                </nav>
             </div>
-            <div className="settings-content">
-                {renderTabContent()}
-            </div>
-             <div className="wizard-footer">
-                <button onClick={handleSave} className="submit-btn">{i18n.saveChanges}</button>
+            <div className="settings-content-area">
+                <div className="settings-content-header">
+                    <h2>{settingsTabs.find(t => t.id === activeTab)?.label}</h2>
+                    <button onClick={handleSave} className="submit-btn">
+                        <Icon id="check" /> Wijzigingen Opslaan
+                    </button>
+                </div>
+                <div className="settings-content-body">
+                    {renderTabContent()}
+                </div>
             </div>
         </div>
     )
@@ -5625,19 +5683,55 @@ const EditReservationModal = ({ reservation, show, onClose, onSave }: {
 };
 
 const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, setActiveView: (view: AdminView) => void }) => {
-    const navItems: { view: AdminView, label: string, icon: string }[] = [
-        { view: 'dashboard', label: 'Dashboard', icon: 'dashboard'},
-        { view: 'calendar', label: i18n.viewCalendar, icon: 'calendar-day'},
-        { view: 'schedule', label: i18n.schedule, icon: 'calendar-week'},
-        { view: 'reservations', label: i18n.allReservations, icon: 'receipt'},
-        { view: 'approvals', label: i18n.approvals, icon: 'check-circle'},
-        { view: 'waitlist', label: i18n.waitlist, icon: 'clock'},
-        { view: 'vouchers', label: i18n.vouchers, icon: 'gift'},
-        { view: 'analytics', label: i18n.analytics, icon: 'analytics'},
-        { view: 'customers', label: i18n.customers, icon: 'users'},
-        { view: 'capacity', label: i18n.capacityManagement, icon: 'capacity'},
-        { view: 'reports', label: i18n.reports, icon: 'chart'},
-        { view: 'settings', label: i18n.settings, icon: 'settings'},
+    // State voor het bijhouden welk submenu open is
+    const [openMenu, setOpenMenu] = useState<string>('operations');
+
+    // Nieuwe, gestructureerde menu data
+    const navMenu = [
+        { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', type: 'single' },
+        {
+            id: 'operations',
+            label: 'Dagelijks Beheer',
+            icon: 'calendar-day',
+            type: 'group',
+            subItems: [
+                { id: 'calendar', label: i18n.viewCalendar, icon: 'calendar' },
+                { id: 'schedule', label: i18n.schedule, icon: 'calendar-week' },
+                { id: 'capacity', label: i18n.capacityManagement, icon: 'capacity' },
+            ],
+        },
+        {
+            id: 'bookings',
+            label: 'Boekingen',
+            icon: 'receipt',
+            type: 'group',
+            subItems: [
+                { id: 'reservations', label: i18n.allReservations, icon: 'receipt' },
+                { id: 'approvals', label: i18n.approvals, icon: 'check-circle' },
+                { id: 'waitlist', label: i18n.waitlist, icon: 'clock' },
+            ],
+        },
+        {
+            id: 'sales',
+            label: 'Klanten & Verkoop',
+            icon: 'users',
+            type: 'group',
+            subItems: [
+                { id: 'customers', label: i18n.customers, icon: 'users' },
+                { id: 'vouchers', label: i18n.vouchers, icon: 'gift' },
+            ],
+        },
+        {
+            id: 'analysis',
+            label: 'Analyse',
+            icon: 'chart',
+            type: 'group',
+            subItems: [
+                { id: 'reports', label: i18n.reports, icon: 'chart' },
+                { id: 'analytics', label: i18n.analytics, icon: 'analytics' },
+            ],
+        },
+        { id: 'settings', label: i18n.settings, icon: 'settings', type: 'single' },
     ];
 
     return (
@@ -5646,17 +5740,53 @@ const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, s
                 <span>Inspiration Point</span>
             </div>
             <div className="sidebar-nav">
-                {navItems.map(item => (
-                     <button 
-                        key={item.view} 
-                        className={`sidebar-link ${activeView === item.view ? 'active' : ''}`} 
-                        onClick={() => setActiveView(item.view)}
-                        aria-current={activeView === item.view ? 'page' : undefined}
-                     >
-                        <Icon id={item.icon} className="icon" />
-                        <span>{item.label}</span>
-                     </button>
-                ))}
+                {navMenu.map((item: any) => {
+                    if (item.type === 'single') {
+                        return (
+                            <button
+                                key={item.id}
+                                className={`sidebar-link ${activeView === item.id ? 'active' : ''}`}
+                                onClick={() => setActiveView(item.id as AdminView)}
+                                aria-current={activeView === item.id ? 'page' : undefined}
+                            >
+                                <Icon id={item.icon} className="icon" />
+                                <span>{item.label}</span>
+                            </button>
+                        );
+                    }
+
+                    if (item.type === 'group') {
+                        const isOpen = openMenu === item.id;
+                        const isActiveGroup = item.subItems.some((sub: any) => sub.id === activeView);
+                        return (
+                            <div key={item.id} className={`nav-group ${isOpen ? 'open' : ''}`}>
+                                <button
+                                    className={`group-header ${isActiveGroup ? 'active-group' : ''}`}
+                                    onClick={() => setOpenMenu(isOpen ? '' : item.id)}
+                                >
+                                    <div className="group-label">
+                                        <Icon id={item.icon} className="icon" />
+                                        <span>{item.label}</span>
+                                    </div>
+                                    <Icon id={isOpen ? 'chevron-down' : 'chevron-right'} className="chevron" />
+                                </button>
+                                <div className="submenu">
+                                    {item.subItems.map((subItem: any) => (
+                                        <button
+                                            key={subItem.id}
+                                            className={`submenu-link ${activeView === subItem.id ? 'active' : ''}`}
+                                            onClick={() => setActiveView(subItem.id as AdminView)}
+                                            aria-current={activeView === subItem.id ? 'page' : undefined}
+                                        >
+                                            <span>{subItem.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    }
+                    return null;
+                })}
             </div>
         </nav>
     );
