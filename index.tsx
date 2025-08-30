@@ -502,6 +502,247 @@ const CalendarLegend = ({ events, config }: { events: ShowEvent[], config: AppCo
     );
 };
 
+const AddPromoCodeModal = ({ promo, onClose, onSave, config }: { 
+    promo: PromoCode | null, 
+    onClose: () => void, 
+    onSave: (promoData: Partial<PromoCode>) => void,
+    config: AppConfig 
+}) => {
+    const [code, setCode] = useState(promo?.code || '');
+    const [description, setDescription] = useState(promo?.description || '');
+    const [type, setType] = useState<'percentage' | 'fixed'>(promo?.type || 'percentage');
+    const [value, setValue] = useState(promo?.value || 0);
+    const [isActive, setIsActive] = useState(promo?.isActive ?? true);
+    const [validFrom, setValidFrom] = useState(promo?.validFrom || '');
+    const [validUntil, setValidUntil] = useState(promo?.validUntil || '');
+    const [usageLimit, setUsageLimit] = useState(promo?.usageLimit || '');
+    const [minBookingValue, setMinBookingValue] = useState(promo?.minBookingValue || '');
+    const [selectedShows, setSelectedShows] = useState<string[]>(promo?.appliesToShows || []);
+    const [selectedShowTypes, setSelectedShowTypes] = useState<string[]>(promo?.appliesToShowTypes || []);
+
+    const activeShowNames = useMemo(() => 
+        config.showNames.filter(s => !s.archived).map(s => s.name), 
+        [config.showNames]
+    );
+    const activeShowTypes = useMemo(() => 
+        config.showTypes.filter(s => !s.archived).map(s => s.name), 
+        [config.showTypes]
+    );
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!code.trim()) {
+            alert('Promocode is verplicht!');
+            return;
+        }
+
+        if (value <= 0) {
+            alert('Waarde moet groter zijn dan 0!');
+            return;
+        }
+
+        if (type === 'percentage' && value > 100) {
+            alert('Percentage kan niet hoger zijn dan 100%!');
+            return;
+        }
+
+        if (validFrom && validUntil && validFrom > validUntil) {
+            alert('Startdatum moet eerder zijn dan einddatum!');
+            return;
+        }
+
+        const promoData: Partial<PromoCode> = {
+            code: code.toUpperCase().trim(),
+            description: description.trim(),
+            type,
+            value,
+            isActive,
+            usageCount: promo?.usageCount || 0,
+            ...(validFrom && { validFrom }),
+            ...(validUntil && { validUntil }),
+            ...(usageLimit && { usageLimit: Number(usageLimit) }),
+            ...(minBookingValue && { minBookingValue: Number(minBookingValue) }),
+            ...(selectedShows.length > 0 && { appliesToShows: selectedShows }),
+            ...(selectedShowTypes.length > 0 && { appliesToShowTypes: selectedShowTypes })
+        };
+
+        onSave(promoData);
+        onClose();
+    };
+
+    const toggleShow = (showName: string) => {
+        setSelectedShows(prev => 
+            prev.includes(showName) 
+                ? prev.filter(s => s !== showName)
+                : [...prev, showName]
+        );
+    };
+
+    const toggleShowType = (showType: string) => {
+        setSelectedShowTypes(prev => 
+            prev.includes(showType) 
+                ? prev.filter(s => s !== showType)
+                : [...prev, showType]
+        );
+    };
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal add-show-modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>{promo ? 'Promotie Bewerken' : 'Nieuwe Promotie'}</h3>
+                    <button className="modal-close-btn" onClick={onClose}>&times;</button>
+                </div>
+                <form onSubmit={handleSubmit} className="modal-content">
+                    <div className="form-grid">
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label>Promocode *</label>
+                                <input 
+                                    type="text" 
+                                    value={code} 
+                                    onChange={(e) => setCode(e.target.value.toUpperCase())} 
+                                    placeholder="bijv. ZOMER2025"
+                                    maxLength={20}
+                                    required 
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={isActive} 
+                                        onChange={(e) => setIsActive(e.target.checked)} 
+                                    />
+                                    Actief
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label>Omschrijving</label>
+                            <input 
+                                type="text" 
+                                value={description} 
+                                onChange={(e) => setDescription(e.target.value)} 
+                                placeholder="bijv. Zomeractie 2025 - 20% korting"
+                            />
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label>Type Korting</label>
+                                <select value={type} onChange={(e) => setType(e.target.value as 'percentage' | 'fixed')}>
+                                    <option value="percentage">Percentage (%)</option>
+                                    <option value="fixed">Vast bedrag (€)</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Waarde *</label>
+                                <input 
+                                    type="number" 
+                                    value={value} 
+                                    onChange={(e) => setValue(Number(e.target.value))} 
+                                    min="0"
+                                    max={type === 'percentage' ? '100' : undefined}
+                                    step={type === 'percentage' ? '1' : '0.01'}
+                                    required 
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label>Geldig Vanaf</label>
+                                <input 
+                                    type="date" 
+                                    value={validFrom} 
+                                    onChange={(e) => setValidFrom(e.target.value)} 
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Geldig Tot</label>
+                                <input 
+                                    type="date" 
+                                    value={validUntil} 
+                                    onChange={(e) => setValidUntil(e.target.value)} 
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label>Gebruikslimiet</label>
+                                <input 
+                                    type="number" 
+                                    value={usageLimit} 
+                                    onChange={(e) => setUsageLimit(e.target.value)} 
+                                    placeholder="Onbeperkt"
+                                    min="1"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Minimum Besteding (€)</label>
+                                <input 
+                                    type="number" 
+                                    value={minBookingValue} 
+                                    onChange={(e) => setMinBookingValue(e.target.value)} 
+                                    step="0.01"
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+
+                        {activeShowNames.length > 0 && (
+                            <div className="form-group">
+                                <label>Geldig voor Shows (laat leeg voor alle shows)</label>
+                                <div className="checkbox-list">
+                                    {activeShowNames.map(showName => (
+                                        <label key={showName} className="checkbox-item">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedShows.includes(showName)}
+                                                onChange={() => toggleShow(showName)}
+                                            />
+                                            {showName}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeShowTypes.length > 0 && (
+                            <div className="form-group">
+                                <label>Geldig voor Show Types (laat leeg voor alle types)</label>
+                                <div className="checkbox-list">
+                                    {activeShowTypes.map(showType => (
+                                        <label key={showType} className="checkbox-item">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedShowTypes.includes(showType)}
+                                                onChange={() => toggleShowType(showType)}
+                                            />
+                                            {showType}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="modal-actions">
+                        <button type="button" onClick={onClose} className="btn-secondary">Annuleren</button>
+                        <button type="submit" className="btn-primary">
+                            {promo ? 'Bijwerken' : 'Toevoegen'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 const AddShowModal = ({ onClose, onAdd, config, dates }: { onClose: () => void, onAdd: (event: Omit<ShowEvent, 'id'>, dates: string[]) => void, config: AppConfig, dates: string[] }) => {
     const activeShowNames = useMemo(() => config.showNames.filter(s => !s.archived), [config.showNames]);
     const activeShowTypes = useMemo(() => config.showTypes.filter(s => !s.archived), [config.showTypes]);
@@ -1102,8 +1343,42 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         setAppliedCode(null);
         
         // Eerst proberen als promocode
-        const promo = config.promoCodes.find(p => p.code.toUpperCase() === code && p.isActive);
+        const promo = config.promoCodes.find(p => p.code.toUpperCase() === code);
         if (promo) {
+            // --- NIEUWE VALIDATIESTAPPEN ---
+            if (!promo.isActive) {
+                setPromoMessage("Deze code is niet meer actief.");
+                return;
+            }
+
+            const now = new Date();
+            if (promo.validFrom && new Date(promo.validFrom) > now) {
+                setPromoMessage("Deze code is nog niet geldig.");
+                return;
+            }
+            if (promo.validUntil && new Date(promo.validUntil) < now) {
+                setPromoMessage("Deze code is verlopen.");
+                return;
+            }
+            if (promo.usageLimit && promo.usageCount >= promo.usageLimit) {
+                setPromoMessage("Deze code heeft zijn limiet bereikt.");
+                return;
+            }
+            if (promo.minBookingValue && priceDetails.subtotal < promo.minBookingValue) {
+                setPromoMessage(`Minimale besteding is €${promo.minBookingValue.toFixed(2)}.`);
+                return;
+            }
+            if (promo.appliesToShows?.length > 0 && !promo.appliesToShows.includes(show.name)) {
+                setPromoMessage("Code is niet geldig voor deze show.");
+                return;
+            }
+            if (promo.appliesToShowTypes?.length > 0 && !promo.appliesToShowTypes.includes(show.type)) {
+                setPromoMessage("Code is niet geldig voor dit show type.");
+                return;
+            }
+            // --- EINDE VALIDATIE ---
+
+            // Als alle checks slagen, pas de korting toe
             const discountDisplay = promo.type === 'percentage' ? `${promo.value}%` : `€${promo.value.toFixed(2)}`;
             setAppliedCode({ code: promo.code, type: 'promo', value: promo.type === 'percentage' ? promo.value : promo.value });
             setPromoMessage(i18n.codeApplied.replace('{code}', promo.code).replace('{discount}', discountDisplay));
@@ -1989,7 +2264,7 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
                                     className="capacity-fill" 
                                     style={{
                                         width: `${Math.min(capacityPercentage, 100)}%`,
-                                        backgroundColor: capacityPercentage > 90 ? '#dc2626' : capacityPercentage > 70 ? '#d97706' : '#10b981'
+                                        backgroundColor: capacityPercentage > 90 ? '#FF6347' : capacityPercentage > 70 ? '#FFD700' : '#32CD32'
                                     }}
                                 ></div>
                             </div>
@@ -4396,17 +4671,17 @@ const AdminReportsView = ({ reservations, showEvents, config }: { reservations: 
                                     yAxisId="left"
                                     type="monotone" 
                                     dataKey="revenue" 
-                                    stroke="#3b82f6" 
+                                    stroke="var(--primary-color)" 
                                     strokeWidth={3}
-                                    dot={{ fill: '#3b82f6', strokeWidth: 2, r: 6 }}
+                                    dot={{ fill: 'var(--primary-color)', strokeWidth: 2, r: 6 }}
                                 />
                                 <Line 
                                     yAxisId="right"
                                     type="monotone" 
                                     dataKey="bookings" 
-                                    stroke="#10b981" 
+                                    stroke="var(--accent-color-gold)" 
                                     strokeWidth={3}
-                                    dot={{ fill: '#10b981', strokeWidth: 2, r: 6 }}
+                                    dot={{ fill: 'var(--accent-color-gold)', strokeWidth: 2, r: 6 }}
                                 />
                             </LineChart>
                         </ResponsiveContainer>
@@ -5324,6 +5599,43 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
         });
     };
 
+    // State voor promo modal (buiten switch case vanwege Rules of Hooks)
+    const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+    const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
+
+    const handleEditPromo = (promo: PromoCode) => {
+        setEditingPromo(promo);
+        setIsPromoModalOpen(true);
+    };
+
+    const handleSavePromo = (promoData: Partial<PromoCode>) => {
+        if (editingPromo) {
+            // Bewerken van bestaande promo
+            const updatedPromoCodes = localConfig.promoCodes.map(p => 
+                p.id === editingPromo.id ? { ...p, ...promoData } : p
+            );
+            setLocalConfig({ ...localConfig, promoCodes: updatedPromoCodes });
+        } else {
+            // Toevoegen van nieuwe promo
+            const newPromo: PromoCode = {
+                id: `promo_${Date.now()}`,
+                usageCount: 0,
+                ...promoData
+            } as PromoCode;
+            setLocalConfig({ 
+                ...localConfig, 
+                promoCodes: [...localConfig.promoCodes, newPromo] 
+            });
+        }
+    };
+
+    const handleDeletePromo = (promoId: string) => {
+        if (confirm('Weet je zeker dat je deze promocode wilt verwijderen?')) {
+            const updatedPromoCodes = localConfig.promoCodes.filter(p => p.id !== promoId);
+            setLocalConfig({ ...localConfig, promoCodes: updatedPromoCodes });
+        }
+    };
+
     const renderTabContent = () => {
         const archivedShowNames = localConfig.showNames.filter(s => s.archived);
         const archivedShowTypes = localConfig.showTypes.filter(s => s.archived);
@@ -5404,7 +5716,7 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
                                                 <label>🎨 Kalender Kleur</label>
                                                 <input 
                                                     type="color" 
-                                                    value={item.color || '#3b82f6'} 
+                                                    value={item.color || '#A00000'} 
                                                     onChange={e => handleItemChange('showTypes', localConfig.showTypes.indexOf(item), 'color', e.target.value)}
                                                     style={{ width: '50px', height: '35px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                                 />
@@ -5437,7 +5749,7 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
                                  defaultCapacity: 100, 
                                  priceStandard: 50, 
                                  pricePremium: 65, 
-                                 color: '#3b82f6', 
+                                 color: '#A00000', 
                                  showInLegend: true,
                                  defaultStartTime: defaultStartTime,
                                  defaultEndTime: defaultEndTime,
@@ -5504,39 +5816,91 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
                 </div>
             );
             case 'promo': return (
-                <div className="settings-section-layout">
-                    <div className="card settings-card">
-                        <div className="settings-card-header"><h3>{i18n.promoCodes}</h3><p className="settings-description">{i18n.settingsPromoDescription}</p></div>
-                        <div className="table-wrapper">
-                          <table>
-                            <thead><tr><th>{i18n.code}</th><th>{i18n.discountAmount}</th><th>{i18n.status}</th><th>{i18n.actions}</th></tr></thead>
-                            <tbody>
-                                {localConfig.promoCodes.map((p, index) => (
-                                    <tr key={p.id}>
-                                        <td><input type="text" value={p.code} onChange={e => handleItemChange('promoCodes', index, 'code', e.target.value.toUpperCase())} /></td>
-                                        <td>
-                                            <div style={{display: 'flex', gap: '8px'}}>
-                                                <select value={p.type} onChange={e => handleItemChange('promoCodes', index, 'type', e.target.value)}>
-                                                    <option value="percentage">{i18n.typePercentage}</option>
-                                                    <option value="fixed">{i18n.typeFixed}</option>
-                                                </select>
-                                                <input type="number" value={p.value} onChange={e => handleItemChange('promoCodes', index, 'value', Number(e.target.value))} style={{width:'80px'}}/>
+                <>
+                    <div className="settings-section-layout">
+                        <div className="card settings-card">
+                            <div className="settings-card-header">
+                                <h3>Promoties & Kortingscodes</h3>
+                                <p className="settings-description">Beheer marketingcampagnes en kortingen met geavanceerde regels.</p>
+                                <button 
+                                    onClick={() => { 
+                                        setEditingPromo(null); 
+                                        setIsPromoModalOpen(true); 
+                                    }} 
+                                    className="primary-action-btn"
+                                >
+                                    ➕ Nieuwe Promotie
+                                </button>
+                            </div>
+                            
+                            <div className="promo-cards-list">
+                                {localConfig.promoCodes.map((promo) => (
+                                    <div key={promo.id} className={`promo-card ${!promo.isActive ? 'disabled' : ''}`}>
+                                        <div className="promo-card-header">
+                                            <span className="promo-code">{promo.code}</span>
+                                            <span className="promo-discount">
+                                                {promo.type === 'percentage' ? `${promo.value}%` : `€${promo.value.toFixed(2)}`}
+                                            </span>
+                                        </div>
+                                        <p className="promo-description">
+                                            {promo.description || 'Geen omschrijving'}
+                                        </p>
+                                        <div className="promo-usage">
+                                            <div className="usage-bar">
+                                                <div 
+                                                    className="usage-fill" 
+                                                    style={{width: `${promo.usageLimit ? (promo.usageCount / promo.usageLimit) * 100 : 0}%`}}
+                                                ></div>
                                             </div>
-                                        </td>
-                                        <td>
-                                            <label className="switch">
-                                                <input type="checkbox" checked={p.isActive} onChange={e => handleItemChange('promoCodes', index, 'isActive', e.target.checked)}/>
-                                                <span className="slider round"></span>
-                                            </label>
-                                        </td>
-                                        <td><button onClick={() => handleDeleteItem('promoCodes', p.id)} className="icon-btn"><Icon id="trash"/></button></td>
-                                    </tr>
+                                            <span>{promo.usageCount} / {promo.usageLimit || '∞'} gebruikt</span>
+                                        </div>
+                                        <div className="promo-card-footer">
+                                            <span className="promo-status">
+                                                Status: {promo.isActive ? 'Actief' : 'Inactief'}
+                                            </span>
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <button 
+                                                    onClick={() => handleEditPromo(promo)} 
+                                                    className="icon-btn"
+                                                    title="Bewerken"
+                                                >
+                                                    <Icon id="edit"/>
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeletePromo(promo.id)} 
+                                                    className="icon-btn"
+                                                    title="Verwijderen"
+                                                >
+                                                    <Icon id="trash"/>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
-                            </tbody>
-                          </table>
+                                
+                                {localConfig.promoCodes.length === 0 && (
+                                    <div style={{
+                                        gridColumn: '1 / -1',
+                                        textAlign: 'center',
+                                        padding: '2rem',
+                                        color: 'var(--text-color-light)'
+                                    }}>
+                                        Geen promoties aangemaakt. Klik op "Nieuwe Promotie" om te beginnen.
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
+
+                    {isPromoModalOpen && (
+                        <AddPromoCodeModal
+                            promo={editingPromo}
+                            onClose={() => setIsPromoModalOpen(false)}
+                            onSave={handleSavePromo}
+                            config={localConfig}
+                        />
+                    )}
+                </>
             );
             case 'archive': return (
                 <div className="settings-section-layout">
@@ -7218,8 +7582,8 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                         .date-block { border: 1px solid #ccc; padding: 8px; break-inside: avoid; }
                         .date-header { font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 5px; font-size: 10px; }
                         .event-item { margin-bottom: 3px; padding: 2px; border-left: 3px solid; padding-left: 5px; }
-                        .public-event { border-left-color: #3b82f6; }
-                        .internal-event { border-left-color: #10b981; }
+                        .public-event { border-left-color: #A00000; }
+                        .internal-event { border-left-color: #FFD700; }
                         .event-title { font-weight: 600; font-size: 9px; }
                         .event-time { color: #666; font-size: 8px; }
                         .event-staff { color: #555; font-size: 7px; font-weight: 500; }
@@ -7296,7 +7660,7 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                         .report-table th, .report-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                         .report-table th { background-color: #333; color: white; font-size: 10px; }
                         .occupancy-bar { background: #f0f0f0; height: 12px; border-radius: 6px; overflow: hidden; }
-                        .occupancy-fill { background: linear-gradient(90deg, #10b981, #34d399); height: 100%; }
+                        .occupancy-fill { background: linear-gradient(90deg, #32CD32, #FFD700); height: 100%; }
                         .insights-section { margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
                         .insight-box { border: 1px solid #ddd; padding: 15px; }
                         .insight-title { font-weight: bold; margin-bottom: 10px; color: #333; }
@@ -7672,7 +8036,31 @@ const AppContent = () => {
                 // Load config from Firebase or use default
                 if (configData) {
                     console.log('📝 Config loaded from Firebase');
-                    setConfig(configData);
+                    
+                    // Migratie: upgrade bestaande promoCodes met nieuwe velden
+                    let needsConfigUpdate = false;
+                    const upgradedPromoCodes = configData.promoCodes.map(promo => {
+                        // Controleer of de promo de nieuwe velden heeft
+                        if (promo.description === undefined || promo.usageCount === undefined) {
+                            needsConfigUpdate = true;
+                            return {
+                                ...promo,
+                                description: promo.description || '',
+                                usageCount: promo.usageCount || 0
+                            };
+                        }
+                        return promo;
+                    });
+                    
+                    if (needsConfigUpdate) {
+                        console.log('🔄 Migrating promoCodes to new format...');
+                        const upgradedConfig = { ...configData, promoCodes: upgradedPromoCodes };
+                        await firebaseService.config.updateConfig(upgradedConfig);
+                        setConfig(upgradedConfig);
+                        console.log('✅ PromoCodes migration completed');
+                    } else {
+                        setConfig(configData);
+                    }
                 } else {
                     console.log('📝 No config found, initializing default config in Firebase');
                     await firebaseService.config.initializeConfig(defaultConfig);
@@ -7920,6 +8308,25 @@ const AppContent = () => {
                     // Update local config optimistically
                     setConfig(updatedConfig);
                     addToast(`🎫 Theaterbon ${newReservation.promoCode} gebruikt`, 'success');
+                } else {
+                    // Check if it's a promo code (nieuwe systeem)
+                    const promoIndex = config.promoCodes.findIndex(p => 
+                        p.code === newReservation.promoCode
+                    );
+
+                    if (promoIndex > -1) {
+                        // Verhoog usage count voor promocode
+                        const updatedPromoCodes = [...config.promoCodes];
+                        updatedPromoCodes[promoIndex] = {
+                            ...updatedPromoCodes[promoIndex],
+                            usageCount: updatedPromoCodes[promoIndex].usageCount + 1
+                        };
+                        const updatedConfig = {...config, promoCodes: updatedPromoCodes};
+                        await firebaseService.config.updateConfig(updatedConfig);
+                        // Update local config optimistically
+                        setConfig(updatedConfig);
+                        addToast(`🎫 Promocode ${newReservation.promoCode} gebruikt`, 'success');
+                    }
                 }
             }
             

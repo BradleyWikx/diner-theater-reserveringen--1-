@@ -6,7 +6,9 @@ import emailjs from 'emailjs-com';
 Voor het weer inschakelen van emails:
 1. Zet EMAIL_ENABLED naar 'true' 
 2. Test eerst met sendTestEmail() functie
-3. Controleer EmailJS configuratie (service_tr61ut5, template_x57wkhf)
+3. Controleer EmailJS configuratie (service_tr61                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #A00000; margin: 0 0 15px 0;">🎭 Showdetails</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Voorstelling:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #A00000;">${bookingData.showTitle}</td></tr>, template_x57wkhf)
 
 FUNCTIES DIE UITGESCHAKELD ZIJN:
 - sendBookingNotification (nieuwe bookings)
@@ -254,21 +256,21 @@ ${bookingData.selectedAddons && bookingData.selectedAddons.length > 0
 
     const html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 30px;">
-            <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #4CAF50;">
-                <h1 style="color: #4CAF50; margin: 0; font-size: 24px;">🎭 Nieuwe Theaterboeking</h1>
+            <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #A00000;">
+                <h1 style="color: #A00000; margin: 0; font-size: 24px;">🎭 Nieuwe Theaterboeking</h1>
             </div>
             
             <div style="margin-bottom: 25px;">
-                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #4CAF50; margin: 0 0 15px 0;">👤 Klantgegevens</h3>
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #A00000; margin: 0 0 15px 0;">👤 Klantgegevens</h3>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Naam:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.customerName}</td></tr>
-                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>E-mail:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><a href="mailto:${bookingData.customerEmail}" style="color: #4CAF50;">${bookingData.customerEmail}</a></td></tr>
-                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Telefoon:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><a href="tel:${bookingData.customerPhone}" style="color: #4CAF50;">${bookingData.customerPhone}</a></td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>E-mail:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><a href="mailto:${bookingData.customerEmail}" style="color: #A00000;">${bookingData.customerEmail}</a></td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Telefoon:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><a href="tel:${bookingData.customerPhone}" style="color: #A00000;">${bookingData.customerPhone}</a></td></tr>
                 </table>
             </div>
             
             <div style="margin-bottom: 25px;">
-                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #2196F3; margin: 0 0 15px 0;">📍 Adresgegevens</h3>
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #FFD700; margin: 0 0 15px 0;">📍 Adresgegevens</h3>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Adres:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.customerAddress || 'Niet opgegeven'}</td></tr>
                     <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Stad:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.customerCity || 'Niet opgegeven'}</td></tr>
@@ -287,25 +289,25 @@ ${bookingData.selectedAddons && bookingData.selectedAddons.length > 0
             </div>
             
             <div style="margin-bottom: 25px;">
-                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #9C27B0; margin: 0 0 15px 0;">🎫 Reserveringsdetails</h3>
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #FFD700; margin: 0 0 15px 0;">🎫 Reserveringsdetails</h3>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Pakket type:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${bookingData.packageType}</td></tr>
-                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Aantal personen:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #9C27B0; font-size: 16px;">${bookingData.numberOfGuests} personen</td></tr>
-                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Totaalprijs:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #4CAF50; font-size: 18px;">€${bookingData.totalPrice.toFixed(2)}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Aantal personen:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #FFD700; font-size: 16px;">${bookingData.numberOfGuests} personen</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Totaalprijs:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #32CD32; font-size: 18px;">€${bookingData.totalPrice.toFixed(2)}</td></tr>
                     <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Reserveringsnummer:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; font-family: monospace; background: #f5f5f5; padding: 5px; border-radius: 3px;">${bookingData.reservationId}</td></tr>
                 </table>
             </div>
             
             ${bookingData.selectedAddons && bookingData.selectedAddons.length > 0 ? `
             <div style="margin-bottom: 25px;">
-                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #FF5722; margin: 0 0 15px 0;">🎁 Add-ons</h3>
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #A00000; margin: 0 0 15px 0;">🎁 Add-ons</h3>
                 <ul style="margin: 0; padding-left: 20px;">
                     ${bookingData.selectedAddons.map(addon => `<li style="padding: 3px 0; color: #555;">${addon}</li>`).join('')}
                 </ul>
             </div>
             ` : `
             <div style="margin-bottom: 25px;">
-                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #FF5722; margin: 0 0 15px 0;">🎁 Add-ons</h3>
+                <h3 style="color: #333; background: #f8f9fa; padding: 10px; border-left: 4px solid #A00000; margin: 0 0 15px 0;">🎁 Add-ons</h3>
                 <p style="color: #777; font-style: italic;">Geen add-ons geselecteerd</p>
             </div>
             `}

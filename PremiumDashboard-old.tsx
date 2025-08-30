@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AdminLayout, AdminCard, AdminGrid, AdminButton, AdminBadge } from './src/components/layout';
-import type { ShowEvent, Reservation, AppConfig } from './src/types/types';
+import { AdminDashboardView } from './src/components/views/AdminDashboardView';
+import type { ShowEvent, Reservation, AppConfig, WaitingListEntry } from './src/types/types';
 
 interface PremiumDashboardProps {
   config: AppConfig;
   i18n: any;
   showEvents?: ShowEvent[];
   reservations?: Reservation[];
+  waitingList?: WaitingListEntry[];
   onNavigate?: (view: string, date?: string) => void;
 }
 
@@ -15,6 +17,7 @@ const PremiumDashboard: React.FC<PremiumDashboardProps> = ({
   i18n, 
   showEvents = [], 
   reservations = [], 
+  waitingList = [],
   onNavigate 
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -50,24 +53,24 @@ const PremiumDashboard: React.FC<PremiumDashboardProps> = ({
     };
   }, [showEvents, reservations]);
 
-  // Next 5 upcoming shows
+  // Get upcoming shows (next 5)
   const upcomingShows = useMemo(() => {
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    
+    const today = new Date();
     return showEvents
-      .filter(show => show.date >= today)
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .filter(show => new Date(show.date) >= today)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 5)
       .map(show => {
-        const showReservations = reservations.filter(res => res.date === show.date && res.showName === show.name);
-        const bookedGuests = showReservations.reduce((sum, res) => sum + res.guests, 0);
+        const showReservations = reservations.filter(res => 
+          res.date === show.date && res.showName === show.name
+        );
+        const bookedCount = showReservations.reduce((sum, res) => sum + res.guests, 0);
         
         return {
           ...show,
-          booked: bookedGuests,
-          available: show.capacity - bookedGuests,
-          percentage: Math.round((bookedGuests / show.capacity) * 100)
+          bookedCount,
+          availableSpots: show.capacity - bookedCount,
+          occupancyPercent: Math.round((bookedCount / show.capacity) * 100)
         };
       });
   }, [showEvents, reservations]);
@@ -102,194 +105,292 @@ const PremiumDashboard: React.FC<PremiumDashboardProps> = ({
         case 'waitlist':
           onNavigate('waitlist');
           break;
+        case 'approvals':
+          onNavigate('approvals');
+          break;
+        case 'capacity':
+          onNavigate('capacity');
+          break;
+        case 'planning':
+          onNavigate('planning');
+          break;
         default:
           onNavigate(action);
       }
     }
   };
 
+  const getOccupancyBadgeVariant = (percentage: number) => {
+    if (percentage >= 90) return 'danger';
+    if (percentage >= 75) return 'warning';
+    if (percentage >= 50) return 'info';
+    return 'success';
+  };
+
   return (
-    <div className="reservation-dashboard">
-      {/* Header */}
-      <div className="dashboard-header">
-        <div className="header-content">
-          <div className="header-title">
-            <h1>🎭 Reserveringen Dashboard</h1>
-            <p className="header-subtitle">
-              {dashboardMetrics.todaysShows > 0 
-                ? `${dashboardMetrics.todaysShows} show${dashboardMetrics.todaysShows !== 1 ? 's' : ''} vandaag`
-                : 'Geen shows vandaag'
-              }
-            </p>
+    <AdminLayout
+      title="🎭 Reserveringen Dashboard"
+      subtitle={dashboardMetrics.todaysShows > 0 
+        ? `${dashboardMetrics.todaysShows} show${dashboardMetrics.todaysShows !== 1 ? 's' : ''} vandaag`
+        : 'Geen shows vandaag'
+      }
+      actions={
+        <div className="dashboard-time text-right">
+          <div className="text-lg font-semibold text-admin-text-primary">
+            {formatTime(currentTime)}
           </div>
-          <div className="header-time">
-            <div className="current-time">{formatTime(currentTime)}</div>
-            <div className="current-date">{formatDate(currentTime)}</div>
+          <div className="text-sm text-admin-text-secondary">
+            {formatDate(currentTime)}
           </div>
         </div>
-      </div>
-
+      }
+    >
       {/* Key Metrics */}
-      <div className="metrics-grid">
-        <div className="metric-card primary">
-          <div className="metric-icon">�</div>
-          <div className="metric-content">
-            <div className="metric-value">{dashboardMetrics.totalBooked}</div>
-            <div className="metric-label">Geboekt Vandaag</div>
-            <div className="metric-extra">{dashboardMetrics.totalCapacity} plaatsen totaal</div>
-          </div>
-        </div>
-
-        <div className="metric-card success">
-          <div className="metric-icon">📊</div>
-          <div className="metric-content">
-            <div className="metric-value">{dashboardMetrics.occupancy}%</div>
-            <div className="metric-label">Bezetting</div>
-            <div className="metric-progress">
-              <div className="progress-fill" style={{ width: `${dashboardMetrics.occupancy}%` }}></div>
+      <AdminGrid columns="responsive" gap="lg" className="mb-xl">
+        <AdminCard variant="elevated">
+          <div className="flex items-center gap-md">
+            <div className="dashboard-metric-icon bg-admin-primary-light text-admin-primary-dark">
+              📊
+            </div>
+            <div className="flex-1">
+              <div className="dashboard-metric-value text-admin-primary">
+                {dashboardMetrics.totalBooked}
+              </div>
+              <div className="dashboard-metric-label">Geboekt Vandaag</div>
+              <div className="dashboard-metric-extra">
+                {dashboardMetrics.totalCapacity} plaatsen totaal
+              </div>
             </div>
           </div>
-        </div>
+        </AdminCard>
 
-        <div className="metric-card warning">
-          <div className="metric-icon">✅</div>
-          <div className="metric-content">
-            <div className="metric-value">{dashboardMetrics.checkedIn}</div>
-            <div className="metric-label">Ingecheckt</div>
-            <div className="metric-extra">{dashboardMetrics.pendingCheckIn} nog te gaan</div>
+        <AdminCard variant="elevated">
+          <div className="flex items-center gap-md">
+            <div className="dashboard-metric-icon bg-admin-success-light text-admin-success-dark">
+              📈
+            </div>
+            <div className="flex-1">
+              <div className="dashboard-metric-value text-admin-success">
+                {dashboardMetrics.occupancy}%
+              </div>
+              <div className="dashboard-metric-label">Bezetting</div>
+              <div className="dashboard-metric-progress">
+                <div 
+                  className="dashboard-progress-fill" 
+                  style={{ 
+                    width: `${dashboardMetrics.occupancy}%`,
+                    backgroundColor: 'var(--admin-success)'
+                  }}
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        </AdminCard>
 
-        <div className="metric-card info">
-          <div className="metric-icon">💰</div>
-          <div className="metric-content">
-            <div className="metric-value">€{dashboardMetrics.totalRevenue}</div>
-            <div className="metric-label">Omzet Vandaag</div>
-            <div className="metric-extra">Ø €{dashboardMetrics.avgReservation}</div>
+        <AdminCard variant="elevated">
+          <div className="flex items-center gap-md">
+            <div className="dashboard-metric-icon bg-admin-warning-light text-admin-warning-dark">
+              💰
+            </div>
+            <div className="flex-1">
+              <div className="dashboard-metric-value text-admin-warning">
+                €{dashboardMetrics.totalRevenue}
+              </div>
+              <div className="dashboard-metric-label">Omzet Vandaag</div>
+              <div className="dashboard-metric-extra">
+                Ø €{dashboardMetrics.avgReservation}/reservering
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </AdminCard>
+
+        <AdminCard variant="elevated">
+          <div className="flex items-center gap-md">
+            <div className="dashboard-metric-icon bg-admin-info-light text-admin-info-dark">
+              ✅
+            </div>
+            <div className="flex-1">
+              <div className="dashboard-metric-value text-admin-info">
+                {dashboardMetrics.checkedIn}
+              </div>
+              <div className="dashboard-metric-label">Ingecheckt</div>
+              <div className="dashboard-metric-extra">
+                {dashboardMetrics.pendingCheckIn} wachten nog
+              </div>
+            </div>
+          </div>
+        </AdminCard>
+      </AdminGrid>
 
       {/* Quick Actions */}
-      <div className="quick-actions">
-        <h2>Snelle Acties</h2>
-        <div className="actions-grid">
-          <button 
-            className="action-btn primary" 
+      <AdminCard title="Snelle Acties" className="mb-xl">
+        <AdminGrid columns={2} gap="md">
+          <AdminButton
+            variant="primary"
+            size="lg"
             onClick={() => handleQuickAction('newBooking')}
+            className="dashboard-action-btn"
           >
-            <span className="action-icon">➕</span>
-            <div className="action-content">
-              <div className="action-title">Nieuwe Reservering</div>
-              <div className="action-subtitle">Walk-in of telefonisch</div>
+            <div className="flex items-center gap-md">
+              <span className="dashboard-action-icon">➕</span>
+              <div className="text-left">
+                <div className="dashboard-action-title">Nieuwe Reservering</div>
+                <div className="dashboard-action-subtitle">Walk-in of telefonisch</div>
+              </div>
             </div>
-          </button>
+          </AdminButton>
 
-          <button 
-            className="action-btn success" 
+          <AdminButton
+            variant="success"
+            size="lg"
             onClick={() => handleQuickAction('todayReservations')}
+            className="dashboard-action-btn"
           >
-            <span className="action-icon">📅</span>
-            <div className="action-content">
-              <div className="action-title">Vandaag's Reserveringen</div>
-              <div className="action-subtitle">{dashboardMetrics.totalBooked} reserveringen</div>
+            <div className="flex items-center gap-md">
+              <span className="dashboard-action-icon">📅</span>
+              <div className="text-left">
+                <div className="dashboard-action-title">Vandaag's Reserveringen</div>
+                <div className="dashboard-action-subtitle">
+                  {dashboardMetrics.totalBooked} reserveringen
+                </div>
+              </div>
             </div>
-          </button>
+          </AdminButton>
 
-          <button 
-            className="action-btn warning" 
+          <AdminButton
+            variant="warning"
+            size="lg"
             onClick={() => handleQuickAction('calendar')}
+            className="dashboard-action-btn"
           >
-            <span className="action-icon">📆</span>
-            <div className="action-content">
-              <div className="action-title">Kalender</div>
-              <div className="action-subtitle">Planning overzicht</div>
+            <div className="flex items-center gap-md">
+              <span className="dashboard-action-icon">📆</span>
+              <div className="text-left">
+                <div className="dashboard-action-title">Kalender</div>
+                <div className="dashboard-action-subtitle">Planning overzicht</div>
+              </div>
             </div>
-          </button>
+          </AdminButton>
 
-          <button 
-            className="action-btn info" 
+          <AdminButton
+            variant="secondary"
+            size="lg"
             onClick={() => handleQuickAction('waitlist')}
+            className="dashboard-action-btn"
           >
-            <span className="action-icon">⏳</span>
-            <div className="action-content">
-              <div className="action-title">Wachtlijst</div>
-              <div className="action-subtitle">Wachtende gasten</div>
+            <div className="flex items-center gap-md">
+              <span className="dashboard-action-icon">⏳</span>
+              <div className="text-left">
+                <div className="dashboard-action-title">Wachtlijst</div>
+                <div className="dashboard-action-subtitle">Wachtende gasten</div>
+              </div>
             </div>
-          </button>
-        </div>
-      </div>
+          </AdminButton>
+        </AdminGrid>
+      </AdminCard>
 
       {/* Upcoming Shows */}
-      <div className="upcoming-shows">
-        <h2>Komende Shows</h2>
+      <AdminCard title="Komende Shows" className="mb-xl">
         {upcomingShows.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📅</div>
-            <h3>Geen shows gepland</h3>
-            <p>Begin met het toevoegen van shows aan de kalender</p>
-            <button 
-              className="btn btn-primary" 
+          <div className="text-center p-xl">
+            <div className="text-4xl mb-md">📅</div>
+            <h3 className="text-xl font-semibold text-admin-text-primary mb-sm">
+              Geen shows gepland
+            </h3>
+            <p className="text-admin-text-secondary mb-lg">
+              Begin met het toevoegen van shows aan de kalender
+            </p>
+            <AdminButton 
+              variant="primary"
               onClick={() => handleQuickAction('calendar')}
             >
               Ga naar Kalender
-            </button>
+            </AdminButton>
           </div>
         ) : (
-          <div className="shows-list">
+          <AdminGrid columns={1} gap="md">
             {upcomingShows.map((show, index) => (
-              <div key={`${show.date}-${show.name}`} className="show-card">
-                <div className="show-date">
-                  <div className="show-day">{new Date(show.date).getDate()}</div>
-                  <div className="show-month">
-                    {new Date(show.date).toLocaleDateString('nl-NL', { month: 'short' }).toUpperCase()}
-                  </div>
-                </div>
-                
-                <div className="show-info">
-                  <h3 className="show-name">{show.name}</h3>
-                  <div className="show-details">
-                    <span className="show-type">{show.type}</span>
-                    <span className="show-time">{show.showTime || '19:30'}</span>
-                  </div>
-                </div>
-                
-                <div className="show-capacity">
-                  <div className="capacity-info">
-                    <div className="capacity-numbers">
-                      <span className="booked">{show.booked}</span>
-                      <span className="separator">/</span>
-                      <span className="total">{show.capacity}</span>
+              <div key={`${show.date}-${show.name}`} className="dashboard-show-card">
+                <div className="flex items-center justify-between gap-md p-md border rounded-lg border-admin-border hover:border-admin-border-hover transition-all">
+                  <div className="flex items-center gap-md">
+                    <div className="dashboard-show-date">
+                      <div className="text-2xl font-bold text-admin-primary">
+                        {new Date(show.date).getDate()}
+                      </div>
+                      <div className="text-xs text-admin-text-secondary uppercase">
+                        {new Date(show.date).toLocaleDateString('nl-NL', { month: 'short' })}
+                      </div>
                     </div>
-                    <div className="capacity-label">gasten</div>
+                    
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-admin-text-primary mb-xs">
+                        {show.name}
+                      </h4>
+                      <div className="flex items-center gap-md text-sm text-admin-text-secondary">
+                        <span>🕒 {show.time}</span>
+                        <span>👥 {show.bookedCount}/{show.capacity}</span>
+                        <AdminBadge 
+                          variant={getOccupancyBadgeVariant(show.occupancyPercent)}
+                          size="sm"
+                        >
+                          {show.occupancyPercent}%
+                        </AdminBadge>
+                      </div>
+                    </div>
                   </div>
-                  <div className="capacity-bar">
-                    <div 
-                      className="capacity-fill" 
-                      style={{ 
-                        width: `${show.percentage}%`,
-                        backgroundColor: show.percentage >= 90 ? '#ef4444' : 
-                                       show.percentage >= 70 ? '#f59e0b' : '#10b981'
-                      }}
-                    ></div>
+                  
+                  <div className="flex items-center gap-sm">
+                    <AdminButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleQuickAction('reservations', show.date)}
+                    >
+                      Details
+                    </AdminButton>
                   </div>
-                </div>
-                
-                <div className="show-actions">
-                  <button 
-                    className="show-action-btn"
-                    onClick={() => handleQuickAction('reservations', show.date)}
-                    title="Bekijk reserveringen"
-                  >
-                    👥
-                  </button>
                 </div>
               </div>
             ))}
-          </div>
+          </AdminGrid>
         )}
-      </div>
-    </div>
+      </AdminCard>
+
+      {/* Quick Stats */}
+      <AdminGrid columns={3} gap="md">
+        <AdminCard variant="ghost">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-admin-primary mb-xs">
+              {reservations.length}
+            </div>
+            <div className="text-sm text-admin-text-secondary">
+              Totaal Reserveringen
+            </div>
+          </div>
+        </AdminCard>
+
+        <AdminCard variant="ghost">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-admin-success mb-xs">
+              {showEvents.length}
+            </div>
+            <div className="text-sm text-admin-text-secondary">
+              Geplande Shows
+            </div>
+          </div>
+        </AdminCard>
+
+        <AdminCard variant="ghost">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-admin-warning mb-xs">
+              €{reservations.reduce((sum, res) => sum + (res.totalPrice || 0), 0)}
+            </div>
+            <div className="text-sm text-admin-text-secondary">
+              Totale Omzet
+            </div>
+          </div>
+        </AdminCard>
+      </AdminGrid>
+    </AdminLayout>
   );
 };
 

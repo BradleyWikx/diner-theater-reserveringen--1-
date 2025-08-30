@@ -260,9 +260,23 @@ export interface ShowType extends ArchivableItem {
 export interface PromoCode {
     id: string;
     code: string;
+    description: string; // bv. "Zomeractie 2025"
     type: 'percentage' | 'fixed';
     value: number;
     isActive: boolean;
+
+    // --- NIEUWE REGELS & LIMIETEN ---
+    validFrom?: string; // Startdatum (YYYY-MM-DD)
+    validUntil?: string; // Einddatum (YYYY-MM-DD)
+
+    usageLimit?: number; // Hoe vaak de code in totaal gebruikt mag worden
+    usageCount: number;  // Hoe vaak de code al is gebruikt (voor tracking)
+
+    minBookingValue?: number; // Minimum bestelwaarde om de code te gebruiken
+
+    // Beperk tot specifieke shows
+    appliesToShows?: string[]; // Array van show names
+    appliesToShowTypes?: string[]; // Array van show types
 }
 
 export interface GiftCard {

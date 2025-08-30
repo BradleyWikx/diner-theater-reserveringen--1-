@@ -1,9 +1,9 @@
 ﻿
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Roboto:wght@300;400;500;600;700&display=swap');
 
-/* ========================================
-   DESIGN SYSTEEM - THEATER RESERVERINGEN 
-   ======================================== */
+/* ========================================================= */
+/* === GLOBALE KLEUR & TYPOGRAFIE VARIABELEN (ROOT) === */
+/* ========================================================= */
 
 :root {
   /* ============ MOBILE & RESPONSIVE VARIABELEN ============ */
@@ -23,26 +23,312 @@
   --touch-target-min: 44px;
   --touch-target-recommended: 48px;
   
-  /* ============ KLEURENPALET ============ */
-  /* Primaire kleuren - Theatraal Rood */
-  --kleur-primair: #B91C1C;          /* Theatraal Rood */
-  --kleur-primair-donker: #991B1B;   /* Donkerder rood voor hover */
-  --kleur-primair-licht: #DC2626;    /* Lichter rood voor accenten */
-  
-  /* Secundaire kleuren - Goud */
-  --kleur-secundair: #D97706;        /* Warme Goud */
-  --kleur-secundair-licht: #FBBF24;  /* Licht goud voor highlights */
-  --kleur-secundair-donker: #B45309; /* Donker goud voor hover */
-  
-  /* Accent kleur - Groen voor success/actief */
-  --kleur-accent: #10b981;           /* Groen voor positieve acties */
-  --kleur-accent-licht: #34D399;     /* Licht groen */
-  --kleur-accent-donker: #059669;    /* Donker groen */
+  /* --- Primaire Kleuren --- */
+  --primary-color: #A00000; /* Donkerrood / Bordeaux */
+  --primary-color-dark: #700000; /* Dieper rood voor actieve staten */
+  --primary-color-light: #C00000; /* Lichter rood voor hover */
+  --accent-color-gold: #FFD700; /* Goud */
+  --accent-color-gold-dark: #DAA520; /* Donkerder goud voor hover/actief */
 
-  /* Achtergrond en oppervlakten */
-  --kleur-achtergrond: #FEF7E0;      /* Gebroken Wit / CrÃ¨me */
-  --kleur-oppervlak: #FFFFFF;        /* Zuiver wit voor kaarten/modals */
-  --kleur-oppervlak-alt: #FFFBF0;    /* Alternatieve achtergrond */
+  /* --- Achtergrond Kleuren --- */
+  --bg-color: #1a1a1a;        /* Donkere achtergrond voor hele app */
+  --surface-color: #2a2a2a;   /* Lichtere donkere achtergrond voor kaarten/panelen */
+  --surface-color-light: #3a3a3a; /* Nog lichter donker voor ingevoerde velden */
+  --border-color: #444444;    /* Donkere randkleur */
+  --border-color-light: #555555; /* Nog lichtere donkere rand */
+
+  /* --- Tekst Kleuren --- */
+  --text-color: #e0e0e0;      /* Lichtgrijze tekst op donkere achtergrond */
+  --text-color-dark: #ffffff; /* Witte tekst voor belangrijke titels */
+  --text-color-light: #b0b0b0; /* Lichtere grijze tekst voor subtiele info */
+  --text-color-placeholder: #888888; /* Voor placeholder tekst */
+  --text-color-error: #FF6347; /* Tomatenrood voor foutmeldingen */
+  --text-color-success: #32CD32; /* Limegroen voor succesmeldingen */
+
+  /* --- Admin Specifieke Kleuren (voor consistentie) --- */
+  --admin-bg: var(--bg-color);
+  --admin-surface: var(--surface-color);
+  --admin-text: var(--text-color);
+  --admin-text-secondary: var(--text-color-light);
+  --admin-primary: var(--primary-color);
+  --admin-primary-light: var(--primary-color-light);
+  --admin-border: var(--border-color);
+
+  /* --- Algemene Stylings --- */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --font-family: 'Roboto', sans-serif; /* Of een ander elegant lettertype */
+
+  /* Legacy variabelen (voor backwards compatibility) */
+  --kleur-primair: var(--primary-color);
+  --kleur-primair-donker: var(--primary-color-dark);
+  --kleur-primair-licht: var(--primary-color-light);
+  --kleur-secundair: var(--accent-color-gold);
+  --kleur-secundair-licht: var(--accent-color-gold);
+  --kleur-secundair-donker: var(--accent-color-gold-dark);
+  --kleur-accent: var(--text-color-success);
+  --kleur-accent-licht: var(--text-color-success);
+  --kleur-accent-donker: var(--text-color-success);
+  --kleur-achtergrond: var(--bg-color);
+  --kleur-oppervlak: var(--surface-color);
+  --kleur-oppervlak-alt: var(--surface-color-light);
+}
+
+/* === GLOBALE STYLING === */
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+a:hover {
+  color: var(--accent-color-gold);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-color-dark);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.2;
+  font-family: 'Playfair Display', serif;
+}
+
+p {
+  margin-bottom: 1rem;
+}
+
+/* --- Form Elements --- */
+input, select, textarea {
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--border-radius-md);
+  background-color: var(--surface-color-light);
+  color: var(--text-color);
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-color-placeholder);
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent-color-gold);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.3);
+}
+
+/* --- Knoppen (Algemeen) --- */
+button {
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--border-radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.primary-btn {
+  background-color: var(--primary-color);
+  color: var(--text-color-dark);
+}
+
+.primary-btn:hover {
+  background-color: var(--primary-color-light);
+  box-shadow: 0 4px 10px rgba(160, 0, 0, 0.3);
+}
+
+.secondary-btn {
+  background-color: var(--surface-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.secondary-btn:hover {
+  background-color: var(--surface-color-light);
+  border-color: var(--accent-color-gold);
+  color: var(--accent-color-gold);
+}
+
+.icon-btn {
+  background: transparent;
+  color: var(--text-color-light);
+  padding: 0.5rem;
+}
+
+.icon-btn:hover {
+  color: var(--accent-color-gold);
+  background: rgba(255, 215, 0, 0.1);
+}
+
+/* --- Specifieke Knop Types --- */
+.btn-primary, .submit-btn {
+  background-color: var(--primary-color);
+  color: var(--text-color-dark);
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--border-radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-primary:hover, .submit-btn:hover {
+  background-color: var(--primary-color-light);
+  box-shadow: 0 4px 10px rgba(160, 0, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--surface-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--border-radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-secondary:hover {
+  background-color: var(--surface-color-light);
+  border-color: var(--accent-color-gold);
+  color: var(--accent-color-gold);
+  transform: translateY(-1px);
+}
+
+.btn-text {
+  background: transparent;
+  color: var(--primary-color);
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  text-decoration: underline;
+}
+
+.btn-text:hover {
+  color: var(--accent-color-gold);
+}
+
+.btn-approve {
+  background-color: var(--text-color-success);
+  color: var(--text-color-dark);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-approve:hover {
+  background-color: #28a745;
+  transform: translateY(-1px);
+}
+
+.btn-deny {
+  background-color: var(--text-color-error);
+  color: var(--text-color-dark);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-deny:hover {
+  background-color: #dc3545;
+  transform: translateY(-1px);
+}
+
+.check-in-btn {
+  background-color: var(--surface-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.check-in-btn:hover {
+  background-color: var(--accent-color-gold);
+  color: var(--bg-color);
+  border-color: var(--accent-color-gold);
+}
+
+.check-in-btn.checked-in {
+  background-color: var(--text-color-success);
+  color: var(--text-color-dark);
+  border-color: var(--text-color-success);
+}
+
+.close-btn, .wizard-close-btn {
+  background: transparent;
+  color: var(--text-color-light);
+  border: none;
+  padding: 0.5rem;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover, .wizard-close-btn:hover {
+  color: var(--text-color-error);
+  background: rgba(255, 99, 71, 0.1);
+}
+
+.delete-btn {
+  color: var(--text-color-error);
+}
+
+.delete-btn:hover {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.1);
+}
+
+/* --- Kaarten (Algemeen) --- */
+.card {
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+}
+
+/* --- Admin Layout (Algemeen) --- */
+.admin-layout {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.admin-sidebar {
+  background-color: var(--surface-color);
+  border-right: 1px solid var(--border-color);
+}
+
+.admin-content {
+  background-color: var(--bg-color);
+}
   
 /* =============================================
    PROFESSIONAL TABLE LAYOUT - HORIZONTALE HEADERS
@@ -99,7 +385,7 @@
 
 /* Header Styling - Compactere uitstraling */
 .sortable-header {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-light) 100%) !important;
     color: white !important;
     font-weight: 600 !important;
     font-size: 0.75rem !important;            /* Kleinere header font */
@@ -115,12 +401,12 @@
 }
 
 .sortable-header:hover {
-    background: linear-gradient(135deg, #5855eb 0%, #7c3aed 100%) !important;
+    background: linear-gradient(135deg, var(--primary-color-dark) 0%, var(--primary-color) 100%) !important;
     transform: translateY(-1px) !important;
 }
 
 .actions-header {
-    background: linear-gradient(135deg, #059669 0%, #0d9488 100%) !important;
+    background: linear-gradient(135deg, var(--accent-color-gold-dark) 0%, var(--accent-color-gold) 100%) !important;
     color: white !important;
     font-weight: 600 !important;
     font-size: 0.75rem !important;            /* Kleinere header font */
@@ -215,7 +501,7 @@
     width: 28px !important;                   /* Kleinere avatar */
     height: 28px !important;
     border-radius: 50% !important;
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-light) 100%) !important;
     color: white !important;
     display: flex !important;
     align-items: center !important;
@@ -252,7 +538,7 @@
     display: inline-flex !important;
     align-items: center !important;
     gap: 4px !important;                      /* Kleinere gap */
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+    background: linear-gradient(135deg, var(--accent-color-gold-dark) 0%, var(--accent-color-gold) 100%) !important;
     color: white !important;
     padding: 4px 8px !important;              /* Compactere padding */
     border-radius: 50px !important;
@@ -406,79 +692,6 @@
         padding: 8px 10px !important;         /* Compactere mobile padding */
     }
 }
-  --kleur-tekst-op-primair: #FFFFFF; /* Tekst op primaire kleur */
-  --kleur-tekst-op-secundair: #1F2937; /* Tekst op secundaire kleur */
-
-  /* Randen en dividers */
-  --kleur-rand: #E5E7EB;            /* Standaard rand */
-  --kleur-rand-licht: #F3F4F6;      /* Lichte rand */
-  --kleur-rand-donker: #D1D5DB;     /* Donkere rand */
-
-  /* Status kleuren */
-  --kleur-succes: #10B981;          /* Succes groen */
-  --kleur-waarschuwing: #F59E0B;    /* Waarschuwing amber */
-  --kleur-fout: #EF4444;            /* Fout rood */
-  --kleur-info: #DC2626;            /* Info rood (was blauw) */
-
-  /* ============ TYPOGRAFIE ============ */
-  /* Lettertypen */
-  --lettertype-kop: 'Playfair Display', serif;
-  --lettertype-body: 'Roboto', sans-serif;
-
-  /* Tekst groottes */
-  --tekst-grootte-basis: 16px;
-  --tekst-grootte-xs: 0.75rem;      /* 12px */
-  --tekst-grootte-sm: 0.875rem;     /* 14px */
-  --tekst-grootte-md: 1rem;         /* 16px */
-  --tekst-grootte-lg: 1.125rem;     /* 18px */
-  --tekst-grootte-xl: 1.25rem;      /* 20px */
-  --tekst-grootte-2xl: 1.5rem;      /* 24px */
-  --tekst-grootte-3xl: 1.875rem;    /* 30px */
-  --tekst-grootte-4xl: 2.25rem;     /* 36px */
-
-  /* Koppen */
-  --tekst-kop-1: 2.5rem;            /* 40px */
-  --tekst-kop-2: 2rem;              /* 32px */
-  --tekst-kop-3: 1.75rem;           /* 28px */
-  --tekst-kop-4: 1.5rem;            /* 24px */
-
-  /* ============ SPACING SYSTEEM ============ */
-  --spacing-0: 0;
-  --spacing-1: 4px;
-  --spacing-2: 8px;
-  --spacing-3: 12px;
-  --spacing-4: 16px;
-  --spacing-5: 20px;
-  --spacing-6: 24px;
-  --spacing-7: 28px;
-  --spacing-8: 32px;
-  --spacing-10: 40px;
-  --spacing-12: 48px;
-  --spacing-16: 64px;
-  --spacing-20: 80px;
-  --spacing-24: 96px;
-
-  /* ============ OVERIGE DESIGN TOKENS ============ */
-  /* Border radius */
-  --radius-sm: 4px;
-  --radius-standaard: 8px;
-  --radius-md: 12px;
-  --radius-groot: 16px;
-  --radius-xl: 20px;
-  --radius-rond: 50%;
-
-  /* Schaduwen */
-  --schaduw-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --schaduw-standaard: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --schaduw-md: 0 6px 20px rgba(0, 0, 0, 0.15);
-  --schaduw-lg: 0 10px 25px rgba(0, 0, 0, 0.2);
-  --schaduw-xl: 0 20px 40px rgba(0, 0, 0, 0.25);
-
-  /* Transities */
-  --transitie-snel: 0.15s ease;
-  --transitie-standaard: 0.2s ease;
-  --transitie-langzaam: 0.3s ease;
-}
 
 /* ========================================
    GLOBALE STIJLEN 
@@ -495,11 +708,11 @@
 body {
     margin: 0;
     padding: 0;
-    font-family: var(--lettertype-body);
-    font-size: var(--tekst-grootte-basis);
+    font-family: var(--font-family);
+    font-size: 16px;
     line-height: 1.6;
-    color: var(--kleur-tekst);
-    background-color: var(--kleur-achtergrond);
+    color: var(--text-color);
+    background-color: var(--bg-color);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -11772,6 +11985,200 @@ tr.detail-row td {
     font-size: 0.7rem !important; /* Extra kleine font size */
     margin: 0.25rem 0 !important; /* Compacte margins */
 }
+
+/* ========================================================= */
+/* === NIEUWE PROMO CARDS STYLING === */
+/* ========================================================= */
+
+.promo-cards-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.promo-card {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.promo-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(160, 0, 0, 0.2);
+}
+
+.promo-card.disabled {
+    opacity: 0.6;
+    background: var(--surface-color-light);
+}
+
+.promo-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.promo-code {
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent-color-gold);
+    background: rgba(255, 215, 0, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.promo-discount {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.promo-description {
+    color: var(--text-color);
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+    line-height: 1.4;
+}
+
+.promo-usage {
+    margin: 0.75rem 0;
+}
+
+.usage-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.25rem;
+}
+
+.usage-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--text-color-success), var(--accent-color-gold));
+    transition: width 0.3s ease;
+}
+
+.promo-usage span {
+    font-size: 0.8rem;
+    color: var(--text-color-light);
+}
+
+.promo-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.promo-status {
+    font-size: 0.8rem;
+    color: var(--text-color-light);
+}
+
+.primary-action-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.primary-action-btn:hover {
+    background: var(--primary-color-light);
+    transform: translateY(-1px);
+}
+
+/* Modal Form Styling voor Promo Modal */
+.checkbox-list {
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.5rem;
+    background: var(--surface-color-light);
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    margin: 0;
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+.checkbox-item input[type="checkbox"] {
+    margin: 0;
+}
+
+.checkbox-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group select {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--surface-color-light);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group input[type="date"]:focus,
+.form-group select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(160, 0, 0, 0.1);
+}
+
+/* ========================================================= */
+/* === EINDE NIEUWE PROMO CARDS STYLING === */
+/* ========================================================= */
 
 .summary-section ul { list-style: none; margin: 0; padding: 0; }
 .summary-section ul li {

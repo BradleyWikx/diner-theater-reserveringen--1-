@@ -236,13 +236,13 @@ export const getShowLegend = (config: any) => {
             legendItems.push({
                 class: `show-type-${showType.id}`,
                 label: showType.name,
-                color: showType.color || '#6b7280' // gebruik grijze kleur als fallback
+                color: showType.color || '#A00000' // gebruik primaire kleur als fallback
             });
         });
     
     // Voeg standaard status kleuren toe
     legendItems.push(
-        { class: 'show-waitlist', label: 'Vol - Wachtlijst Beschikbaar! 📝', color: '#dc2626' }
+        { class: 'show-waitlist', label: 'Vol - Wachtlijst Beschikbaar! 📝', color: '#FF6347' }
     );
     
     return legendItems;
