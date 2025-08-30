@@ -22,6 +22,7 @@ export interface InternalEvent {
   endTime: string; // HH:MM
   notes?: string;
   color?: string;
+  assignedStaff?: string[]; // Toegewezen personeel
 }
 
 export interface SchedulePrintOptions {
@@ -228,82 +229,14 @@ export type View = 'book' | 'admin';
 export type AdminView = 'dashboard' | 'calendar' | 'reservations' | 'customers' | 'settings' | 'capacity' | 'reports' | 'customerDetail' | 'approvals' | 'waitlist' | 'analytics' | 'vouchers' | 'schedule';
 export type SettingsTab = 'shows' | 'booking' | 'merchandise' | 'promo' | 'archive';
 
-// 🎁 Enhanced Package Management Interfaces
-export interface PackageItem {
-    merchandiseId: string;
-    quantity: number;
-    required: boolean;
-    alternatives?: string[];
-}
-
-export interface MerchandisePackage {
-    id: string;
-    name: string;
-    description: string;
-    type: 'merchandise' | 'vip' | 'custom' | 'seasonal';
-    items: PackageItem[];
-    originalPrice: number;
-    packagePrice: number;
-    discount: number;
-    discountType: 'percentage' | 'fixed';
-    minQuantity: number;
-    maxQuantity: number;
-    isActive: boolean;
-    validFrom: string;
-    validUntil: string;
-    imageUrl?: string;
-    tags: string[];
-    salesCount: number;
-    revenue: number;
-    category: 'popular' | 'new' | 'premium' | 'limited';
-}
-
-// 🍷 Enhanced Borrel Management
-export interface BorrelEvent {
-    id: string;
-    type: 'pre_show' | 'post_show';
-    name: string;
-    description: string;
-    pricePerPerson: number;
-    maxParticipants: number;
-    currentParticipants: number;
-    duration: number; // minutes
-    location: string;
-    isActive: boolean;
-    requiresReservation: boolean;
-    waitlistEnabled: boolean;
-    includes: string[];
-    imageUrl?: string;
-    salesCount: number;
-    revenue: number;
-}
-
-// 🛍️ Enhanced Merchandise Item
-export interface EnhancedMerchandiseItem extends EditableItem {
-    category: 'apparel' | 'programs' | 'gifts' | 'collectibles' | 'drinks' | 'food';
-    description: string;
-    images: string[];
-    costPrice: number;
-    stockQuantity: number;
-    lowStockThreshold: number;
-    tags: string[];
-    salesData: {
-        totalSold: number;
-        revenue: number;
-        conversionRate: number;
-        averageRating: number;
-    };
-    isActive: boolean;
-    isFeatured: boolean;
-    weight?: number; // for shipping
-    dimensions?: string;
-}
+// Package management interfaces verwijderd - we gebruiken simpele merchandise lijst
 
 export interface EditableItem {
     id: string;
     name: string;
     price: number;
-    imageUrl?: string;
+    imageUrl?: string; // Optioneel, voor een klein icoontje
+    description?: string; // Korte omschrijving toevoegen
 }
 
 export interface ArchivableItem {
@@ -442,139 +375,13 @@ export interface TheaterVoucher {
     archivedReason?: string;         // Reden van archivering
 }
 
-// 🛍️ NIEUWE MERCHANDISE SHOP INTERFACES
-export interface ShopMerchandiseItem {
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    originalPrice?: number;
-    discount?: number;
-    discountType?: 'percentage' | 'fixed';
-    imageUrl: string;
-    galleryImages?: string[];
-    category: string; // Nu dynamisch!
-    type: string; // Nu dynamisch!
-    featured: boolean;
-    stock: number;
-    stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock';
-    lowStockThreshold: number;
-    sizes?: string[];
-    colors?: { name: string; hex: string; }[];
-    rating: number;
-    reviewCount: number;
-    salesCount: number;
-    tags: string[];
-    specifications?: { [key: string]: string };
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-}
-
-// 🎁 BUNDEL SYSTEEM
-export interface ShopBundle {
-    id: string;
-    name: string;
-    description: string;
-    items: {
-        itemId: string;
-        quantity: number;
-    }[];
-    originalTotalPrice: number;
-    bundlePrice: number;
-    discount: number;
-    discountType: 'percentage' | 'fixed';
-    imageUrl: string;
-    category: string;
-    featured: boolean;
-    isActive: boolean;
-    validFrom?: string;
-    validUntil?: string;
-    minQuantity: number;
-    maxQuantity?: number;
-    createdAt: string;
-    updatedAt: string;
-}
-
-// 🏷️ DYNAMISCHE CATEGORIEËN
-export interface ShopCategory {
-    id: string;
-    name: string;
-    description: string;
-    icon: string;
-    color: string;
-    order: number;
-    isActive: boolean;
-    showInWizard: boolean;
-    wizardOrder?: number;
-    parentCategory?: string;
-    subCategories?: string[];
-}
-
-// 🎨 WIZARD LAYOUT CONFIGURATIE
-export interface WizardLayoutSection {
-    id: string;
-    title: string;
-    description: string;
-    categoryIds: string[];
-    displayType: 'grid' | 'list' | 'carousel';
-    itemsPerRow: number;
-    showPrices: boolean;
-    showImages: boolean;
-    showQuantity: boolean;
-    order: number;
-    isActive: boolean;
-}
-
-export interface ShopConfiguration {
-    displaySettings: {
-        itemsPerPage: number;
-        gridColumns: { mobile: number; tablet: number; desktop: number };
-        showPriceComparison: boolean;
-        showStockLevels: boolean;
-        enableWishlist: boolean;
-        enableReviews: boolean;
-        enableSocialSharing: boolean;
-        defaultSortBy: 'featured' | 'price_low' | 'price_high' | 'rating' | 'name';
-    };
-    categories: {
-        id: string;
-        name: string;
-        icon: string;
-        color: string;
-        isActive: boolean;
-    }[];
-    filterOptions: {
-        enablePriceFilter: boolean;
-        priceRanges: { min: number; max: number; label: string }[];
-        enableCategoryFilter: boolean;
-        enableBrandFilter: boolean;
-        enableRatingFilter: boolean;
-        enableStockFilter: boolean;
-    };
-    featuredSettings: {
-        maxFeaturedItems: number;
-        autoRotateFeatured: boolean;
-        featuredBadgeText: string;
-        featuredBadgeColor: string;
-    };
-}
+// Oude shop interfaces verwijderd - we gebruiken nu alleen simple EditableItem
 
 export interface AppConfig {
     showNames: ArchivableItem[];
     showTypes: ShowType[];
     capSlogans: string[];
-    merchandise: EditableItem[];
-    // 🎁 Enhanced Package & Borrel Management
-    merchandisePackages: MerchandisePackage[];
-    borrelEvents: BorrelEvent[];
-    enhancedMerchandise: EnhancedMerchandiseItem[];
-    // 🛍️ NIEUWE MERCHANDISE SHOP - UITGEBREID MET BUNDELS & CATEGORIEËN
-    shopMerchandise: ShopMerchandiseItem[];
-    shopBundles: ShopBundle[];
-    shopCategories: ShopCategory[];
-    wizardLayout: WizardLayoutSection[];
-    shopConfiguration: ShopConfiguration;
+    merchandise: EditableItem[]; // Simpele merchandise lijst - dit is alles wat we nodig hebben!
     promoCodes: PromoCode[];
     theaterVouchers: TheaterVoucher[];    // Nieuwe theaterbonnen systeem
     bookingSettings: {

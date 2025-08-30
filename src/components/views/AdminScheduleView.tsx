@@ -5,12 +5,22 @@ interface AdminScheduleViewProps {
   showEvents: any[];
   internalEvents: any[];
   reservations: any[];
+  onAddInternalEvent?: (event: any) => void;
+  onUpdateInternalEvent?: (event: any) => void; 
+  onDeleteInternalEvent?: (eventId: string) => void;
+  config?: any;
+  onPrintSchedule?: () => void; // Nieuwe prop voor print functionaliteit
 }
 
 const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({
   showEvents = [],
   internalEvents = [],
-  reservations = []
+  reservations = [],
+  onAddInternalEvent,
+  onUpdateInternalEvent,
+  onDeleteInternalEvent,
+  config,
+  onPrintSchedule
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -82,7 +92,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({
       title="📅 Planning"
       subtitle="Overzicht van voorstellingen en evenementen"
       actions={
-        <AdminGrid columns={2} gap="sm">
+        <AdminGrid columns={onPrintSchedule ? 3 : 2} gap="sm">
           <AdminButton
             variant="secondary"
             size="sm"
@@ -97,6 +107,15 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({
           >
             Volgende →
           </AdminButton>
+          {onPrintSchedule && (
+            <AdminButton
+              variant="primary"
+              size="sm"
+              onClick={onPrintSchedule}
+            >
+              🖨️ Print Schema
+            </AdminButton>
+          )}
         </AdminGrid>
       }
     >

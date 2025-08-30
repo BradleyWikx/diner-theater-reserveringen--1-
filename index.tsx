@@ -29,10 +29,6 @@ import type {
     View,
     AdminView,
     SettingsTab,
-    PackageItem,
-    MerchandisePackage,
-    BorrelEvent,
-    EnhancedMerchandiseItem,
     EditableItem,
     ArchivableItem,
     ShowType,
@@ -41,15 +37,9 @@ import type {
     BookingApproval,
     ApprovalRule,
     ApprovalCondition,
-    WaitlistEntry,
     WaitlistNotification,
     Customer,
     TheaterVoucher,
-    ShopMerchandiseItem,
-    ShopBundle,
-    ShopCategory,
-    WizardLayoutSection,
-    ShopConfiguration,
     AppConfig
 } from './src/types/types';
 
@@ -895,21 +885,98 @@ const getShowLegend = (config: AppConfig) => {
 
 // Functie om dynamische CSS te genereren voor show type kleuren
 // Component om dynamische CSS styles te injecteren
-const QuantityStepper = ({ value, onChange, min = 0, max = 99, disabled = false }: { 
+const QuantityStepper = ({ value, onChange, min = 0, max = 99, disabled = false, groupSize = 0 }: { 
     value: number, 
     onChange: (newValue: number) => void, 
     min?: number, 
     max?: number,
-    disabled?: boolean
+    disabled?: boolean,
+    groupSize?: number
 }) => {
+    const [showInput, setShowInput] = useState(false);
+    const [inputValue, setInputValue] = useState(value.toString());
+
     const handleIncrement = () => !disabled && onChange(Math.min(max, value + 1));
     const handleDecrement = () => !disabled && onChange(Math.max(min, value - 1));
+    
+    const handleForGroup = () => {
+        if (!disabled && groupSize > 0) {
+            onChange(Math.min(max, groupSize));
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputValue(e.target.value);
+    };
+
+    const handleInputSubmit = () => {
+        const numValue = parseInt(inputValue);
+        if (!isNaN(numValue) && numValue >= min && numValue <= max) {
+            onChange(numValue);
+        } else {
+            setInputValue(value.toString());
+        }
+        setShowInput(false);
+    };
+
+    const handleInputKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleInputSubmit();
+        } else if (e.key === 'Escape') {
+            setInputValue(value.toString());
+            setShowInput(false);
+        }
+    };
+
+    React.useEffect(() => {
+        setInputValue(value.toString());
+    }, [value]);
 
     return (
-        <div className={`quantity-stepper ${disabled ? 'disabled' : ''}`}>
-            <button type="button" onClick={handleDecrement} disabled={value <= min || disabled} aria-label="Minder"><Icon id="remove" /></button>
-            <span className="quantity-value">{value}</span>
-            <button type="button" onClick={handleIncrement} disabled={value >= max || disabled} aria-label="Meer"><Icon id="add" /></button>
+        <div className={`quantity-stepper-wrapper ${disabled ? 'disabled' : ''}`}>
+            <div className="quantity-stepper">
+                <button type="button" onClick={handleDecrement} disabled={value <= min || disabled} aria-label="Minder">
+                    <Icon id="remove" />
+                </button>
+                
+                {showInput ? (
+                    <input 
+                        type="number"
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        onBlur={handleInputSubmit}
+                        onKeyDown={handleInputKeyPress}
+                        className="quantity-input"
+                        min={min}
+                        max={max}
+                        autoFocus
+                    />
+                ) : (
+                    <span 
+                        className="quantity-value clickable" 
+                        onClick={() => !disabled && setShowInput(true)}
+                        title="Klik om getal in te voeren"
+                    >
+                        {value}
+                    </span>
+                )}
+                
+                <button type="button" onClick={handleIncrement} disabled={value >= max || disabled} aria-label="Meer">
+                    <Icon id="add" />
+                </button>
+            </div>
+            
+            {groupSize > 0 && (
+                <button 
+                    type="button" 
+                    onClick={handleForGroup} 
+                    disabled={disabled}
+                    className="group-button-wide"
+                    title={`Voor hele groep (${groupSize} personen)`}
+                >
+                    Voor hele groep ({groupSize})
+                </button>
+            )}
         </div>
     );
 };
@@ -925,10 +992,9 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
 
     const initialAddons = useMemo(() => {
         const addons: AddonQuantities = {};
-        config.shopMerchandise.forEach(item => { addons[item.id] = 0; });
         config.capSlogans.forEach((_, index) => { addons[`cap${index}`] = 0; });
         return addons;
-    }, [config.shopMerchandise, config.capSlogans]);
+    }, [config.capSlogans]);
 
     const [reservation, setReservation] = useState<Omit<Reservation, 'id' | 'totalPrice'>>({
         date,
@@ -945,12 +1011,7 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
     const [appliedCode, setAppliedCode] = useState<{code: string; type: 'promo' | 'gift'; value: number} | null>(null);
     const [promoMessage, setPromoMessage] = useState('');
 
-    // Merchandise shop states
-    const [selectedCategory, setSelectedCategory] = useState('');
-    const [sortBy, setSortBy] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
-
-    const merchandiseMap = useMemo(() => new Map(config.shopMerchandise.map(item => [item.id, item])), [config.shopMerchandise]);
+    // Shop states removed - merchandise functionality simplified
     const showImage = useMemo(() => config.showNames.find(sn => sn.name === show.name)?.imageUrl, [config.showNames, show.name]);
     const currentShowType = useMemo(() => config.showTypes.find(st => st.name === show.type), [config.showTypes, show.type]);
     const { minGuests, maxGuests } = config.bookingSettings;
@@ -993,34 +1054,14 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         if (preShowDrinks && guests >= 25) subtotal += guests * preShowDrinksPrice;
         if (afterParty && guests >= 25) subtotal += guests * afterPartyPrice;
         
-        // Regular merchandise items
-        config.shopMerchandise.forEach(item => {
+        // Regular merchandise items (simplified - no shopMerchandise)
+        config.merchandise.forEach(item => {
             if (item.id !== 'preShowDrinks' && item.id !== 'afterParty') {
                  subtotal += (addons[item.id] || 0) * item.price;
             }
         });
         
-        // Bundle discounts - apply bundle pricing instead of individual item pricing
-        let bundleDiscount = 0;
-        config.shopBundles.forEach(bundle => {
-            if (addons[`bundle_${bundle.id}`] > 0) {
-                // Calculate what individual items would cost
-                let individualTotal = 0;
-                bundle.items.forEach(bundleItem => {
-                    const item = config.shopMerchandise.find(i => i.id === bundleItem.itemId);
-                    if (item) {
-                        individualTotal += item.price * bundleItem.quantity;
-                    }
-                });
-                
-                // Apply bundle discount
-                const savings = individualTotal - bundle.bundlePrice;
-                bundleDiscount += savings;
-            }
-        });
-        
-        // Apply bundle savings
-        subtotal -= bundleDiscount;
+        // Bundle functionality removed - simplified pricing
         
         const totalCaps = config.capSlogans.reduce((sum, _, i) => sum + (addons[`cap${i}`] || 0), 0);
         subtotal += totalCaps * config.prices.cap;
@@ -1053,7 +1094,7 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         
         const total = subtotal - discount;
         setPriceDetails({ subtotal, discount, total });
-    }, [reservation, appliedCode, show.type, config, merchandiseMap, currentShowType]);
+    }, [reservation, appliedCode, show.type, config, currentShowType]);
     
     const handleApplyCode = () => {
         const code = promoInput.trim().toUpperCase();
@@ -1253,265 +1294,55 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                         </div>
                     </fieldset>
                 );
-            case 3: // Eenvoudige Extra's
+            case 3: // Extra's
                 const handleAddonNumberChange = (name: string, value: number) => {
                     updateReservation({ addons: {...reservation.addons, [name]: value }});
                 };
 
-                const handleGroupQuantity = (itemId: string) => {
-                    const guestCount = reservation.guests || 1;
-                    updateReservation({ addons: {...reservation.addons, [itemId]: guestCount }});
-                };
-
-                const handleQuantityInputChange = (itemId: string, value: string) => {
-                    const numValue = parseInt(value) || 0;
-                    const clampedValue = Math.max(0, Math.min(99, numValue));
-                    handleAddonNumberChange(itemId, clampedValue);
-                };
-
-                // Alle categorieën inclusief petten
-                const categories = [
-                    { id: '', name: 'Alles', icon: '🛍️' },
-                    { id: 'kleding', name: 'Kleding', icon: '👕' },
-                    { id: 'accessoires', name: 'Accessoires', icon: '🎭' },
-                    { id: 'dranken', name: 'Drankjes', icon: '🍷' },
-                    { id: 'verzamelobjecten', name: 'Collectibles', icon: '�' },
-                    { id: 'petten', name: 'Petten', icon: '🧢' }
-                ];
-
-                // Combineer alle producten inclusief petten
-                const allMerchandiseItems = [
-                    ...config.shopMerchandise,
-                    // Voeg petten toe als individuele items
-                    ...config.capSlogans.map((slogan, index) => ({
-                        id: `cap${index}`,
-                        name: `"${slogan}"`,
-                        description: `Stijlvolle theater pet met slogan`,
-                        price: config.prices.cap,
-                        originalPrice: config.prices.cap,
-                        discount: 0,
-                        discountType: 'fixed' as const,
-                        imageUrl: 'https://placehold.co/400x400/2a2a2a/f0b429?text=🧢',
-                        galleryImages: [],
-                        category: 'petten',
-                        type: 'accessory' as const,
-                        featured: false,
-                        stock: 50,
-                        stockStatus: 'in_stock' as const,
-                        lowStockThreshold: 10,
-                        sizes: ['One Size'],
-                        colors: [{ name: 'Theater Zwart', hex: '#2a2a2a' }],
-                        rating: 4.5,
-                        reviewCount: 12,
-                        salesCount: 28,
-                        tags: ['pet', 'accessoire', 'theater'],
-                        specifications: {
-                            'Materiaal': 'Premium Katoen',
-                            'Maat': 'Verstelbaar',
-                            'Kleur': 'Zwart met gouden tekst'
-                        },
-                        isActive: true,
-                        createdAt: '2024-01-15T10:00:00Z',
-                        updatedAt: '2024-12-15T14:30:00Z'
-                    }))
-                ];
-
-                // Filter en sorteer producten
-                let filteredProducts = allMerchandiseItems;
-                
-                if (selectedCategory !== '') {
-                    filteredProducts = filteredProducts.filter(item => item.category === selectedCategory);
-                }
-                
-                if (searchTerm) {
-                    filteredProducts = filteredProducts.filter(item => 
-                        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        item.description.toLowerCase().includes(searchTerm.toLowerCase())
-                    );
-                }
-                
-                // Sorteer producten
-                filteredProducts.sort((a, b) => {
-                    switch (sortBy) {
-                        case 'price-low': return a.price - b.price;
-                        case 'price-high': return b.price - a.price;
-                        case 'name': return a.name.localeCompare(b.name);
-                        case 'popularity': 
-                            const aPopularity = (a.salesCount || 0) + (a.rating || 0) * 10;
-                            const bPopularity = (b.salesCount || 0) + (b.rating || 0) * 10;
-                            return bPopularity - aPopularity;
-                        default: 
-                            // Featured items eerst, dan op naam
-                            if (a.featured && !b.featured) return -1;
-                            if (!a.featured && b.featured) return 1;
-                            return a.name.localeCompare(b.name);
-                    }
-                });
-
-                // Helper functie voor stock status
-                const getStockStatus = (item: typeof filteredProducts[0]) => {
-                    if (item.stock === 0) return { status: 'out-of-stock', text: 'Uitverkocht' };
-                    if (item.stock <= item.lowStockThreshold) return { status: 'low-stock', text: `Nog ${item.stock} beschikbaar` };
-                    return { status: 'in-stock', text: 'Op voorraad' };
-                };
+                const merchandiseItems = config.merchandise;
+                const capItems = config.capSlogans;
 
                 return (
                     <fieldset>
-                        <legend>🛍️ {i18n.wizardStep3Title}</legend>
-                        
-                        <div className="merchandise-container">
-                            {/* Compacte Header */}
-                            <div className="merchandise-header">
-                                <h2 className="merchandise-title">🎭 Theater Merchandise Shop</h2>
-                                <p className="merchandise-subtitle">{i18n.wizardStep3SubTitle}</p>
-                            </div>
+                        <legend>✨ Maak je Avond Extra Speciaal</legend>
+                        <p className="fieldset-subtitle">Voeg een van onze populaire extra's toe aan je boeking.</p>
 
-                            {/* Compacte Control Bar */}
-                            <div className="merchandise-controls">
-                                {/* Search */}
-                                <div className="search-container">
-                                    <span className="search-icon">🔍</span>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Zoek producten..." 
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="search-input"
+                        <div className="simple-addons-list">
+                            {merchandiseItems.map(item => (
+                                <div key={item.id} className="addon-item">
+                                    <img src={item.imageUrl || 'https://placehold.co/100x100/eee/ccc?text=Geen+Foto'} alt={item.name} className="addon-image" />
+                                    <div className="addon-info">
+                                        <span className="addon-name">{item.name}</span>
+                                        <span className="addon-description">{item.description}</span>
+                                    </div>
+                                    <div className="addon-price">€{item.price.toFixed(2)}</div>
+                                    <QuantityStepper
+                                        value={reservation.addons[item.id] || 0}
+                                        onChange={(newValue) => handleAddonNumberChange(item.id, newValue)}
+                                        groupSize={reservation.guests}
                                     />
                                 </div>
-                                
-                                {/* Sort */}
-                                <select 
-                                    value={sortBy} 
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                    className="sort-dropdown"
-                                >
-                                    <option value="">🌟 Uitgelicht</option>
-                                    <option value="popularity">📈 Populair</option>
-                                    <option value="name">🔤 A-Z</option>
-                                    <option value="price-low">💰 Prijs ↑</option>
-                                    <option value="price-high">💎 Prijs ↓</option>
-                                </select>
-                                
-                                {/* Category Filters */}
-                                <div className="filter-tabs">
-                                    {categories.map(category => (
-                                        <button
-                                            key={category.id}
-                                            type="button"
-                                            className={`filter-tab ${selectedCategory === category.id ? 'active' : ''}`}
-                                            onClick={() => setSelectedCategory(category.id)}
-                                        >
-                                            <span>{category.icon}</span>
-                                            <span>{category.name}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                            ))}
 
-                            {/* Product Grid */}
-                            {filteredProducts.length === 0 ? (
-                                <div className="empty-state">
-                                    <div className="empty-state-icon">🔍</div>
-                                    <h3 className="empty-state-title">Geen producten gevonden</h3>
-                                    <p className="empty-state-description">
-                                        Probeer een andere zoekterm of selecteer een andere categorie.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="product-grid">
-                                    {filteredProducts.map(item => {
-                                        const stockInfo = getStockStatus(item);
-                                        const currentQuantity = reservation.addons[item.id] || 0;
-                                        const hasQuantity = currentQuantity > 0;
-                                        
-                                        return (
-                                            <div 
-                                                key={item.id} 
-                                                className={`product-card ${hasQuantity ? 'has-quantity' : ''}`}
-                                            >
-                                                {/* Vierkante afbeelding */}
-                                                <div className="product-image-container">
-                                                    <img 
-                                                        src={item.imageUrl} 
-                                                        alt={item.name} 
-                                                        className="product-image"
-                                                    />
-                                                    {item.featured && (
-                                                        <span className="product-badge featured">
-                                                            ✨
-                                                        </span>
-                                                    )}
-                                                    {stockInfo.status === 'low-stock' && (
-                                                        <span className="product-badge low-stock">
-                                                            !
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                
-                                                <div className="product-content">
-                                                    <h3 className="product-name">{item.name}</h3>
-                                                    
-                                                    <div className="product-price">
-                                                        €{item.price.toFixed(2)}
-                                                    </div>
-                                                    
-                                                    {/* Voorraad status met bolletje */}
-                                                    <div className="stock-status">
-                                                        <span className={`stock-dot ${stockInfo.status}`}></span>
-                                                        <span>{stockInfo.text}</span>
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Nieuwe Actie Sectie */}
-                                                <div className="product-actions">
-                                                    {/* Geavanceerde Quantity Selector */}
-                                                    <div className="quantity-selector">
-                                                        <button
-                                                            type="button"
-                                                            className="quantity-btn"
-                                                            onClick={() => handleAddonNumberChange(item.id, Math.max(0, currentQuantity - 1))}
-                                                            disabled={currentQuantity <= 0}
-                                                        >
-                                                            −
-                                                        </button>
-                                                        
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            max="99"
-                                                            value={currentQuantity}
-                                                            onChange={(e) => handleQuantityInputChange(item.id, e.target.value)}
-                                                            className="quantity-input"
-                                                            disabled={item.stock === 0}
-                                                        />
-                                                        
-                                                        <button
-                                                            type="button"
-                                                            className="quantity-btn"
-                                                            onClick={() => handleAddonNumberChange(item.id, Math.min(99, currentQuantity + 1))}
-                                                            disabled={item.stock === 0 || currentQuantity >= 99}
-                                                        >
-                                                            +
-                                                        </button>
-                                                    </div>
-                                                    
-                                                    {/* Voor de hele groep knop */}
-                                                    <button
-                                                        type="button"
-                                                        className="group-quantity-btn"
-                                                        onClick={() => handleGroupQuantity(item.id)}
-                                                        disabled={item.stock === 0}
-                                                        title={`Voor alle ${reservation.guests || 1} gasten`}
-                                                    >
-                                                        Voor de hele groep ({reservation.guests || 1})
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                            {/* Sectie voor Petten (als je die wilt behouden) */}
+                            <h4 style={{marginTop: '2rem'}}>Aandenken: Theater Petten</h4>
+                            {capItems.map((slogan, index) => {
+                                const capId = `cap${index}`;
+                                return (
+                                    <div key={capId} className="addon-item">
+                                        <img src={'https://placehold.co/100x100/2a2a2a/f0b429?text=🧢'} alt="Theater Pet" className="addon-image" />
+                                        <div className="addon-info">
+                                            <span className="addon-name">Pet: "{slogan}"</span>
+                                        </div>
+                                        <div className="addon-price">€{config.prices.cap.toFixed(2)}</div>
+                                        <QuantityStepper
+                                            value={reservation.addons[capId] || 0}
+                                            onChange={(newValue) => handleAddonNumberChange(capId, newValue)}
+                                            groupSize={reservation.guests}
+                                        />
+                                    </div>
+                                );
+                            })}
                         </div>
                     </fieldset>
                 );
@@ -1724,11 +1555,11 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                             <div className="summary-section">
                                 <div className="summary-header"><h4>{i18n.formAddons}</h4><button type="button" onClick={() => goToStep(2)} className="btn-text">{i18n.edit}</button></div>
                                 <ul>
-                                    {preShowDrinks && <li>{merchandiseMap.get('preShowDrinks')?.name}</li>}
-                                    {afterParty && <li>{merchandiseMap.get('afterParty')?.name}</li>}
+                                    {preShowDrinks && <li>Pre-show drinks</li>}
+                                    {afterParty && <li>After party</li>}
                                     {Object.entries(addons).filter(([, val]) => typeof val === 'number' && val > 0).map(([key, val]) => (
                                         <li key={key}>
-                                          {config.merchandise.find(m => m.id === key)?.name || config.capSlogans[parseInt(key.replace('cap',''))] || key} x {val}
+                                          {config.merchandise.find(m => m.id === key)?.name || key} x {val}
                                         </li>
                                     ))}
                                 </ul>
@@ -1903,7 +1734,7 @@ const ShowSummary = ({ show, onStartBooking, isUnavailable, config, remainingCap
     );
 };
 
-const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReservation, onDeleteWaitingList, onToggleCheckIn, config, onDeleteShow, onToggleShowStatus: handleToggleShowStatus, onEditReservation, onAddBooking, onAddShow }: {
+const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReservation, onDeleteWaitingList, onToggleCheckIn, config, onDeleteShow, onToggleShowStatus: handleToggleShowStatus, onEditReservation, onUpdateReservation, onAddBooking, onAddShow }: {
     date: string,
     show: ShowEvent | undefined,
     reservations: Reservation[],
@@ -1915,6 +1746,7 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
     onDeleteShow: (showId: string) => void,
     onToggleShowStatus: (showId: string) => void,
     onEditReservation: (reservation: Reservation) => void,
+    onUpdateReservation: (reservation: Reservation) => void,
     onAddBooking?: (date: string, show: ShowEvent) => void,
     onAddShow?: () => void,
 }) => {
@@ -2252,10 +2084,10 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
                                             <td>
                                                 {r.status === 'provisional' ? (
                                                     <div className="provisional-actions">
-                                                        <button className="btn-approve" onClick={() => {/* handle approve */}}>
+                                                        <button className="btn-approve" onClick={() => onUpdateReservation({ ...r, status: 'confirmed' })}>
                                                             <Icon id="check" /> {i18n.approveBooking}
                                                         </button>
-                                                        <button className="btn-deny" onClick={() => {/* handle deny */}}>
+                                                        <button className="btn-deny" onClick={() => onUpdateReservation({ ...r, status: 'cancelled' })}>
                                                             <Icon id="close" /> {i18n.denyBooking}
                                                         </button>
                                                     </div>
@@ -2324,7 +2156,7 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
 };
 
 // 🎭 Enhanced Modern Admin Calendar View with Advanced Features
-const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, onAddReservation, onDeleteReservation, onDeleteWaitingList, config, guestCountMap, onBulkDelete, onDeleteShow, onToggleShowStatus, onToggleCheckIn, onEditReservation }: {
+const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, onAddReservation, onDeleteReservation, onDeleteWaitingList, config, guestCountMap, onBulkDelete, onDeleteShow, onToggleShowStatus, onToggleCheckIn, onEditReservation, onUpdateReservation }: {
     showEvents: ShowEvent[],
     reservations: Reservation[],
     waitingList: WaitingListEntry[],
@@ -2339,6 +2171,7 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
     onToggleShowStatus: (showId: string) => void;
     onToggleCheckIn: (id: string) => void;
     onEditReservation: (reservation: Reservation) => void;
+    onUpdateReservation: (reservation: Reservation) => void;
 }) => {
     const [month, setMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(formatDate(new Date()));
@@ -2560,6 +2393,7 @@ const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, o
                     onDeleteShow={onDeleteShow}
                     onToggleShowStatus={onToggleShowStatus}
                     onEditReservation={onEditReservation}
+                    onUpdateReservation={onUpdateReservation}
                     onAddBooking={handleAddBooking}
                     onAddShow={() => setIsAddModalOpen(true)}
                 />
@@ -5354,7 +5188,7 @@ const AdminCapacityView = ({ showEvents, guestCountMap, onUpdateShowCapacity, on
     );
 };
 
-type ObjectArrayConfigKey = 'showNames' | 'showTypes' | 'merchandise' | 'promoCodes' | 'merchandisePackages' | 'borrelEvents' | 'enhancedMerchandise' | 'shopMerchandise' | 'shopBundles' | 'shopCategories' | 'wizardLayout';
+type ObjectArrayConfigKey = 'showNames' | 'showTypes' | 'promoCodes' | 'merchandise';
 
 const SettingsView = ({ config, setConfig, events, setEvents }: { 
     config: AppConfig, 
@@ -5600,899 +5434,37 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
                 </div>
             );
             case 'merchandise': return (
-                <div className="fusion-merchandise-hub">
-                    {/* 🎭 Premium Header */}
-                    <div className="merchandise-hero-header">
-                        <div className="hero-content">
-                            <h2 className="hero-title">
-                                <span className="hero-icon">🛍️</span>
-                                Extra's & Merchandise Beheer
-                            </h2>
-                            <p className="hero-subtitle">
-                                Geïntegreerde beheertool voor alle pakketten, merchandise, drankjes en speciale aanbiedingen
-                            </p>
-                        </div>
-                        <div className="hero-stats">
-                            <div className="stat-card">
-                                <div className="stat-value">{localConfig.merchandise.length}</div>
-                                <div className="stat-label">Items</div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-value">{localConfig.merchandisePackages.length}</div>
-                                <div className="stat-label">Pakketten</div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-value">{localConfig.borrelEvents.length}</div>
-                                <div className="stat-label">Borrels</div>
-                            </div>
-                        </div>
+                <div className="card settings-card">
+                    <div className="settings-card-header">
+                        <h3>Extra's Beheren</h3>
+                        <p className="settings-description">Beheer hier de extra's die klanten kunnen bijboeken in de wizard.</p>
                     </div>
-
-                    {/* 🎯 Enhanced Category Navigation */}
-                    <div className="category-navigation-hub">
-                        <div className="nav-tabs">
-                            <button className="nav-tab active" data-category="all">
-                                <span className="tab-icon">🎭</span>
-                                <span className="tab-text">Alles</span>
-                            </button>
-                            <button className="nav-tab" data-category="bundles">
-                                <span className="tab-icon">🎁</span>
-                                <span className="tab-text">Bundels</span>
-                            </button>
-                            <button className="nav-tab" data-category="categories">
-                                <span className="tab-icon">🏷️</span>
-                                <span className="tab-text">Categorieën</span>
-                            </button>
-                            <button className="nav-tab" data-category="items">
-                                <span className="tab-icon">👕</span>
-                                <span className="tab-text">Items</span>
-                            </button>
-                            <button className="nav-tab" data-category="wizard">
-                                <span className="tab-icon">🎨</span>
-                                <span className="tab-text">Wizard Layout</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* 🎁 BUNDEL MANAGEMENT SECTIE */}
-                    <div className="merchandise-section bundles-section">
-                        <div className="section-header">
-                            <div className="section-title">
-                                <h3>🎁 Bundel Creator</h3>
-                                <p className="section-description">Creëer slimme bundels door items te combineren met automatische kortingen</p>
-                            </div>
-                            <button 
-                                className="add-item-btn premium"
-                                onClick={() => handleAddItem('shopBundles', {
-                                    id: `bundle_${Date.now()}`,
-                                    name: 'Nieuwe Bundel',
-                                    description: 'Beschrijving van de nieuwe bundel',
-                                    items: [],
-                                    originalTotalPrice: 0,
-                                    bundlePrice: 0,
-                                    discount: 10,
-                                    discountType: 'percentage',
-                                    imageUrl: 'https://placehold.co/400x400/f59e0b/white?text=Bundel',
-                                    category: 'bundels',
-                                    featured: false,
-                                    isActive: true,
-                                    minQuantity: 1,
-                                    maxQuantity: 10,
-                                    createdAt: new Date().toISOString(),
-                                    updatedAt: new Date().toISOString()
-                                })}
-                            >
-                                <span className="btn-icon">➕</span>
-                                Nieuwe Bundel
-                            </button>
-                        </div>
-                        <div className="bundles-grid">
-                            {localConfig.shopBundles.map((bundle, index) => (
-                                <div key={bundle.id} className="bundle-card premium-card">
-                                    <div className="card-header">
-                                        <div className="bundle-info">
-                                            <input
-                                                type="text"
-                                                className="card-title-input"
-                                                value={bundle.name}
-                                                onChange={(e) => handleItemChange('shopBundles', index, 'name', e.target.value)}
-                                                placeholder="Bundel naam"
-                                            />
-                                            <div className="bundle-savings">
-                                                <span className="savings-badge">
-                                                    -{bundle.discountType === 'percentage' ? `${bundle.discount}%` : `€${bundle.discount.toFixed(2)}`}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <label className="toggle-switch mini">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={bundle.featured}
-                                                onChange={(e) => handleItemChange('shopBundles', index, 'featured', e.target.checked)}
-                                            />
-                                            <div className="toggle-slider"></div>
-                                        </label>
-                                    </div>
-                                    <div className="card-content">
-                                        <textarea
-                                            className="card-description-input"
-                                            value={bundle.description}
-                                            onChange={(e) => handleItemChange('shopBundles', index, 'description', e.target.value)}
-                                            placeholder="Bundel beschrijving"
-                                            rows={2}
-                                        />
-                                        
-                                        {/* Bundle Items Selector */}
-                                        <div className="bundle-items-section">
-                                            <h5>Bundel Items</h5>
-                                            <div className="bundle-items-list">
-                                                {bundle.items.map((bundleItem, itemIndex) => {
-                                                    const item = localConfig.shopMerchandise.find(i => i.id === bundleItem.itemId);
-                                                    return (
-                                                        <div key={itemIndex} className="bundle-item-row">
-                                                            <select 
-                                                                value={bundleItem.itemId}
-                                                                onChange={(e) => {
-                                                                    const newItems = [...bundle.items];
-                                                                    newItems[itemIndex] = { ...newItems[itemIndex], itemId: e.target.value };
-                                                                    handleItemChange('shopBundles', index, 'items', newItems);
-                                                                }}
-                                                            >
-                                                                <option value="">Selecteer item...</option>
-                                                                {localConfig.shopMerchandise.map(item => (
-                                                                    <option key={item.id} value={item.id}>{item.name} - €{item.price.toFixed(2)}</option>
-                                                                ))}
-                                                            </select>
-                                                            <input 
-                                                                type="number"
-                                                                min="1"
-                                                                max="10"
-                                                                value={bundleItem.quantity}
-                                                                onChange={(e) => {
-                                                                    const newItems = [...bundle.items];
-                                                                    newItems[itemIndex] = { ...newItems[itemIndex], quantity: parseInt(e.target.value) || 1 };
-                                                                    handleItemChange('shopBundles', index, 'items', newItems);
-                                                                }}
-                                                            />
-                                                            <span className="item-price">€{((item?.price || 0) * bundleItem.quantity).toFixed(2)}</span>
-                                                            <button 
-                                                                className="delete-btn mini"
-                                                                onClick={() => {
-                                                                    const newItems = bundle.items.filter((_, i) => i !== itemIndex);
-                                                                    handleItemChange('shopBundles', index, 'items', newItems);
-                                                                }}
-                                                            >
-                                                                🗑️
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                })}
-                                                <button 
-                                                    className="add-bundle-item-btn"
-                                                    onClick={() => {
-                                                        const newItems = [...bundle.items, { itemId: '', quantity: 1 }];
-                                                        handleItemChange('shopBundles', index, 'items', newItems);
-                                                    }}
-                                                >
-                                                    + Item Toevoegen
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Bundle Pricing */}
-                                        <div className="bundle-pricing">
-                                            <div className="price-calculation">
-                                                <div className="original-total">
-                                                    Totaal normaal: €{bundle.items.reduce((sum, bundleItem) => {
-                                                        const item = localConfig.shopMerchandise.find(i => i.id === bundleItem.itemId);
-                                                        return sum + ((item?.price || 0) * bundleItem.quantity);
-                                                    }, 0).toFixed(2)}
-                                                </div>
-                                                <div className="discount-settings">
-                                                    <select 
-                                                        value={bundle.discountType}
-                                                        onChange={(e) => handleItemChange('shopBundles', index, 'discountType', e.target.value)}
-                                                    >
-                                                        <option value="percentage">Percentage</option>
-                                                        <option value="fixed">Vast bedrag</option>
-                                                    </select>
-                                                    <input 
-                                                        type="number"
-                                                        step="0.01"
-                                                        min="0"
-                                                        value={bundle.discount}
-                                                        onChange={(e) => handleItemChange('shopBundles', index, 'discount', parseFloat(e.target.value) || 0)}
-                                                    />
-                                                </div>
-                                                <div className="bundle-final-price">
-                                                    Bundel prijs: €{(() => {
-                                                        const total = bundle.items.reduce((sum, bundleItem) => {
-                                                            const item = localConfig.shopMerchandise.find(i => i.id === bundleItem.itemId);
-                                                            return sum + ((item?.price || 0) * bundleItem.quantity);
-                                                        }, 0);
-                                                        const discountAmount = bundle.discountType === 'percentage' 
-                                                            ? (total * bundle.discount / 100) 
-                                                            : bundle.discount;
-                                                        return Math.max(0, total - discountAmount).toFixed(2);
-                                                    })()}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="card-actions">
-                                            <button 
-                                                className="delete-btn compact"
-                                                onClick={() => handleDeleteItem('shopBundles', index)}
-                                            >
-                                                🗑️ Verwijderen
-                                            </button>
-                                        </div>
-                                    </div>
+                    <ul className="editable-list">
+                        {/* Header Row */}
+                        <li className="setting-item-header">
+                            <span>Product</span>
+                            <span>Prijs</span>
+                            <span>Omschrijving</span>
+                            <span>Afbeelding URL</span>
+                        </li>
+                        {/* Items */}
+                        {localConfig.merchandise.map((item, index) => (
+                            <li key={item.id} className="setting-item">
+                                <div className="setting-item-content-wrapper merchandise-grid">
+                                    <input type="text" value={item.name} placeholder="Naam van product" onChange={e => handleItemChange('merchandise', index, 'name', e.target.value)} />
+                                    <input type="number" value={item.price} placeholder="Prijs" onChange={e => handleItemChange('merchandise', index, 'price', Number(e.target.value))} />
+                                    <input type="text" value={item.description || ''} placeholder="Korte omschrijving" onChange={e => handleItemChange('merchandise', index, 'description', e.target.value)} />
+                                    <input type="url" value={item.imageUrl || ''} placeholder="https://voorbeeld.com/foto.jpg" onChange={e => handleItemChange('merchandise', index, 'imageUrl', e.target.value)} />
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* 🏷️ CATEGORIEËN MANAGEMENT SECTIE */}
-                    <div className="merchandise-section categories-section">
-                        <div className="section-header">
-                            <div className="section-title">
-                                <h3>🏷️ Categorieën Beheer</h3>
-                                <p className="section-description">Beheer categorieën en hun weergave in de boeking wizard</p>
-                            </div>
-                            <button 
-                                className="add-item-btn merchandise"
-                                onClick={() => handleAddItem('shopCategories', {
-                                    id: `category_${Date.now()}`,
-                                    name: 'Nieuwe Categorie',
-                                    description: 'Beschrijving van de nieuwe categorie',
-                                    icon: '🏷️',
-                                    color: '#10b981',
-                                    order: localConfig.shopCategories.length + 1,
-                                    isActive: true,
-                                    showInWizard: true,
-                                    wizardOrder: localConfig.shopCategories.length + 1
-                                })}
-                            >
-                                <span className="btn-icon">➕</span>
-                                Nieuwe Categorie
-                            </button>
-                        </div>
-                        <div className="categories-grid">
-                            {localConfig.shopCategories.map((category, index) => (
-                                <div key={category.id} className="category-card" style={{borderColor: category.color}}>
-                                    <div className="category-header">
-                                        <div className="category-icon" style={{backgroundColor: category.color}}>
-                                            {category.icon}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            className="category-name-input"
-                                            value={category.name}
-                                            onChange={(e) => handleItemChange('shopCategories', index, 'name', e.target.value)}
-                                        />
-                                        <label className="toggle-switch mini">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={category.isActive}
-                                                onChange={(e) => handleItemChange('shopCategories', index, 'isActive', e.target.checked)}
-                                            />
-                                            <div className="toggle-slider"></div>
-                                        </label>
-                                    </div>
-                                    <div className="category-content">
-                                        <textarea
-                                            className="category-description-input"
-                                            value={category.description}
-                                            onChange={(e) => handleItemChange('shopCategories', index, 'description', e.target.value)}
-                                            rows={2}
-                                        />
-                                        <div className="category-settings">
-                                            <div className="setting-row">
-                                                <label>Icon:</label>
-                                                <input 
-                                                    type="text"
-                                                    value={category.icon}
-                                                    onChange={(e) => handleItemChange('shopCategories', index, 'icon', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="setting-row">
-                                                <label>Kleur:</label>
-                                                <input 
-                                                    type="color"
-                                                    value={category.color}
-                                                    onChange={(e) => handleItemChange('shopCategories', index, 'color', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="setting-row">
-                                                <label>Volgorde:</label>
-                                                <input 
-                                                    type="number"
-                                                    min="1"
-                                                    value={category.order}
-                                                    onChange={(e) => handleItemChange('shopCategories', index, 'order', parseInt(e.target.value) || 1)}
-                                                />
-                                            </div>
-                                            <div className="setting-row">
-                                                <label>
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={category.showInWizard}
-                                                        onChange={(e) => handleItemChange('shopCategories', index, 'showInWizard', e.target.checked)}
-                                                    />
-                                                    Tonen in wizard
-                                                </label>
-                                                {category.showInWizard && (
-                                                    <input 
-                                                        type="number"
-                                                        min="1"
-                                                        placeholder="Wizard volgorde"
-                                                        value={category.wizardOrder || ''}
-                                                        onChange={(e) => handleItemChange('shopCategories', index, 'wizardOrder', parseInt(e.target.value) || undefined)}
-                                                    />
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="category-stats">
-                                            <span className="stat">
-                                                <span className="stat-icon">📦</span>
-                                                {localConfig.shopMerchandise.filter(item => item.category === category.id).length} items
-                                            </span>
-                                        </div>
-                                        <div className="card-actions">
-                                            <button 
-                                                className="delete-btn compact"
-                                                onClick={() => handleDeleteItem('shopCategories', index)}
-                                            >
-                                                🗑️ Verwijderen
-                                            </button>
-                                        </div>
-                                    </div>
+                                <div className="setting-item-actions">
+                                    <button onClick={() => handleDeleteItem('merchandise', item.id)} className="icon-btn" title="Verwijder"><Icon id="trash"/></button>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* � WIZARD LAYOUT CONFIGURATIE */}
-                    <div className="merchandise-section wizard-section">
-                        <div className="section-header">
-                            <div className="section-title">
-                                <h3>🎨 Wizard Layout Designer</h3>
-                                <p className="section-description">Sleep secties om de volgorde in de boeking wizard aan te passen</p>
-                            </div>
-                            <button 
-                                className="add-item-btn slogans"
-                                onClick={() => handleAddItem('wizardLayout', {
-                                    id: `section_${Date.now()}`,
-                                    title: 'Nieuwe Sectie',
-                                    description: 'Beschrijving van de nieuwe sectie',
-                                    categoryIds: [],
-                                    displayType: 'grid',
-                                    itemsPerRow: 3,
-                                    showPrices: true,
-                                    showImages: true,
-                                    showQuantity: true,
-                                    order: localConfig.wizardLayout.length + 1,
-                                    isActive: true
-                                })}
-                            >
-                                <span className="btn-icon">➕</span>
-                                Nieuwe Sectie
-                            </button>
-                        </div>
-                        <div className="wizard-layout-designer">
-                            <div className="layout-preview">
-                                <h4>🔮 Wizard Preview - Volgorde</h4>
-                                <div className="preview-steps">
-                                    <div className="preview-step fixed-step">
-                                        <div className="step-number">1</div>
-                                        <div className="step-info">
-                                            <strong>Arrangement & Gasten</strong>
-                                            <span>Pakket selectie en aantal personen</span>
-                                        </div>
-                                    </div>
-                                    <div className="preview-step fixed-step">
-                                        <div className="step-number">2</div>
-                                        <div className="step-info">
-                                            <strong>Borrels & Drankjes</strong>
-                                            <span>Voor-/Naborrel (apart van merchandise!)</span>
-                                        </div>
-                                    </div>
-                                    {localConfig.wizardLayout
-                                        .sort((a, b) => a.order - b.order)
-                                        .map((section, index) => (
-                                        <div 
-                                            key={section.id} 
-                                            className={`preview-step draggable-step ${!section.isActive ? 'disabled' : ''}`}
-                                            draggable="true"
-                                            onDragStart={(e) => {
-                                                e.dataTransfer.setData('text/plain', section.id);
-                                                e.currentTarget.classList.add('dragging');
-                                            }}
-                                            onDragEnd={(e) => {
-                                                e.currentTarget.classList.remove('dragging');
-                                            }}
-                                            onDragOver={(e) => {
-                                                e.preventDefault();
-                                                e.currentTarget.classList.add('drag-over');
-                                            }}
-                                            onDragLeave={(e) => {
-                                                e.currentTarget.classList.remove('drag-over');
-                                            }}
-                                            onDrop={(e) => {
-                                                e.preventDefault();
-                                                e.currentTarget.classList.remove('drag-over');
-                                                const draggedId = e.dataTransfer.getData('text/plain');
-                                                const draggedIndex = localConfig.wizardLayout.findIndex(s => s.id === draggedId);
-                                                const targetIndex = localConfig.wizardLayout.findIndex(s => s.id === section.id);
-                                                
-                                                if (draggedIndex !== -1 && targetIndex !== -1 && draggedIndex !== targetIndex) {
-                                                    const newLayout = [...localConfig.wizardLayout];
-                                                    const [draggedItem] = newLayout.splice(draggedIndex, 1);
-                                                    newLayout.splice(targetIndex, 0, draggedItem);
-                                                    
-                                                    // Update order numbers
-                                                    newLayout.forEach((item, idx) => {
-                                                        item.order = idx + 1;
-                                                    });
-                                                    
-                                                    setLocalConfig(prev => ({
-                                                        ...prev,
-                                                        wizardLayout: newLayout
-                                                    }));
-                                                }
-                                            }}
-                                        >
-                                            <div className="step-number">{index + 3}</div>
-                                            <div className="step-info">
-                                                <strong>{section.title}</strong>
-                                                <span>{section.description}</span>
-                                                <div className="step-categories">
-                                                    {section.categoryIds.map(catId => {
-                                                        const category = localConfig.shopCategories.find(c => c.id === catId);
-                                                        return category ? (
-                                                            <span key={catId} className="category-tag" style={{backgroundColor: category.color}}>
-                                                                {category.icon} {category.name}
-                                                            </span>
-                                                        ) : null;
-                                                    })}
-                                                </div>
-                                            </div>
-                                            <div className="step-controls">
-                                                <label className="toggle-switch mini">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={section.isActive}
-                                                        onChange={(e) => {
-                                                            const sectionIndex = localConfig.wizardLayout.findIndex(s => s.id === section.id);
-                                                            handleItemChange('wizardLayout', sectionIndex, 'isActive', e.target.checked);
-                                                        }}
-                                                    />
-                                                    <div className="toggle-slider"></div>
-                                                </label>
-                                                <span className="drag-handle">⋮⋮</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="layout-editor">
-                                <h4>⚙️ Sectie Configuratie</h4>
-                                <div className="wizard-sections-grid">
-                                    {localConfig.wizardLayout.map((section, index) => (
-                                        <div key={section.id} className="wizard-section-card">
-                                            <div className="section-card-header">
-                                                <input
-                                                    type="text"
-                                                    className="section-title-input"
-                                                    value={section.title}
-                                                    onChange={(e) => handleItemChange('wizardLayout', index, 'title', e.target.value)}
-                                                />
-                                                <span className="section-order">#{section.order}</span>
-                                            </div>
-                                            <div className="section-card-content">
-                                                <textarea
-                                                    className="section-description-input"
-                                                    value={section.description}
-                                                    onChange={(e) => handleItemChange('wizardLayout', index, 'description', e.target.value)}
-                                                    rows={2}
-                                                />
-                                                
-                                                {/* Category Selection */}
-                                                <div className="category-selection">
-                                                    <label>Categorieën:</label>
-                                                    <div className="category-checkboxes">
-                                                        {localConfig.shopCategories.filter(cat => cat.isActive).map(category => (
-                                                            <label key={category.id} className="category-checkbox">
-                                                                <input 
-                                                                    type="checkbox"
-                                                                    checked={section.categoryIds.includes(category.id)}
-                                                                    onChange={(e) => {
-                                                                        const newCategoryIds = e.target.checked
-                                                                            ? [...section.categoryIds, category.id]
-                                                                            : section.categoryIds.filter(id => id !== category.id);
-                                                                        handleItemChange('wizardLayout', index, 'categoryIds', newCategoryIds);
-                                                                    }}
-                                                                />
-                                                                <span style={{color: category.color}}>
-                                                                    {category.icon} {category.name}
-                                                                </span>
-                                                            </label>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {/* Display Settings */}
-                                                <div className="display-settings-grid">
-                                                    <div className="setting-group">
-                                                        <label>Weergave Type:</label>
-                                                        <select 
-                                                            value={section.displayType}
-                                                            onChange={(e) => handleItemChange('wizardLayout', index, 'displayType', e.target.value)}
-                                                        >
-                                                            <option value="grid">Grid</option>
-                                                            <option value="list">Lijst</option>
-                                                            <option value="carousel">Carrousel</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="setting-group">
-                                                        <label>Items per rij:</label>
-                                                        <input 
-                                                            type="number"
-                                                            min="1"
-                                                            max="6"
-                                                            value={section.itemsPerRow}
-                                                            onChange={(e) => handleItemChange('wizardLayout', index, 'itemsPerRow', parseInt(e.target.value) || 1)}
-                                                        />
-                                                    </div>
-                                                    <div className="setting-group">
-                                                        <label>
-                                                            <input 
-                                                                type="checkbox"
-                                                                checked={section.showPrices}
-                                                                onChange={(e) => handleItemChange('wizardLayout', index, 'showPrices', e.target.checked)}
-                                                            />
-                                                            Prijzen tonen
-                                                        </label>
-                                                    </div>
-                                                    <div className="setting-group">
-                                                        <label>
-                                                            <input 
-                                                                type="checkbox"
-                                                                checked={section.showImages}
-                                                                onChange={(e) => handleItemChange('wizardLayout', index, 'showImages', e.target.checked)}
-                                                            />
-                                                            Afbeeldingen tonen
-                                                        </label>
-                                                    </div>
-                                                    <div className="setting-group">
-                                                        <label>
-                                                            <input 
-                                                                type="checkbox"
-                                                                checked={section.showQuantity}
-                                                                onChange={(e) => handleItemChange('wizardLayout', index, 'showQuantity', e.target.checked)}
-                                                            />
-                                                            Aantal selector tonen
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="section-actions">
-                                                    <button 
-                                                        className="delete-btn compact"
-                                                        onClick={() => handleDeleteItem('wizardLayout', index)}
-                                                    >
-                                                        🗑️ Verwijderen
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 📦 SHOP ITEMS SECTIE */}
-                    <div className="merchandise-section items-section">
-                        <div className="section-header">
-                            <div className="section-title">
-                                <h3>📦 Shop Items & Merchandise</h3>
-                                <p className="section-description">Beheer individuele items, merchandise en producten</p>
-                            </div>
-                            <button 
-                                className="add-item-btn merchandise"
-                                onClick={() => handleAddItem('shopMerchandise', {
-                                    id: `item_${Date.now()}`,
-                                    name: 'Nieuw Item',
-                                    description: 'Beschrijving van het nieuwe item',
-                                    price: 19.95,
-                                    originalPrice: 24.95,
-                                    discount: 5,
-                                    discountType: 'fixed',
-                                    imageUrl: 'https://placehold.co/400x400/10b981/white?text=Nieuw+Item',
-                                    galleryImages: [],
-                                    category: 'kleding',
-                                    type: 'clothing',
-                                    featured: false,
-                                    stock: 50,
-                                    stockStatus: 'in_stock',
-                                    lowStockThreshold: 10,
-                                    sizes: [],
-                                    colors: [],
-                                    rating: 0,
-                                    reviewCount: 0,
-                                    salesCount: 0,
-                                    tags: ['nieuw'],
-                                    specifications: {},
-                                    isActive: true,
-                                    createdAt: new Date().toISOString(),
-                                    updatedAt: new Date().toISOString()
-                                })}
-                            >
-                                <span className="btn-icon">➕</span>
-                                Nieuw Item
-                            </button>
-                        </div>
-                        <div className="merchandise-grid">
-                            {localConfig.shopMerchandise.map((item, index) => (
-                                <div key={item.id} className="merchandise-card">
-                                    <div className="card-image-section">
-                                        {item.imageUrl && (
-                                            <img src={item.imageUrl} alt={item.name} className="item-image" />
-                                        )}
-                                        <input
-                                            type="url"
-                                            className="image-url-input"
-                                            value={item.imageUrl}
-                                            onChange={(e) => handleItemChange('shopMerchandise', index, 'imageUrl', e.target.value)}
-                                            placeholder="Afbeelding URL"
-                                        />
-                                        {item.featured && <div className="featured-badge">FEATURED</div>}
-                                    </div>
-                                    <div className="card-content">
-                                        <input
-                                            type="text"
-                                            className="item-name-input"
-                                            value={item.name}
-                                            onChange={(e) => handleItemChange('shopMerchandise', index, 'name', e.target.value)}
-                                            placeholder="Item naam"
-                                        />
-                                        <textarea
-                                            className="item-description-input"
-                                            value={item.description}
-                                            onChange={(e) => handleItemChange('shopMerchandise', index, 'description', e.target.value)}
-                                            placeholder="Beschrijving"
-                                            rows={3}
-                                        />
-                                        
-                                        <div className="price-section">
-                                            <label>Prijs:</label>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                className="price-input"
-                                                value={item.price}
-                                                onChange={(e) => handleItemChange('shopMerchandise', index, 'price', parseFloat(e.target.value) || 0)}
-                                            />
-                                        </div>
-
-                                        <div className="category-section">
-                                            <div className="form-group-inline">
-                                                <label>Categorie:</label>
-                                                <select 
-                                                    value={item.category}
-                                                    onChange={(e) => handleItemChange('shopMerchandise', index, 'category', e.target.value)}
-                                                >
-                                                    {localConfig.shopCategories.map(cat => (
-                                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="form-group-inline">
-                                                <label>Voorraad:</label>
-                                                <input 
-                                                    type="number"
-                                                    min="0"
-                                                    value={item.stock}
-                                                    onChange={(e) => handleItemChange('shopMerchandise', index, 'stock', parseInt(e.target.value) || 0)}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="features-section">
-                                            <div className="feature-toggles">
-                                                <label className="toggle-switch">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={item.featured}
-                                                        onChange={(e) => handleItemChange('shopMerchandise', index, 'featured', e.target.checked)}
-                                                    />
-                                                    <div className="toggle-slider"></div>
-                                                    <span className="toggle-label">Featured</span>
-                                                </label>
-                                                <label className="toggle-switch">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={item.isActive}
-                                                        onChange={(e) => handleItemChange('shopMerchandise', index, 'isActive', e.target.checked)}
-                                                    />
-                                                    <div className="toggle-slider"></div>
-                                                    <span className="toggle-label">Actief</span>
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <div className="item-actions">
-                                            <button 
-                                                className="delete-item-btn"
-                                                onClick={() => handleDeleteItem('shopMerchandise', index)}
-                                            >
-                                                🗑️ Verwijderen
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* 📦 MERCHANDISE PAKKETTEN SECTIE */}
-                    <div className="merchandise-section packages-section">
-                        <div className="section-header">
-                            <div className="section-title">
-                                <h3>📦 Merchandise Pakketten</h3>
-                                <p className="section-description">Speciale pakketten met gecombineerde merchandise items</p>
-                            </div>
-                            <button 
-                                className="add-item-btn premium"
-                                onClick={() => handleAddItem('merchandisePackages', {
-                                    id: `new_package_${Date.now()}`,
-                                    name: 'Nieuw Merchandise Pakket',
-                                    description: 'Beschrijving van het merchandise pakket',
-                                    type: 'merchandise',
-                                    items: [],
-                                    originalPrice: 0,
-                                    packagePrice: 0,
-                                    discount: 10,
-                                    discountType: 'percentage',
-                                    minQuantity: 1,
-                                    maxQuantity: 10,
-                                    isActive: true,
-                                    validFrom: new Date().toISOString().split('T')[0],
-                                    validUntil: new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
-                                    imageUrl: 'https://placehold.co/300x200/d4af37/2a2a2a?text=Merchandise+Pakket',
-                                    tags: ['new'],
-                                    salesCount: 0,
-                                    revenue: 0,
-                                    category: 'new'
-                                })}
-                            >
-                                <span className="btn-icon">✨</span>
-                                Nieuw Merchandise Pakket
-                            </button>
-                        </div>
-
-                        {/* Package Stats */}
-                        <div className="package-stats-grid">
-                            <div className="stat-card">
-                                <div className="stat-icon">📦</div>
-                                <div className="stat-content">
-                                    <div className="stat-value">{localConfig.merchandisePackages?.length || 0}</div>
-                                    <div className="stat-label">Actieve Pakketten</div>
-                                </div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-icon">💰</div>
-                                <div className="stat-content">
-                                    <div className="stat-value">
-                                        €{(localConfig.merchandisePackages?.reduce((sum, p) => sum + p.revenue, 0) || 0).toFixed(0)}
-                                    </div>
-                                    <div className="stat-label">Pakket Omzet</div>
-                                </div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-icon">📈</div>
-                                <div className="stat-content">
-                                    <div className="stat-value">
-                                        {Math.round((localConfig.merchandisePackages?.reduce((sum, p) => sum + p.salesCount, 0) || 0) / Math.max(localConfig.merchandisePackages?.length || 1, 1))}
-                                    </div>
-                                    <div className="stat-label">Gem. Verkoop</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Package Cards Grid */}
-                        <div className="packages-grid">
-                            {(localConfig.merchandisePackages || []).map((pkg, index) => (
-                                <div key={pkg.id} className={`package-card ${pkg.category}`}>
-                                    <div className="package-card-header">
-                                        <img src={pkg.imageUrl} alt={pkg.name} className="package-image" />
-                                        <div className="package-badge">
-                                            <span className={`category-badge ${pkg.category}`}>
-                                                {pkg.category === 'popular' ? '🔥 Populair' : 
-                                                 pkg.category === 'new' ? '✨ Nieuw' :
-                                                 pkg.category === 'premium' ? '👑 Premium' : '⏰ Limited'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="package-card-content">
-                                        <div className="package-info">
-                                            <input 
-                                                type="text" 
-                                                value={pkg.name} 
-                                                onChange={e => handleItemChange('merchandisePackages', index, 'name', e.target.value)}
-                                                className="package-name-input"
-                                            />
-                                            <textarea 
-                                                value={pkg.description} 
-                                                onChange={e => handleItemChange('merchandisePackages', index, 'description', e.target.value)}
-                                                className="package-description-input"
-                                                rows={2}
-                                            />
-                                        </div>
-
-                                        <div className="package-pricing">
-                                            <div className="pricing-row">
-                                                <label>Origineel:</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={pkg.originalPrice} 
-                                                    onChange={e => handleItemChange('merchandisePackages', index, 'originalPrice', Number(e.target.value))}
-                                                    className="price-input"
-                                                />
-                                            </div>
-                                            <div className="pricing-row">
-                                                <label>Pakket:</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={pkg.packagePrice} 
-                                                    onChange={e => handleItemChange('merchandisePackages', index, 'packagePrice', Number(e.target.value))}
-                                                    className="price-input highlighted"
-                                                />
-                                            </div>
-                                            <div className="discount-display">
-                                                💰 {pkg.discount}% korting = €{(pkg.originalPrice - pkg.packagePrice).toFixed(2)} besparing
-                                            </div>
-                                        </div>
-
-                                        <div className="package-performance">
-                                            <div className="performance-metric">
-                                                <span className="metric-icon">📊</span>
-                                                <span>{pkg.salesCount} verkocht</span>
-                                            </div>
-                                            <div className="performance-metric">
-                                                <span className="metric-icon">💵</span>
-                                                <span>€{pkg.revenue}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="package-controls">
-                                            <label className="toggle-switch">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={pkg.isActive} 
-                                                    onChange={e => handleItemChange('merchandisePackages', index, 'isActive', e.target.checked)}
-                                                />
-                                                <span className="toggle-slider"></span>
-                                                <span className="toggle-label">Actief</span>
-                                            </label>
-                                            
-                                            <button 
-                                                onClick={() => handleDeleteItem('merchandisePackages', pkg.id)} 
-                                                className="delete-package-btn"
-                                                title="Pakket verwijderen"
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                            </li>
+                        ))}
+                    </ul>
+                    <button className="add-new-btn btn-secondary" onClick={() => handleAddItem('merchandise', {id: `merch_${Date.now()}`, name: '', price: 0, description: '', imageUrl: ''})}>
+                        Nieuwe Extra Toevoegen
+                    </button>
                 </div>
             );
             case 'promo': return (
@@ -6583,7 +5555,6 @@ const SettingsView = ({ config, setConfig, events, setEvents }: {
                 <div className="settings-tabs">
                     <button className={activeTab === 'shows' ? 'active' : ''} onClick={() => setActiveTab('shows')}>{i18n.showsTypesCapacity}</button>
                     <button className={activeTab === 'booking' ? 'active' : ''} onClick={() => setActiveTab('booking')}>{i18n.bookingSettings}</button>
-                    <button className={activeTab === 'merchandise' ? 'active' : ''} onClick={() => setActiveTab('merchandise')}>🛍️ Volledige Merchandise & Pakketten</button>
                     <button className={activeTab === 'promo' ? 'active' : ''} onClick={() => setActiveTab('promo')}>{i18n.promoAndGifts}</button>
                     <button className={activeTab === 'archive' ? 'active' : ''} onClick={() => setActiveTab('archive')}>{i18n.archive}</button>
                 </div>
@@ -7251,13 +6222,13 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                             onAddShow={onAddShow} onAddReservation={onAddReservation} onDeleteReservation={onDeleteReservation} onDeleteWaitingList={onDeleteWaitingList}
                             config={config} guestCountMap={guestCountMap} onBulkDelete={onBulkDelete}
                             onDeleteShow={onDeleteShow} onToggleShowStatus={onToggleShowStatus} onToggleCheckIn={onToggleCheckIn}
-                            onEditReservation={handleEditReservation}
+                            onEditReservation={handleEditReservation} onUpdateReservation={onUpdateReservation}
                         />
                     </>
                 );
             case 'schedule': 
                 return (
-                    <AdminScheduleView 
+                    <ScheduleView
                         showEvents={showEvents} 
                         internalEvents={internalEvents}
                         onAddInternalEvent={onAddInternalEvent}
@@ -7277,18 +6248,9 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                 return (
                     <NewAdminWaitlistView 
                         waitlist={waitingList}
-                        onNotifyWaitlist={(entry) => {
-                            // Handle notify waitlist logic
-                            addToast(`📧 ${entry.customerName} is geïnformeerd`, 'success');
-                        }}
-                        onConvertToBooking={(entry) => {
-                            // Handle convert to booking logic
-                            addToast(`✅ Wachtlijst entry omgezet voor ${entry.customerName}`, 'success');
-                        }}
-                        onRemoveFromWaitlist={(entryId) => {
-                            // Handle remove from waitlist logic
-                            addToast('🗑️ Entry verwijderd van wachtlijst', 'success');
-                        }}
+                        onNotifyWaitlist={onNotifyWaitlist}
+                        onConvertToBooking={onConvertWaitlistToReservation}
+                        onRemoveFromWaitlist={onDeleteWaitingList}
                     />
                 );
             case 'vouchers':
@@ -7545,6 +6507,11 @@ const ScheduleView = ({ showEvents, internalEvents, onAddInternalEvent, onUpdate
         <div className="schedule-view">
             {/* Schedule Header */}
             <div className="schedule-header">
+                <div className="schedule-title-section">
+                    <h2 className="schedule-main-title">🎭 Personeelsplanning & Schema's</h2>
+                    <p className="schedule-subtitle">Beheer interne events en print professionele planning overzichten</p>
+                </div>
+                
                 <div className="schedule-controls">
                     <div className="view-controls">
                         <button 
@@ -7724,7 +6691,8 @@ const InternalEventModal = ({ event, selectedDate, internalEventTypes, onSave, o
         title: '',
         startTime: '10:00',
         endTime: '12:00',
-        notes: ''
+        notes: '',
+        assignedStaff: [] as string[]
     });
 
     useEffect(() => {
@@ -7735,7 +6703,8 @@ const InternalEventModal = ({ event, selectedDate, internalEventTypes, onSave, o
                 title: event.title,
                 startTime: event.startTime,
                 endTime: event.endTime,
-                notes: event.notes || ''
+                notes: event.notes || '',
+                assignedStaff: event.assignedStaff || []
             });
         }
     }, [event]);
@@ -7829,6 +6798,20 @@ const InternalEventModal = ({ event, selectedDate, internalEventTypes, onSave, o
                             placeholder="Extra informatie: aantal personen, speciale vereisten, contactgegevens..."
                             rows={3}
                         />
+                    </div>
+                    
+                    <div className="form-group">
+                        <label>👥 Toegewezen Personeel (optioneel)</label>
+                        <input
+                            type="text"
+                            value={formData.assignedStaff.join(', ')}
+                            onChange={(e) => {
+                                const staff = e.target.value.split(',').map(name => name.trim()).filter(name => name.length > 0);
+                                setFormData(prev => ({ ...prev, assignedStaff: staff }));
+                            }}
+                            placeholder="bv. Jan, Marie, Peter"
+                        />
+                        <small className="form-help-text">Scheidt namen met komma's. Laat leeg als niet van toepassing.</small>
                     </div>
                     
                     <div className="modal-actions">
@@ -7944,6 +6927,31 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
         printWindow.print();
     };
 
+    const handleExportCSV = () => {
+        const reportData = generateManagementReport();
+        const headers = ["Datum", "Show", "Type", "Capaciteit", "Geboekt", "Bezetting (%)", "Omzet (€)"];
+        const rows = reportData.map(show => 
+            [
+                new Date(show.date + 'T12:00:00').toLocaleDateString('nl-NL'),
+                show.showName,
+                show.showType,
+                show.capacity,
+                show.booked,
+                show.occupancyRate,
+                show.revenue.toFixed(2)
+            ].join(',')
+        );
+
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `management_rapport_${printOptions.startDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const generatePrintContent = () => {
         if (printOptions.format === 'management') {
             return generateManagementPrintContent();
@@ -7987,6 +6995,7 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                         .event-time { font-weight: bold; color: #333; font-size: 11px; }
                         .event-title { font-size: 12px; margin-bottom: 2px; }
                         .event-notes { font-size: 10px; color: #666; font-style: italic; }
+                        .event-staff { font-size: 10px; color: #555; margin-top: 2px; font-weight: 500; }
                         .no-events { color: #999; font-style: italic; font-size: 11px; }
                     </style>
                 </head>
@@ -8031,6 +7040,11 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                                                     <div class="event-title"><strong>${event.title}</strong></div>
                                                     <div class="event-time">${event.startTime} - ${event.endTime}</div>
                                                     <div style="font-size: 10px;">Type: ${event.type.replace('-', ' ')}</div>
+                                                    ${event.assignedStaff && event.assignedStaff.length > 0 ? `
+                                                        <div class="event-staff" style="font-size: 10px; color: #555; margin-top: 2px;">
+                                                            <strong>Team:</strong> ${event.assignedStaff.join(', ')}
+                                                        </div>
+                                                    ` : ''}
                                                     ${printOptions.includeNotes && event.notes ? `<div class="event-notes">${event.notes}</div>` : ''}
                                                 </div>
                                             `).join('') : '<span class="no-events">Geen events</span>'}
@@ -8078,6 +7092,7 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                         .internal-event { border-left-color: #10b981; }
                         .event-title { font-weight: 600; font-size: 9px; }
                         .event-time { color: #666; font-size: 8px; }
+                        .event-staff { color: #555; font-size: 7px; font-weight: 500; }
                         .eco-note { text-align: center; margin-top: 20px; font-size: 8px; color: #666; }
                     </style>
                 </head>
@@ -8110,6 +7125,9 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                                         <div class="event-item internal-event">
                                             <div class="event-title">${event.title}</div>
                                             <div class="event-time">${event.startTime} | ${event.type.replace('-', ' ')}</div>
+                                            ${event.assignedStaff && event.assignedStaff.length > 0 ? `
+                                                <div class="event-staff">Team: ${event.assignedStaff.join(', ')}</div>
+                                            ` : ''}
                                         </div>
                                     `).join('')}
                                     ${dateShows.length === 0 && dateInternals.length === 0 ? '<div style="color: #999; font-style: italic;">Geen events</div>' : ''}
@@ -8193,20 +7211,23 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                         </thead>
                         <tbody>
                             ${reportData.map(show => `
-                                <tr>
+                                <tr style="${show.occupancyRate > 90 ? 'background-color: #e8f5e9;' : show.occupancyRate < 30 ? 'background-color: #ffeaa7;' : ''}">
                                     <td>${new Date(show.date + 'T12:00:00').toLocaleDateString('nl-NL')}</td>
                                     <td><strong>${show.showName}</strong></td>
                                     <td>${show.showType}</td>
-                                    <td>${show.capacity}</td>
-                                    <td>${show.booked}</td>
+                                    <td style="text-align: center;">${show.capacity}</td>
+                                    <td style="text-align: center;">${show.booked}</td>
                                     <td>
-                                        <div class="occupancy-bar">
-                                            <div class="occupancy-fill" style="width: ${show.occupancyRate}%"></div>
+                                        <div class="occupancy-bar" style="background-color: #e0e0e0; border-radius: 4px; overflow: hidden; height: 16px; position: relative;">
+                                            <div class="occupancy-fill" style="width: ${show.occupancyRate}%; background-color: ${show.occupancyRate > 90 ? '#4CAF50' : show.occupancyRate > 70 ? '#FFC107' : show.occupancyRate > 40 ? '#FF9800' : '#f44336'}; height: 100%; transition: width 0.3s ease;"></div>
+                                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);">
+                                                ${show.occupancyRate}%
+                                            </div>
                                         </div>
-                                        <small>${show.occupancyRate}%</small>
                                     </td>
-                                    <td class="${show.revenue > 500 ? 'revenue-high' : show.revenue < 200 ? 'revenue-low' : ''}">
+                                    <td class="${show.revenue > 500 ? 'revenue-high' : show.revenue < 200 ? 'revenue-low' : ''}" style="text-align: right;">
                                         €${show.revenue.toLocaleString('nl-NL')}
+                                        ${show.revenue > 750 ? ' 💰' : show.revenue < 150 ? ' ⚠️' : ''}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -8395,6 +7416,11 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
                         <button type="button" className="btn-secondary" onClick={onClose}>
                             Annuleer
                         </button>
+                        {printOptions.format === 'management' && (
+                            <button type="button" className="btn-secondary" onClick={handleExportCSV}>
+                                📊 Exporteer CSV
+                            </button>
+                        )}
                         <button type="button" className="btn-primary" onClick={handlePrint}>
                             🖨️ Printen
                         </button>
