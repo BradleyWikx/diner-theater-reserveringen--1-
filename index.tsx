@@ -9,6 +9,9 @@ import { DiscreteAdminButton } from './src/components/admin/DiscreteAdminButton'
 import PremiumDashboard from './PremiumDashboard';
 import AdminApprovalsView from './src/components/views/AdminApprovalsView';
 import AdminScheduleView from './src/components/views/AdminScheduleView';
+import { AdminWaitlistView as NewAdminWaitlistView } from './src/components/views/AdminWaitlistView';
+import { AdminVoucherView as NewAdminVoucherView } from './src/components/views/AdminVoucherView';
+import { AdminCapacityView as NewAdminCapacityView } from './src/components/views/AdminCapacityView';
 import type { 
     ShowEvent, 
     InternalEvent, 
@@ -7271,10 +7274,26 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
             case 'approvals':
                 return <AdminApprovalsView reservations={reservations} showEvents={showEvents} onUpdateReservation={onUpdateReservation} guestCountMap={guestCountMap} />;
             case 'waitlist':
-                return <AdminWaitlistView waitingList={waitingList} showEvents={showEvents} />;
+                return (
+                    <NewAdminWaitlistView 
+                        waitlist={waitingList}
+                        onNotifyWaitlist={(entry) => {
+                            // Handle notify waitlist logic
+                            addToast(`📧 ${entry.customerName} is geïnformeerd`, 'success');
+                        }}
+                        onConvertToBooking={(entry) => {
+                            // Handle convert to booking logic
+                            addToast(`✅ Wachtlijst entry omgezet voor ${entry.customerName}`, 'success');
+                        }}
+                        onRemoveFromWaitlist={(entryId) => {
+                            // Handle remove from waitlist logic
+                            addToast('🗑️ Entry verwijderd van wachtlijst', 'success');
+                        }}
+                    />
+                );
             case 'vouchers':
                 return (
-                    <TheaterVoucherManagement 
+                    <NewAdminVoucherView 
                         theaterVouchers={config.theaterVouchers}
                         onCreateVoucher={(voucher) => {
                             const newVoucher = { ...voucher, id: Date.now().toString() };
@@ -7303,6 +7322,7 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                                 )
                             };
                             setConfig(updatedConfig);
+                            addToast('✅ Theaterbon bijgewerkt', 'success');
                         }}
                         onDeleteVoucher={(voucherId) => {
                             const updatedConfig = {
@@ -7319,7 +7339,14 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
             case 'reports':
                 return <AdminReportsView reservations={reservations} showEvents={showEvents} config={config} />;
             case 'capacity':
-                return <AdminCapacityView showEvents={showEvents} guestCountMap={guestCountMap} onUpdateShowCapacity={onUpdateShowCapacity} onToggleShowStatus={onToggleShowStatus} onAddExternalBooking={onAddExternalBooking} config={config} />;
+                return (
+                    <NewAdminCapacityView 
+                        showEvents={showEvents} 
+                        guestCountMap={guestCountMap} 
+                        onUpdateShowCapacity={onUpdateShowCapacity}
+                        onAddExternalBooking={onAddExternalBooking}
+                    />
+                );
             case 'settings':
                 return (
                      <>

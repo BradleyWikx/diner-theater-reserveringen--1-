@@ -958,8 +958,149 @@
 }
 
 /* ============================================================================ */
-/* === ADMIN SCHEDULE VIEW - MODERN DESIGN === */
+/* === ADMIN MODAL COMPONENT ENHANCEMENTS === */
 /* ============================================================================ */
+
+.admin-modal-title {
+  font-size: var(--admin-font-lg);
+  font-weight: var(--admin-font-semibold);
+  color: var(--admin-text-primary);
+  margin: 0;
+  line-height: var(--admin-leading-tight);
+}
+
+.admin-modal-subtitle {
+  font-size: var(--admin-font-sm);
+  color: var(--admin-text-secondary);
+  margin: var(--admin-space-xs) 0 0 0;
+  line-height: var(--admin-leading-normal);
+}
+
+.admin-form-group {
+  margin-bottom: var(--admin-space-md);
+}
+
+.admin-form-group:last-child {
+  margin-bottom: 0;
+}
+
+.admin-label.required::after {
+  content: '*';
+  color: var(--admin-danger);
+  margin-left: var(--admin-space-xs);
+}
+
+.admin-form-error {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-xs);
+  font-size: var(--admin-font-xs);
+  font-weight: var(--admin-font-medium);
+}
+
+.admin-form-error::before {
+  content: '⚠️';
+  font-size: var(--admin-font-sm);
+}
+
+/* Form Input States */
+.admin-input:focus,
+.admin-select:focus,
+.admin-textarea:focus {
+  outline: none;
+  border-color: var(--admin-border-focus);
+  box-shadow: 0 0 0 3px rgba(var(--admin-primary-rgb), 0.1);
+}
+
+.admin-input.border-admin-danger,
+.admin-select.border-admin-danger,
+.admin-textarea.border-admin-danger {
+  border-color: var(--admin-danger);
+}
+
+.admin-input.border-admin-danger:focus,
+.admin-select.border-admin-danger:focus,
+.admin-textarea.border-admin-danger:focus {
+  border-color: var(--admin-danger);
+  box-shadow: 0 0 0 3px rgba(var(--admin-danger-rgb), 0.1);
+}
+
+/* Enhanced Spacing Classes */
+.space-y-md > * + * {
+  margin-top: var(--admin-space-md);
+}
+
+.space-y-sm > * + * {
+  margin-top: var(--admin-space-sm);
+}
+
+.space-y-lg > * + * {
+  margin-top: var(--admin-space-lg);
+}
+
+/* Flex Utilities */
+.flex { display: flex; }
+.flex-1 { flex: 1; }
+.flex-wrap { flex-wrap: wrap; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+
+/* Width Utilities */
+.w-full { width: 100%; }
+.max-w-md { max-width: 28rem; }
+.max-w-lg { max-width: 32rem; }
+.max-w-2xl { max-width: 42rem; }
+.max-w-4xl { max-width: 56rem; }
+
+/* Text Utilities */
+.text-center { text-align: center; }
+.text-sm { font-size: var(--admin-font-sm); }
+.text-xs { font-size: var(--admin-font-xs); }
+.font-semibold { font-weight: var(--admin-font-semibold); }
+
+/* Color Text Utilities */
+.text-admin-primary { color: var(--admin-primary); }
+.text-admin-success { color: var(--admin-success); }
+.text-admin-warning { color: var(--admin-warning); }
+.text-admin-danger { color: var(--admin-danger); }
+.text-admin-info { color: var(--admin-info); }
+.text-admin-text-primary { color: var(--admin-text-primary); }
+.text-admin-text-secondary { color: var(--admin-text-secondary); }
+
+/* Color Background Utilities */
+.bg-admin-info-light { background-color: var(--admin-info-light); }
+.bg-admin-success-light { background-color: var(--admin-success-light); }
+.bg-admin-warning-light { background-color: var(--admin-warning-light); }
+.bg-admin-danger-light { background-color: var(--admin-danger-light); }
+
+/* Border Color Utilities */
+.border-admin-info { border-color: var(--admin-info) !important; }
+.border-admin-success { border-color: var(--admin-success) !important; }
+.border-admin-warning { border-color: var(--admin-warning) !important; }
+.border-admin-danger { border-color: var(--admin-danger) !important; }
+
+/* Margin Utilities Extended */
+.mt-xs { margin-top: var(--admin-space-xs); }
+.mt-sm { margin-top: var(--admin-space-sm); }
+.mt-md { margin-top: var(--admin-space-md); }
+.ml-1 { margin-left: 0.25rem; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+/* ============================================================================ */
+/* === ADMIN CALENDAR EVENT ENHANCEMENTS === */
+/* ============================================================================ */
+
+.admin-calendar-event {
+  font-size: var(--admin-font-xs);
+  font-weight: var(--admin-font-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-bottom: var(--admin-space-xs);
+}
 
 /* Schedule Grid Layout */
 .schedule-grid-modern {
@@ -1560,12 +1701,12 @@
     font-size: 7px;
   }
 }
-  
-  .event-title {
-    max-width: 60px;
-  }
-  
-  .admin-schedule-modal {
-    width: 90vw;
-  }
+
+.event-title {
+  max-width: 60px;
+}
+
+.admin-schedule-modal {
+  width: 90vw;
+}
 }
