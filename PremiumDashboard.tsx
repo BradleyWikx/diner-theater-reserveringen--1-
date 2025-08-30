@@ -56,6 +56,7 @@ const PremiumDashboard: React.FC<PremiumDashboardProps> = ({
       showEvents={showEvents}
       waitingList={waitingList}
       setActiveView={handleQuickAction}
+      config={config}
     />
   );
 };

@@ -6691,9 +6691,28 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                     <PremiumDashboard 
                         reservations={reservations} 
                         showEvents={showEvents} 
-                        customers={customers} 
+                        waitingList={waitingList}
                         config={config} 
-                        guestCountMap={guestCountMap}
+                        i18n={{}} // Temporary empty i18n object
+                        onNavigate={(view: string, date?: string) => {
+                            console.log('Dashboard navigation:', view, date);
+                            // Handle navigation based on view
+                            if (view === 'reservations') {
+                                setAdminView('reservations');
+                            } else if (view === 'calendar') {
+                                setAdminView('calendar');
+                            } else if (view === 'waitlist') {
+                                setAdminView('waitlist');
+                            } else if (view === 'customers') {
+                                setAdminView('customers');
+                            } else if (view === 'analytics') {
+                                setAdminView('analytics');
+                            } else if (view === 'approvals') {
+                                setAdminView('approvals');
+                            } else if (view === 'settings') {
+                                setAdminView('settings');
+                            }
+                        }}
                     />
                 );
                 

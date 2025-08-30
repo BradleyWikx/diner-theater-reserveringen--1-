@@ -201,7 +201,7 @@ export const AdminDataTable: React.FC<AdminDataTableProps> = ({
   if (data.length === 0) {
     return (
       <div className="admin-table-empty">
-        <p>{emptyMessage}</p>
+        <div>{emptyMessage}</div>
       </div>
     );
   }

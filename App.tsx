@@ -1,23 +1,47 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import { ToastProvider } from './src/components/shared/ToastSystem';
-import PremiumDashboard from './PremiumDashboard';
 import './src/styles/admin-design-system.css';
 import './index.css';
 
-// Enhanced Main App with error boundaries and toast notifications
+// Simple test component to verify the dashboard is visible
 const App: React.FC = () => {
   return (
     <ToastProvider>
-      <Suspense fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-admin-primary mx-auto"></div>
-            <p className="mt-4 text-admin-text-secondary">Loading Admin Panel...</p>
+      <div style={{ 
+        padding: '2rem', 
+        minHeight: '100vh', 
+        backgroundColor: '#f8fafc',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
+        <div className="modern-dashboard">
+          <div className="dashboard-welcome">
+            <div className="welcome-text">
+              <h1>Theater Dashboard - TEST</h1>
+              <p>Als je dit ziet, werkt de CSS wel!</p>
+            </div>
+            <div className="quick-stats">
+              <div className="quick-stat">
+                <span className="stat-value">TEST</span>
+                <span className="stat-label">CSS Werkt</span>
+              </div>
+            </div>
           </div>
         </div>
-      }>
-        <PremiumDashboard />
-      </Suspense>
+        
+        {/* Test zonder CSS classes */}
+        <div style={{
+          backgroundColor: 'white',
+          padding: '2rem',
+          margin: '2rem 0',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0'
+        }}>
+          <h2 style={{ color: '#1e293b', margin: 0 }}>Basis HTML Test</h2>
+          <p style={{ color: '#64748b', margin: '0.5rem 0 0 0' }}>
+            Dit zou ALTIJD zichtbaar moeten zijn, ongeacht CSS.
+          </p>
+        </div>
+      </div>
     </ToastProvider>
   );
 };
