@@ -59,132 +59,117 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
       case 'rejected':
         filtered = reservations.filter(r => r.status === 'cancelled');
         break;
-      case 'all':
       default:
-        filtered = reservations.filter(r => r.status !== 'waitlisted');
-        break;
+        filtered = reservations;
     }
 
-    // Sort the filtered results
+    // Sort reservations
     return filtered.sort((a, b) => {
-      let valueA: any, valueB: any;
+      const aValue = a[sortKey as keyof Reservation];
+      const bValue = b[sortKey as keyof Reservation];
       
-      switch (sortKey) {
-        case 'date':
-          valueA = new Date(a.date);
-          valueB = new Date(b.date);
-          break;
-        case 'customerName':
-          valueA = a.contactName.toLowerCase();
-          valueB = b.contactName.toLowerCase();
-          break;
-        case 'guests':
-          valueA = a.guests;
-          valueB = b.guests;
-          break;
-        case 'totalPrice':
-          valueA = a.totalPrice || 0;
-          valueB = b.totalPrice || 0;
-          break;
-        default:
-          valueA = a[sortKey as keyof Reservation];
-          valueB = b[sortKey as keyof Reservation];
+      if (sortDirection === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
       }
-
-      if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
-      if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
     });
   }, [reservations, filter, sortKey, sortDirection]);
 
-  // Get show name helper
+  // Handle sorting
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get show name from showEvents
   const getShowName = (date: string) => {
     const show = showEvents.find(s => s.date === date);
-    return show ? `${show.name}` : 'Onbekende Show';
+    return show?.name || `Show ${date}`;
   };
 
-  // Get show type helper
+  // Get show type from showEvents
   const getShowType = (date: string) => {
     const show = showEvents.find(s => s.date === date);
-    return show ? show.type : 'Onbekend';
+    return show?.type || 'Theater';
   };
 
-  // Calculate capacity impact
+  // Get capacity info for a reservation
   const getCapacityInfo = (reservation: Reservation) => {
-    const currentGuests = guestCountMap.get(reservation.date) || 0;
     const show = showEvents.find(s => s.date === reservation.date);
-    const showCapacity = show?.capacity || 240;
+    const baseCapacity = show?.capacity || 50;
+    const capacity = show?.manualCapacityOverride || baseCapacity;
     
-    const totalWithReservation = currentGuests + reservation.guests;
-    const wouldExceed = totalWithReservation > showCapacity;
-    const remaining = Math.max(0, showCapacity - currentGuests);
-    const exceedsBy = Math.max(0, totalWithReservation - showCapacity);
-    
+    const currentBookings = guestCountMap.get(reservation.date) || 0;
+    const total = currentBookings + reservation.guests;
+    const remaining = capacity - total;
+    const wouldExceed = total > capacity;
+    const exceedsBy = wouldExceed ? total - capacity : 0;
+
     return {
-      current: currentGuests,
-      capacity: showCapacity,
-      total: totalWithReservation,
+      capacity,
+      total,
+      remaining: Math.max(0, remaining),
       wouldExceed,
-      remaining,
       exceedsBy
     };
   };
 
-  // Handle approval actions
-  const handleApprove = (reservation: Reservation) => {
-    const updated = { ...reservation, status: 'confirmed' as const };
-    onUpdateReservation(updated);
-  };
-
-  const handleReject = (reservation: Reservation) => {
-    const updated = { ...reservation, status: 'cancelled' as const };
-    onUpdateReservation(updated);
-  };
-
-  // Handle email resend
-  const handleResendEmail = async (reservation: Reservation, emailType: 'provisional' | 'confirmed' = 'confirmed') => {
+  // Handle email sending
+  const handleResendEmail = async (reservation: Reservation, emailType: 'confirmed' | 'provisional') => {
     try {
-      const show = showEvents.find(e => e.date === reservation.date);
       const emailData: BookingEmailData = {
-        customerName: reservation.contactName || 'Onbekend',
-        customerEmail: reservation.email || 'Niet opgegeven',
-        customerPhone: reservation.phone || 'Niet opgegeven',
-        customerAddress: `${reservation.address || ''} ${reservation.houseNumber || ''}`.trim() || undefined,
-        customerCity: reservation.city || undefined,
-        customerPostalCode: reservation.postalCode || undefined,
-        customerCountry: reservation.country || 'Nederland',
+        customerName: reservation.contactName,
+        customerEmail: reservation.email,
+        customerPhone: reservation.phone,
+        customerAddress: reservation.address,
+        customerCity: reservation.city,
+        customerPostalCode: reservation.postalCode,
+        customerCountry: reservation.country,
         companyName: reservation.companyName,
-        showTitle: show?.name || 'Onbekende show',
+        showTitle: getShowName(reservation.date),
         showDate: reservation.date,
-        showTime: show?.time || undefined,
-        packageType: reservation.drinkPackage || 'standard',
+        packageType: reservation.drinkPackage,
         numberOfGuests: reservation.guests,
-        totalPrice: reservation.totalPrice || 0,
+        totalPrice: reservation.totalPrice,
         reservationId: reservation.id,
         allergies: reservation.allergies,
         preShowDrinks: reservation.preShowDrinks,
-        afterParty: reservation.afterParty ? reservation.guests : undefined,
+        afterParty: reservation.afterParty ? reservation.guests : 0,
         remarks: reservation.remarks,
         promoCode: reservation.promoCode,
         discountAmount: reservation.discountAmount
       };
 
-      const success = await resendConfirmationEmail(emailData, emailType);
-      if (success) {
-        alert(`Email ${emailType === 'provisional' ? 'voorlopige boeking' : 'bevestiging'} succesvol verstuurd naar ${reservation.email}`);
-      } else {
-        alert('Er is een fout opgetreden bij het versturen van de email');
-      }
+      await resendConfirmationEmail(emailData, emailType);
+      console.log(`Email ${emailType} verzonden naar ${reservation.email}`);
     } catch (error) {
-      console.error('Email resend failed:', error);
-      alert('Er is een fout opgetreden bij het versturen van de email');
+      console.error('Fout bij versturen email:', error);
     }
   };
 
-  // Handle sorting
-  const handleSort = (key: string, direction: 'asc' | 'desc') => {
-    setSortKey(key);
-    setSortDirection(direction);
+  // Handle approval
+  const handleApprove = (reservation: Reservation) => {
+    const updatedReservation: Reservation = {
+      ...reservation,
+      status: 'confirmed',
+      approvedBy: 'Admin' // In a real app, this would be the current user
+    };
+    onUpdateReservation(updatedReservation);
+    handleResendEmail(reservation, 'confirmed');
+  };
+
+  // Handle rejection
+  const handleReject = (reservation: Reservation) => {
+    const updatedReservation: Reservation = {
+      ...reservation,
+      status: 'cancelled'
+    };
+    onUpdateReservation(updatedReservation);
   };
 
   // Get urgency indicator
@@ -219,7 +204,7 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
     }
   };
 
-  // Table columns definition
+  // Table columns definition - Simple and focused
   const columns = [
     {
       key: 'urgency',
@@ -235,74 +220,79 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
       key: 'customerName',
       label: 'Klantgegevens',
       sortable: true,
+      width: '220px',
       render: (reservation: Reservation) => (
-        <div className="flex items-center gap-sm">
-          <div className="w-8 h-8 bg-admin-primary-light text-admin-primary rounded-full flex items-center justify-center text-xs font-semibold">
-            {reservation.contactName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+        <div className="flex items-start gap-sm">
+          <div className="w-10 h-10 bg-admin-primary-light text-admin-primary rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
+            {(reservation.contactName || 'N/A').split(' ').map(n => n[0]).join('').slice(0, 2)}
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="font-medium text-admin-text-primary">
-              {reservation.contactName}
+              {reservation.salutation ? `${reservation.salutation} ${reservation.contactName}` : reservation.contactName || 'Geen naam'}
             </div>
             <div className="text-xs text-admin-text-secondary">
-              {reservation.email}
+              📧 {reservation.email || 'Geen email'}
             </div>
             <div className="text-xs text-admin-text-tertiary">
-              {reservation.phone}
+              📞 {reservation.phoneCode ? `${reservation.phoneCode} ` : ''}{reservation.phone || 'Geen telefoon'}
             </div>
+            {(reservation.address && reservation.city) && (
+              <div className="text-xs text-admin-text-tertiary">
+                📍 {reservation.address} {reservation.houseNumber}, {reservation.postalCode} {reservation.city}
+              </div>
+            )}
+            {reservation.companyName && (
+              <div className="text-xs text-admin-text-tertiary">
+                🏢 {reservation.companyName}
+              </div>
+            )}
           </div>
         </div>
       )
     },
     {
       key: 'showInfo',
-      label: 'Show Details',
+      label: 'Show & Datum',
       sortable: true,
-      render: (reservation: Reservation) => (
-        <div>
-          <div className="font-medium text-admin-text-primary">
-            {getShowName(reservation.date)}
-          </div>
-          <div className="text-xs text-admin-text-secondary">
-            {getShowType(reservation.date)}
-          </div>
-          <div className="text-xs text-admin-text-tertiary">
-            {new Date(reservation.date).toLocaleDateString('nl-NL', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long'
-            })}
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'details',
-      label: 'Borrels & Extra\'s',
+      width: '150px',
       render: (reservation: Reservation) => {
-        const details = [];
-        
-        // Drankenpakket
-        details.push(`📦 ${reservation.drinkPackage === 'premium' ? 'Premium' : 'Standaard'} pakket`);
-        
-        // Borrels
-        if (reservation.preShowDrinks) details.push(`🍹 Pre-show borrel (${reservation.guests}x)`);
-        if (reservation.afterParty) details.push(`🎉 After party (${reservation.guests}x)`);
-        
-        // Allergieën
-        if (reservation.allergies) details.push(`🥗 Allergieën: ${reservation.allergies.length > 50 ? reservation.allergies.substring(0, 50) + '...' : reservation.allergies}`);
-        
-        // Promocode
-        if (reservation.promoCode) details.push(`🎟️ ${reservation.promoCode}`);
+        const showDate = new Date(reservation.date);
+        const today = new Date();
+        const daysUntilShow = Math.ceil((showDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const isToday = showDate.toDateString() === today.toDateString();
+        const isPast = showDate < today;
         
         return (
-          <div className="text-xs space-y-1">
-            {details.length > 0 ? details.map((detail, i) => (
-              <div key={i} className="text-admin-text-tertiary">
-                {detail}
+          <div>
+            <div className="font-medium text-admin-text-primary">
+              {getShowName(reservation.date)}
+            </div>
+            <div className="text-xs text-admin-text-secondary">
+              {getShowType(reservation.date)}
+            </div>
+            <div className={`text-xs font-medium ${
+              isPast ? 'text-admin-danger' : 
+              isToday ? 'text-admin-warning' : 
+              daysUntilShow <= 3 ? 'text-admin-warning' : 
+              'text-admin-text-tertiary'
+            }`}>
+              {showDate.toLocaleDateString('nl-NL', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+              })}
+            </div>
+            {!isPast && (
+              <div className={`text-xs ${
+                isToday ? 'text-admin-danger font-semibold' : 
+                daysUntilShow <= 3 ? 'text-admin-warning' : 
+                'text-admin-text-tertiary'
+              }`}>
+                {isToday ? '🚨 VANDAAG!' : 
+                 daysUntilShow === 1 ? '⚠️ Morgen' : 
+                 daysUntilShow <= 7 ? `📅 ${daysUntilShow}d` : 
+                 `📅 ${daysUntilShow}d`}
               </div>
-            )) : (
-              <span className="text-admin-text-tertiary italic">Geen extra's</span>
             )}
           </div>
         );
@@ -323,43 +313,31 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
       )
     },
     {
-      key: 'capacity',
-      label: 'Capaciteit Impact',
+      key: 'totalPrice',
+      label: 'Prijs',
+      sortable: true,
+      width: '100px',
+      align: 'right' as const,
       render: (reservation: Reservation) => {
-        const capacityInfo = getCapacityInfo(reservation);
+        const totalPrice = reservation.totalPrice || 0;
+        const discountAmount = reservation.discountAmount || 0;
+        
         return (
-          <div>
-            <div className={`text-sm font-medium ${capacityInfo.wouldExceed ? 'text-admin-danger' : 'text-admin-success'}`}>
-              {capacityInfo.total} / {capacityInfo.capacity}
+          <div className="text-right">
+            <div className="font-semibold text-admin-success">
+              €{totalPrice.toFixed(2)}
             </div>
-            <div className="text-xs">
-              {capacityInfo.wouldExceed ? (
-                <span className="text-admin-danger">
-                  ⚠️ +{capacityInfo.exceedsBy} over capaciteit
-                </span>
-              ) : (
-                <span className="text-admin-success">
-                  ✅ {capacityInfo.remaining} plaatsen vrij
-                </span>
-              )}
+            {discountAmount > 0 && (
+              <div className="text-xs text-admin-warning">
+                -€{discountAmount.toFixed(2)}
+              </div>
+            )}
+            <div className="text-xs text-admin-text-tertiary">
+              €{(totalPrice / reservation.guests).toFixed(2)} p.p.
             </div>
           </div>
         );
       }
-    },
-    {
-      key: 'totalPrice',
-      label: 'Waarde',
-      sortable: true,
-      width: '100px',
-      align: 'right' as const,
-      render: (reservation: Reservation) => (
-        <div className="text-right">
-          <div className="font-semibold text-admin-success">
-            €{reservation.totalPrice?.toFixed(2) || '0.00'}
-          </div>
-        </div>
-      )
     },
     {
       key: 'status',

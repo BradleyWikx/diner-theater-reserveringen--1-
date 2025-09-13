@@ -7,11 +7,13 @@ import { useAuth } from './src/contexts/AuthContext';
 import { DiscreteAdminButton } from './src/components/admin/DiscreteAdminButton';
 import PremiumDashboard from './PremiumDashboard';
 import { AdminDashboardView } from './src/components/views/AdminDashboardView';
+import { SimpleDashboard } from './src/components/views/SimpleDashboard';
 import AdminApprovalsView from './src/components/views/AdminApprovalsView';
 import AdminScheduleView from './src/components/views/AdminScheduleView';
 import { AdminWaitlistView as NewAdminWaitlistView } from './src/components/views/AdminWaitlistView';
 import { AdminVoucherView as NewAdminVoucherView } from './src/components/views/AdminVoucherView';
 import { AdminCapacityView as NewAdminCapacityView } from './src/components/views/AdminCapacityView';
+import ModernAdminCustomersView from './src/components/views/ModernAdminCustomersView';
 import type { 
     ShowEvent, 
     InternalEvent, 
@@ -1206,6 +1208,7 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
     const WIZARD_STEPS = 5;
     const [currentStep, setCurrentStep] = useState(1);
     const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [willExceedCapacity, setWillExceedCapacity] = useState(false);
     const [showCapacityWarning, setShowCapacityWarning] = useState(false);
     const isMobile = useMediaQuery('(max-width: 900px)');
@@ -1424,30 +1427,48 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         setPromoMessage(i18n.invalidCode);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (isSubmitting) return; // Voorkom dubbele submits
         
         // Laatste validatie voordat formulier wordt ingediend
         const errors = getStepValidationErrors();
         if (errors.length > 0) {
-            const errorMessage = `⚠️ Vul eerst de verplichte velden in:\n\n• ${errors.join('\n• ')}`;
+            const errorMessage = `⚠️ Controleer de volgende velden:\n\n• ${errors.join('\n• ')}`;
             addToast(errorMessage, 'error');
             return;
         }
         
-        const reservationData = { 
-            ...reservation, 
-            totalPrice: priceDetails.total, 
-            discountAmount: priceDetails.discount 
-        };
+        setIsSubmitting(true);
         
-        // Only add promoCode if it exists (Firebase doesn't accept undefined values)
-        if (appliedCode?.code) {
-            reservationData.promoCode = appliedCode.code;
+        try {
+            const reservationData = { 
+                ...reservation, 
+                totalPrice: priceDetails.total, 
+                discountAmount: priceDetails.discount 
+            };
+            
+            // Only add promoCode if it exists (Firebase doesn't accept undefined values)
+            if (appliedCode?.code) {
+                reservationData.promoCode = appliedCode.code;
+            }
+            
+            // Toon tijdelijke bevestiging
+            addToast('Reservering wordt verwerkt...', 'info');
+            
+            await onAddReservation(reservationData);
+            setSubmitted(true);
+            
+            // Succes feedback
+            addToast('Reservering succesvol ontvangen!', 'success');
+            
+        } catch (error) {
+            console.error('Reservation submission failed:', error);
+            addToast('Er ging iets mis bij het verwerken van uw reservering. Probeer het opnieuw.', 'error');
+        } finally {
+            setIsSubmitting(false);
         }
-        
-        onAddReservation(reservationData);
-        setSubmitted(true);
     };
     
     const nextStep = () => {
@@ -1480,10 +1501,28 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                  <Icon id="clock" className="confirmation-icon" />
                  <h3>{i18n.awaitingApproval}</h3>
                  <p>{i18n.provisionalBookingConfirm}</p>
-                 <div className="provisional-notice">
-                     <Icon id="info" />
-                     <span>Uw boeking is voorlopig en vereist bevestiging van de beheerder. U ontvangt spoedig een definitieve bevestiging.</span>
+                 
+                 <div className="confirmation-details">
+                     <div className="confirmation-info">
+                         <h4>📧 Wat gebeurt er nu?</h4>
+                         <ul>
+                             <li>✅ Uw reserveringsverzoek is ontvangen</li>
+                             <li>📋 We controleren de beschikbaarheid</li>
+                             <li>📧 U ontvangt binnen 24 uur een bevestiging</li>
+                             <li>💳 Na bevestiging ontvangt u betaalinstructies</li>
+                         </ul>
+                     </div>
+                     
+                     <div className="provisional-notice">
+                         <Icon id="info" />
+                         <div>
+                             <strong>Reserveringsnummer:</strong> {show.name} - {new Date(date + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })}
+                             <br />
+                             <small>Bewaar deze pagina als referentie</small>
+                         </div>
+                     </div>
                  </div>
+                 
                  <button onClick={onClose} className="submit-btn">{i18n.close}</button>
             </div>
         )
@@ -1503,10 +1542,11 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                                     <div className="tooltip-container" onClick={(e) => e.stopPropagation()}>
                                         <span className="tooltip-icon">?</span>
                                         <div className="tooltip-content">
-                                            <strong>Standaard arrangement</strong>
-                                            {'\n\n'}Voorstelling + Dinerbuffet
-                                            {'\n'}+ Standaard Drank Arrangement
-                                            {'\n\n'}Inclusief: Bier, wijn, frisdrank, port & Martini
+                                            <strong>Standaard Arrangement</strong>
+                                            {'\n\n'}✓ Voorstelling
+                                            {'\n'}✓ Dinerbuffet
+                                            {'\n'}✓ Standaard drankenpakket
+                                            {'\n\n'}Inclusief: Bier, wijn, frisdrank, koffie/thee
                                         </div>
                                     </div>
                                 </div>
@@ -1519,10 +1559,11 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                                     <div className="tooltip-container" onClick={(e) => e.stopPropagation()}>
                                         <span className="tooltip-icon">?</span>
                                         <div className="tooltip-content">
-                                            <strong>Premium arrangement</strong>
-                                            {'\n\n'}Voorstelling + Dinerbuffet
-                                            {'\n'}+ Premium Drank Arrangement
-                                            {'\n\n'}Inclusief: Bier, wijn, frisdrank, sterke drank, speciale bieren en bubbels van het huis
+                                            <strong>Premium Arrangement</strong>
+                                            {'\n\n'}✓ Voorstelling
+                                            {'\n'}✓ Dinerbuffet
+                                            {'\n'}✓ Premium drankenpakket
+                                            {'\n\n'}Inclusief: Alle standaard dranken + sterke drank, speciale bieren en bubbels van het huis
                                         </div>
                                     </div>
                                 </div>
@@ -1593,8 +1634,8 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
 
                 return (
                     <fieldset>
-                        <legend>✨ Maak je Avond Extra Speciaal</legend>
-                        <p className="fieldset-subtitle">Voeg een van onze populaire extra's toe aan je boeking.</p>
+                        <legend>🎁 Stap 3: Extra's en souvenirs</legend>
+                        <p className="fieldset-subtitle">Maak uw avond nog specialer met onze optionele extra's.</p>
 
                         <div className="simple-addons-list">
                             {merchandiseItems.map(item => (
@@ -1706,25 +1747,25 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                             <div className="form-group"><label htmlFor="email">{i18n.formEmail}</label><input id="email" name="email" type="email" value={reservation.email} onChange={handleFormChange} required /></div>
                         </div>
 
-                        {/* Allergieën Sectie - Belangrijk voor restaurant */}
+                        {/* Allergieën Sectie - Heel belangrijk voor restaurant */}
                         <fieldset>
                             <legend>🥗 Allergieën & Dieetwensen</legend>
                             <div className="allergy-section">
                                 <div className="form-group single-column">
                                     <label htmlFor="allergies" className="important-label">
-                                        Vermeld hier eventuele allergieën, dieetwensen of bijzondere verzoeken *
+                                        Heeft u allergieën, dieetwensen of bijzondere verzoeken? 
                                     </label>
                                     <textarea 
                                         id="allergies" 
                                         name="allergies" 
                                         value={reservation.allergies || ''} 
                                         onChange={handleFormChange}
-                                        placeholder="Bijvoorbeeld: lactose-intolerant, vegetarisch, glutenvrij, noten-allergie..."
-                                        rows={4}
+                                        placeholder="Bijvoorbeeld: lactose-intolerant, vegetarisch, glutenvrij, noten-allergie, halal, kosher..."
+                                        rows={3}
                                         className="allergy-textarea"
                                     />
                                     <div className="form-help-text">
-                                        Deze informatie wordt direct doorgegeven aan onze keuken voor een veilige en aangename ervaring.
+                                        💡 Deze informatie wordt direct doorgegeven aan onze keuken voor een veilige en aangename culinaire ervaring.
                                     </div>
                                 </div>
                             </div>
@@ -1777,11 +1818,11 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                             <div className="celebration-fields">
                                 <div className="form-group single-column">
                                     <label htmlFor="celebrationName">{i18n.celebrationName}</label>
-                                    <input id="celebrationName" name="celebrationName" type="text" value={reservation.celebrationName} onChange={handleFormChange} />
+                                    <input id="celebrationName" name="celebrationName" type="text" value={reservation.celebrationName} onChange={handleFormChange} placeholder="Bijvoorbeeld: Jan Jansen" />
                                 </div>
                                 <div className="form-group single-column">
                                     <label htmlFor="celebrationOccasion">{i18n.celebrationOccasion}</label>
-                                    <input id="celebrationOccasion" name="celebrationOccasion" type="text" value={reservation.celebrationOccasion} onChange={handleFormChange} />
+                                    <input id="celebrationOccasion" name="celebrationOccasion" type="text" value={reservation.celebrationOccasion} onChange={handleFormChange} placeholder="Bijvoorbeeld: verjaardag, jubileum, pensioen" />
                                 </div>
                             </div>
                         </fieldset>
@@ -1874,35 +1915,54 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         if (currentStep === 1) {
             // Stap 1: Arrangement & Gasten
             if (!reservation.drinkPackage) {
-                errors.push('Selecteer een arrangement (Standaard of Premium)');
+                errors.push('Kies een arrangement: Standaard of Premium');
             }
             if (!reservation.guests || reservation.guests < 1) {
-                errors.push('Vul een geldig aantal gasten in');
+                errors.push('Vul een geldig aantal gasten in (minimaal 1)');
+            }
+            if (reservation.guests > (currentShowType?.defaultCapacity || 150)) {
+                errors.push(`Maximum aantal gasten is ${currentShowType?.defaultCapacity || 150}`);
             }
         }
         
         if (currentStep === 4) {
-            // Stap 4: Contactgegevens
-            if (!reservation.contactName) errors.push('Contactpersoon naam is verplicht');
-            if (!reservation.address) errors.push('Adres is verplicht');
-            if (!reservation.houseNumber) errors.push('Huisnummer is verplicht');
-            if (!reservation.postalCode) errors.push('Postcode is verplicht');
-            if (!reservation.city) errors.push('Plaats is verplicht');
-            if (!reservation.phone) errors.push('Telefoonnummer is verplicht');
-            if (!reservation.email) errors.push('E-mailadres is verplicht');
+            // Stap 4: Contactgegevens - verbeterde validatie
+            if (!reservation.contactName?.trim()) errors.push('Naam van de contactpersoon is verplicht');
+            if (!reservation.address?.trim()) errors.push('Straatnaam is verplicht');
+            if (!reservation.houseNumber?.trim()) errors.push('Huisnummer is verplicht');
+            if (!reservation.postalCode?.trim()) errors.push('Postcode is verplicht');
+            if (!reservation.city?.trim()) errors.push('Woonplaats is verplicht');
+            if (!reservation.phone?.trim()) errors.push('Telefoonnummer is verplicht');
+            
+            // E-mail validatie
+            if (!reservation.email?.trim()) {
+                errors.push('E-mailadres is verplicht');
+            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reservation.email)) {
+                errors.push('Voer een geldig e-mailadres in (bijvoorbeeld: naam@voorbeeld.nl)');
+            }
+            
+            // Land validatie
+            if (reservation.country === 'OTHER' && !reservation.customCountry?.trim()) {
+                errors.push('Vul het land in wanneer u "Ander land" heeft gekozen');
+            }
+            
+            // Telefoon validatie
+            if (reservation.phoneCode === 'OTHER' && !reservation.customPhoneCode?.trim()) {
+                errors.push('Vul de landcode in wanneer u "Andere" heeft gekozen');
+            }
             
             // Validatie voor afwijkend factuuradres indien aangevinkt
             if (reservation.differentBillingAddress) {
-                if (!reservation.billingAddress) errors.push('Factuuradres is verplicht');
-                if (!reservation.billingHouseNumber) errors.push('Factuur huisnummer is verplicht');
-                if (!reservation.billingPostalCode) errors.push('Factuur postcode is verplicht');
-                if (!reservation.billingCity) errors.push('Factuur plaats is verplicht');
+                if (!reservation.billingAddress?.trim()) errors.push('Factuuradres is verplicht');
+                if (!reservation.billingHouseNumber?.trim()) errors.push('Huisnummer voor factuuradres is verplicht');
+                if (!reservation.billingPostalCode?.trim()) errors.push('Postcode voor factuuradres is verplicht');
+                if (!reservation.billingCity?.trim()) errors.push('Plaats voor factuuradres is verplicht');
             }
         }
         
         if (currentStep === 5) {
             // Stap 5: Overzicht - alleen algemene voorwaarden
-            if (!reservation.termsAccepted) errors.push('Acceptatie van algemene voorwaarden is verplicht');
+            if (!reservation.termsAccepted) errors.push('Accepteer de algemene voorwaarden om uw reservering te voltooien');
         }
         
         return errors;
@@ -1918,8 +1978,9 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
         // Navigation props
         currentStep, totalSteps: WIZARD_STEPS, 
         onPrevStep: prevStep, onNextStep: nextStep,
-        canGoNext: getStepValidationErrors().length === 0,
-        onSubmit: handleSubmit, isLastStep: currentStep === WIZARD_STEPS
+        canGoNext: getStepValidationErrors().length === 0 && !isSubmitting,
+        onSubmit: handleSubmit, isLastStep: currentStep === WIZARD_STEPS,
+        isSubmitting
     }
 
     return (
@@ -3046,7 +3107,7 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                                 <tbody>
                                     {currentItems.map((r, index) => (
                                         <tr key={r.id} className={`professional-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                                            <td>
+                                            <td data-label="Datum & Tijd">
                                                 <div className="date-info-cell">
                                                     <div className="date-primary">{formatDateToNL(new Date(r.date + 'T12:00:00'))}</div>
                                                     <div className="time-info">🕐 19:30</div>
@@ -3055,14 +3116,14 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td data-label="Show Details">
                                                 <div className="show-info-cell">
                                                     <div className="show-title">{showMap.get(r.date)?.name || 'Onbekende Show'}</div>
                                                     <div className="show-type">🎪 {showMap.get(r.date)?.type || 'Standaard'}</div>
                                                     <div className="venue-info">🏛️ Theater Locatie</div>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td data-label="Klant Informatie">
                                                 <div className="customer-info-cell">
                                                     <div className="customer-header">
                                                         <div className="customer-avatar-modern">
@@ -3079,7 +3140,7 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td data-label="Gasten">
                                                 <div className="guests-info-cell">
                                                     <div className="guest-count-badge">
                                                         <span className="guest-icon">👥</span>
@@ -3090,7 +3151,7 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td data-label="Financieel">
                                                 <div className="financial-info-cell">
                                                     <div className="price-main">€{(r.totalPrice || 0).toLocaleString('nl-NL', {minimumFractionDigits: 2})}</div>
                                                     <div className="price-per-person">
@@ -3099,7 +3160,7 @@ const AdminReservationsView = ({ reservations, showEvents, onDeleteReservation, 
                                                     <div className="payment-status">💳 Betaald</div>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td data-label="Acties">
                                                 <div className="actions-cell-modern">
                                                     <button 
                                                         onClick={() => onEditReservation(r)} 
@@ -6123,6 +6184,28 @@ const EditReservationModal = ({ reservation, show, onClose, onSave }: {
 const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, setActiveView: (view: AdminView) => void }) => {
     // State voor het bijhouden welk submenu open is
     const [openMenu, setOpenMenu] = useState<string>('operations');
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    // Close mobile menu when view changes
+    useEffect(() => {
+        setMobileMenuOpen(false);
+    }, [activeView]);
+
+    // Close mobile menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const sidebar = document.querySelector('.admin-sidebar');
+            const mobileBtn = document.querySelector('.mobile-menu-btn');
+            if (mobileMenuOpen && sidebar && mobileBtn && 
+                !sidebar.contains(event.target as Node) && 
+                !mobileBtn.contains(event.target as Node)) {
+                setMobileMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [mobileMenuOpen]);
 
     // Nieuwe, gestructureerde menu data
     const navMenu = [
@@ -6173,18 +6256,38 @@ const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, s
     ];
 
     return (
-        <nav className="admin-sidebar">
-            <div className="sidebar-header">
-                <span>Inspiration Point</span>
-            </div>
-            <div className="sidebar-nav">
+        <>
+            {/* Mobile Menu Button */}
+            <button 
+                className="mobile-menu-btn"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle mobile menu"
+            >
+                {mobileMenuOpen ? '✕' : '☰'}
+            </button>
+            
+            {/* Mobile Overlay */}
+            <div 
+                className={`mobile-overlay ${mobileMenuOpen ? 'active' : ''}`}
+                onClick={() => setMobileMenuOpen(false)}
+            />
+            
+            <nav className={`admin-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+                <div className="sidebar-header">
+                    <span>Inspiration Point</span>
+                </div>
+                <div className="sidebar-nav">
                 {navMenu.map((item: any) => {
                     if (item.type === 'single') {
                         return (
                             <button
                                 key={item.id}
                                 className={`sidebar-link ${activeView === item.id ? 'active' : ''}`}
-                                onClick={() => setActiveView(item.id as AdminView)}
+                                onClick={() => {
+                                    console.log('🖱️ SIDEBAR CLICK:', item.id);
+                                    console.log('- Setting adminView to:', item.id);
+                                    setActiveView(item.id as AdminView);
+                                }}
                                 aria-current={activeView === item.id ? 'page' : undefined}
                             >
                                 <Icon id={item.icon} className="icon" />
@@ -6227,6 +6330,7 @@ const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, s
                 })}
             </div>
         </nav>
+        </>
     );
 };
 
@@ -6826,17 +6930,16 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
     }, [editingReservation, showEvents]);
 
     const renderAdminContent = () => {
+        console.log('🔍 DEBUG renderAdminContent:');
+        console.log('- adminView:', adminView);
+        console.log('- adminView type:', typeof adminView);
+        console.log('- adminView === "dashboard":', adminView === 'dashboard');
+        
         switch(adminView) {
             case 'dashboard':
+                console.log('✅ Rendering SimpleDashboard with consistent styling');
                 return (
-                    <AdminDashboardView 
-                        reservations={reservations} 
-                        showEvents={showEvents} 
-                        waitingList={waitingList}
-                        guestCountMap={guestCountMap}
-                        config={config}
-                        setActiveView={setAdminView} // Zorgt dat de knoppen werken
-                    />
+                    <SimpleDashboard setActiveView={setAdminView} />
                 );
                 
             case 'reservations':
@@ -6875,7 +6978,12 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                     />
                 );
             case 'customers':
-                return <AdminCustomersView customers={customers} onSelectCustomer={handleSelectCustomer} />;
+                console.log('🧑‍🤝‍🧑 Rendering ModernAdminCustomersView with customers:', {
+                    count: customers?.length || 0,
+                    sampleCustomer: customers?.[0],
+                    reservationsCount: reservations?.length || 0
+                });
+                return <ModernAdminCustomersView customers={customers} onSelectCustomer={handleSelectCustomer} />;
             case 'customerDetail':
                  return selectedCustomer ? <CustomerDetailView customer={selectedCustomer} onBack={handleBackToCustomers} showEvents={showEvents} onEditReservation={handleEditReservation}/> : null;
             case 'approvals':
@@ -6953,12 +7061,15 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                      </>
                 );
             default: 
+                console.log('❌ FALLBACK: Rendering PremiumDashboard (default case)');
+                console.log('- Unexpected adminView:', adminView);
                 return (
                     <PremiumDashboard 
                         config={config} 
                         i18n={i18n}
                         showEvents={showEvents}
                         reservations={reservations}
+                        waitingList={waitingList}
                         onNavigate={(view, date) => {
                             setAdminView(view as AdminView);
                         }}
@@ -7029,6 +7140,11 @@ const SvgDefs = () => (
       <symbol id="icon-flag" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></symbol>
       <symbol id="icon-calendar-week" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-8 4h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z"/></symbol>
       <symbol id="icon-gift" viewBox="0 0 24 24"><path d="M20 6h-2.6c.4-.8.6-1.8.6-3 0-1.7-1.3-3-3-3-.8 0-1.5.3-2 .8-.4-.5-1.2-.8-2-.8-1.7 0-3 1.3-3 3 0 1.2.2 2.2.6 3H4c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2v8c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8c1.1 0 2-.9 2-2v-2c0-1.1-.9-2-2-2zm-5-4c.6 0 1 .4 1 1s-.4 1-1 1h-1V3c0-.6.4-1 1-1zM9 3c0-.6.4-1 1-1s1 .4 1 1v1H9c-.6 0-1-.4-1-1zm3 15H6v-6h6v6zm0-8H4V8h8v2zm2 8v-6h6v6h-6zm6-8h-8V8h8v2z"/></symbol>
+      <symbol id="icon-theater" viewBox="0 0 24 24"><path d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></symbol>
+      <symbol id="icon-star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></symbol>
+      <symbol id="icon-euro" viewBox="0 0 24 24"><path d="M15 18.5A6.48 6.48 0 0 1 9.24 15H15v-2H8.58c-.05-.33-.08-.66-.08-1s.03-.67.08-1H15V9H9.24A6.48 6.48 0 0 1 15 5.5c1.61 0 3.09.59 4.23 1.57L21 5.3A8.96 8.96 0 0 0 15 3.5C10.8 3.5 7.27 6.46 6.44 10.5H4v1h2.44c0 .34.02.67.06 1H4v1h2.5c.83 4.04 4.36 7 8.5 7 2.24 0 4.31-.86 5.88-2.27L19.12 16.43A6.481 6.481 0 0 1 15 18.5z"/></symbol>
+      <symbol id="icon-coffee" viewBox="0 0 24 24"><path d="M2 21V19H20V21H2M20 8V5L18 3H6L4 5V8C4 10.21 5.79 12 8 12H16C18.21 12 20 10.21 20 8M20 8H21C21.55 8 22 8.45 22 9V11C22 11.55 21.55 12 21 12H20V8M13 2V4H11V2H13Z"/></symbol>
+      <symbol id="icon-help-circle" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></symbol>
     </svg>
   );
 
@@ -8249,6 +8365,16 @@ const AppContent = () => {
     }, [addToast, reloadFirebaseData]);
     
     const customers = useMemo(() => {
+        console.log('🧑‍🤝‍🧑 Generating customers from reservations:', {
+            reservationsCount: reservations?.length || 0,
+            sampleReservation: reservations?.[0]
+        });
+        
+        if (!reservations || reservations.length === 0) {
+            console.log('⚠️ No reservations found, returning empty customers array');
+            return [];
+        }
+        
         const customerMap = new Map<string, {name: string, reservations: Reservation[]}>();
         reservations.forEach(r => {
             if(!customerMap.has(r.email)){
@@ -8257,7 +8383,7 @@ const AppContent = () => {
             customerMap.get(r.email)!.reservations.push(r);
         });
         
-        return Array.from(customerMap.entries()).map(([email, data]) => {
+        const generatedCustomers = Array.from(customerMap.entries()).map(([email, data]) => {
             const sortedReservations = data.reservations.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             return {
                 email,
@@ -8269,6 +8395,13 @@ const AppContent = () => {
                 reservations: sortedReservations
             }
         });
+        
+        console.log('✅ Generated customers:', {
+            count: generatedCustomers.length,
+            sampleCustomer: generatedCustomers[0]
+        });
+        
+        return generatedCustomers;
     }, [reservations]);
 
     const handleAddShow = async (newShow: Omit<ShowEvent, 'id'>, dates: string[]) => {

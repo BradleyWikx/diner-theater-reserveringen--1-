@@ -6,6 +6,7 @@ interface AdminLayoutProps {
   subtitle?: string;
   actions?: React.ReactNode;
   className?: string;
+  loading?: boolean;
 }
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ 
@@ -13,7 +14,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   title, 
   subtitle, 
   actions,
-  className = ''
+  className = '',
+  loading = false
 }) => {
   return (
     <div className={`admin-layout-wrapper ${className}`}>
@@ -31,7 +33,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         </header>
       )}
       <div className="admin-content-body">
-        {children}
+        {loading ? (
+          <div className="flex items-center justify-center p-xl">
+            <div className="admin-btn-spinner" style={{ width: '2rem', height: '2rem' }}></div>
+            <span className="ml-3 text-admin-secondary">Loading...</span>
+          </div>
+        ) : children}
       </div>
     </div>
   );

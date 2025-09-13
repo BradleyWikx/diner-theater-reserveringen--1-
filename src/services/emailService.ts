@@ -14,8 +14,8 @@ Complete Email Workflow:
 EmailJS Service: service_nh0qgkw
 */
 
-// ⚠️ TIJDELIJK UITGESCHAKELD voor testing
-const EMAIL_ENABLED = false;
+// ✅ EMAIL SYSTEEM GEACTIVEERD met juiste templates
+const EMAIL_ENABLED = true;
 
 export interface BookingEmailData {
     customerName: string;
@@ -48,9 +48,9 @@ const EMAILJS_PUBLIC_KEY = 'Hg7wnrppHvVxeyCrf';      // Your EmailJS Public Key
 
 // Template IDs voor verschillende email types
 const EMAIL_TEMPLATES = {
-    PROVISIONAL_BOOKING: 'template_provisional',        // Voor voorlopige booking bevestiging
+    PROVISIONAL_BOOKING: 'template_e900xfs',           // Voor voorlopige booking bevestiging
     ADMIN_NOTIFICATION: 'template_admin_notify',       // Voor admin notificaties
-    BOOKING_CONFIRMED: 'template_confirmed',           // Voor booking bevestiging
+    BOOKING_CONFIRMED: 'template_sc4hcps',             // Voor booking bevestiging (goedkeuring)
     BOOKING_REJECTED: 'template_rejected',             // Voor booking afwijzing
     BOOKING_MODIFIED: 'template_modified',             // Voor wijzigingen
     RESEND_CONFIRMATION: 'template_resend'             // Voor handmatig opnieuw versturen

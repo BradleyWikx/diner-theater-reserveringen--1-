@@ -149,6 +149,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({
                     admin-calendar-day 
                     ${!day.isCurrentMonth ? 'admin-calendar-day--other-month' : ''}
                     ${day.isToday ? 'admin-calendar-day--today' : ''}
+                    ${dayEvents.length > 0 ? 'has-events' : ''}
                   `}
                 >
                   <div className="admin-calendar-day-number">
@@ -168,7 +169,7 @@ const AdminScheduleView: React.FC<AdminScheduleViewProps> = ({
                     ))}
                     
                     {dayEvents.length > 3 && (
-                      <AdminBadge variant="neutral" size="sm">
+                      <AdminBadge variant="neutral" size="sm" className="admin-calendar-event more-events">
                         +{dayEvents.length - 3}
                       </AdminBadge>
                     )}

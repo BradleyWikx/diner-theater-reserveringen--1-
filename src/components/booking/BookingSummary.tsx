@@ -22,6 +22,7 @@ interface BookingSummaryProps {
     canGoNext?: boolean;
     onSubmit?: () => void;
     isLastStep?: boolean;
+    isSubmitting?: boolean;
 }
 
 export const BookingSummary: React.FC<BookingSummaryProps> = ({
@@ -41,7 +42,8 @@ export const BookingSummary: React.FC<BookingSummaryProps> = ({
     onNextStep,
     canGoNext,
     onSubmit,
-    isLastStep
+    isLastStep,
+    isSubmitting = false
 }) => {
     const { guests, drinkPackage, preShowDrinks, afterParty, addons } = reservation;
     const merchandiseMap = useMemo(() => new Map(config.shopMerchandise.map(item => [item.id, item])), [config.shopMerchandise]);
@@ -160,16 +162,23 @@ export const BookingSummary: React.FC<BookingSummaryProps> = ({
                         <button 
                             type="button" 
                             onClick={onSubmit}
-                            disabled={!canGoNext}
-                            className="btn-primary"
+                            disabled={!canGoNext || isSubmitting}
+                            className={`btn-primary ${isSubmitting ? 'loading' : ''}`}
                         >
-                            Bevestigen
+                            {isSubmitting ? (
+                                <>
+                                    <span className="spinner"></span>
+                                    Verwerken...
+                                </>
+                            ) : (
+                                'Bevestigen'
+                            )}
                         </button>
                     ) : (
                         <button 
                             type="button" 
                             onClick={onNextStep}
-                            disabled={!canGoNext}
+                            disabled={!canGoNext || isSubmitting}
                             className="btn-primary"
                         >
                             Volgende
