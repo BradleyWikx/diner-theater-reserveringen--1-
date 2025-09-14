@@ -167,6 +167,7 @@ interface AdminDataTableProps {
     sortable?: boolean;
     width?: string;
     align?: 'left' | 'center' | 'right';
+    render?: (row: any) => React.ReactNode;
   }>;
   data: Array<Record<string, any>>;
   onSort?: (key: string, direction: 'asc' | 'desc') => void;
@@ -174,7 +175,7 @@ interface AdminDataTableProps {
   sortDirection?: 'asc' | 'desc';
   actions?: (row: any) => React.ReactNode;
   loading?: boolean;
-  emptyMessage?: string;
+  emptyMessage?: React.ReactNode;
   className?: string;
 }
 
@@ -208,7 +209,7 @@ export const AdminDataTable: React.FC<AdminDataTableProps> = ({
   if (data.length === 0) {
     return (
       <div className="admin-table-empty">
-        <div>{emptyMessage}</div>
+        {typeof emptyMessage === 'string' ? <div>{emptyMessage}</div> : emptyMessage}
       </div>
     );
   }
@@ -243,8 +244,9 @@ export const AdminDataTable: React.FC<AdminDataTableProps> = ({
                 <td
                   key={column.key}
                   className={`admin-table-cell ${column.align ? `text-${column.align}` : ''}`}
+                  style={{ width: column.width }}
                 >
-                  {row[column.key]}
+                  {column.render ? column.render(row) : row[column.key]}
                 </td>
               ))}
               {actions && (

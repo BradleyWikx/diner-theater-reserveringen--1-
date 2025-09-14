@@ -298,7 +298,6 @@ export const i18n = {
     allReservations: 'Alle reserveringen',
     approvals: 'Goedkeuringen',
     vouchers: 'Vouchers',
-    analytics: 'Analytics',
     customers: 'Klanten',
     capacityManagement: 'Capaciteit beheer',
     reports: 'Rapporten',

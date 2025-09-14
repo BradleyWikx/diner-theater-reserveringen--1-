@@ -76,126 +76,165 @@ export const AddShowModal: React.FC<AddShowModalProps> = ({ onClose, onAdd, conf
         <AdminModal
             isOpen={true}
             onClose={onClose}
-            title={isMultiMode ? `${i18n.addAction} (${dates.length} datums)` : i18n.addShowEventTitle}
+            title={isMultiMode ? `🎭 Show Toevoegen (${dates.length} datums)` : '🎭 Nieuwe Show Toevoegen'}
             subtitle={isMultiMode 
                 ? `Voeg een voorstelling toe aan ${dates.length} geselecteerde datums`
                 : 'Voeg een nieuwe voorstelling toe aan de planning'
             }
             size="md"
-            footer={
+            actions={
                 <AdminGrid columns={2} gap="sm" className="w-full">
                     <AdminButton
                         type="button"
-                        variant="secondary"
+                        variant="outline"
                         onClick={onClose}
                     >
-                        {i18n.cancel}
+                        Annuleren
                     </AdminButton>
                     <AdminButton
                         type="submit"
                         variant="primary"
                         onClick={handleSubmit}
+                        disabled={Object.keys(errors).length > 0}
                     >
-                        {isMultiMode ? `Toevoegen aan ${dates.length} datums` : i18n.addAction}
+                        {isMultiMode ? `🎭 Toevoegen aan ${dates.length} datums` : '🎭 Show Toevoegen'}
                     </AdminButton>
                 </AdminGrid>
             }
         >
-            <form onSubmit={handleSubmit} className="space-y-md">
-                <AdminFormGroup
-                    label={i18n.showName}
-                    htmlFor="showName"
-                    required
-                    error={errors.name}
-                >
-                    <AdminSelect
-                        id="showName"
-                        value={name}
-                        onChange={e => setName(e.target.value)}
-                        error={!!errors.name}
-                    >
-                        {activeShowNames.map(n => (
-                            <option key={n.id} value={n.name}>
-                                {n.name}
-                            </option>
-                        ))}
-                    </AdminSelect>
-                </AdminFormGroup>
-
-                <AdminFormGroup
-                    label={i18n.showType}
-                    htmlFor="showType"
-                    required
-                    error={errors.type}
-                >
-                    <AdminSelect
-                        id="showType"
-                        value={type}
-                        onChange={e => setType(e.target.value)}
-                        error={!!errors.type}
-                    >
-                        {activeShowTypes.map(t => (
-                            <option key={t.id} value={t.name}>
-                                {t.name} (standaard: {t.defaultCapacity} plaatsen)
-                            </option>
-                        ))}
-                    </AdminSelect>
-                </AdminFormGroup>
-
-                <AdminFormGroup
-                    label="Capaciteit"
-                    htmlFor="capacity"
-                    required
-                    error={errors.capacity}
-                >
-                    <AdminInput
-                        id="capacity"
-                        type="number"
-                        value={capacity}
-                        onChange={e => setCapacity(parseInt(e.target.value) || 0)}
-                        min={1}
-                        max={1000}
-                        error={!!errors.capacity}
-                    />
-                </AdminFormGroup>
-
-                {!isMultiMode && (
-                    <AdminFormGroup
-                        label="Datum"
-                        htmlFor="singleDate"
-                        required
-                        error={errors.singleDate}
-                    >
-                        <AdminInput
-                            id="singleDate"
-                            type="date"
-                            value={singleDate}
-                            onChange={e => setSingleDate(e.target.value)}
-                            error={!!errors.singleDate}
-                        />
-                    </AdminFormGroup>
-                )}
-
+            <div className="space-y-lg">
+                {/* Multi-date info banner */}
                 {isMultiMode && (
-                    <div className="admin-card bg-admin-info-light border-admin-info p-md rounded-md">
-                        <h4 className="text-admin-info font-semibold mb-xs">
-                            📅 Geselecteerde datums:
-                        </h4>
-                        <div className="flex flex-wrap gap-xs">
-                            {dates.slice(0, 5).map((date, index) => (
-                                <span key={index} className="admin-badge admin-badge--info admin-badge--sm">
-                                    {new Date(date).toLocaleDateString('nl-NL')}
-                                </span>
-                            ))}
-                            {dates.length > 5 && (
-                                <span className="admin-badge admin-badge--neutral admin-badge--sm">
-                                    +{dates.length - 5} meer
-                                </span>
-                            )}
+                    <div className="admin-alert admin-alert--info">
+                        <div className="admin-alert-icon">📅</div>
+                        <div>
+                            <div className="admin-alert-title">Meerdere datums geselecteerd</div>
+                            <div className="admin-alert-message">
+                                Deze voorstelling wordt toegevoegd aan alle {dates.length} geselecteerde datums
+                            </div>
                         </div>
                     </div>
                 )}
-            </form>
+
+                <form onSubmit={handleSubmit} className="space-y-md">
+                    <AdminFormGroup
+                        label="🎭 Show Naam"
+                        htmlFor="showName"
+                        required
+                        error={errors.name}
+                    >
+                        <AdminSelect
+                            id="showName"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            error={!!errors.name}
+                        >
+                            {activeShowNames.map(n => (
+                                <option key={n.id} value={n.name}>
+                                    {n.name}
+                                </option>
+                            ))}
+                        </AdminSelect>
+                    </AdminFormGroup>
+
+                    <AdminFormGroup
+                        label="📋 Show Type"
+                        htmlFor="showType"
+                        required
+                        error={errors.type}
+                    >
+                        <AdminSelect
+                            id="showType"
+                            value={type}
+                            onChange={e => setType(e.target.value)}
+                            error={!!errors.type}
+                        >
+                            {activeShowTypes.map(t => (
+                                <option key={t.id} value={t.name}>
+                                    {t.name} (standaard: {t.defaultCapacity} plaatsen)
+                                </option>
+                            ))}
+                        </AdminSelect>
+                    </AdminFormGroup>
+
+                    <AdminFormGroup
+                        label="👥 Capaciteit"
+                        htmlFor="capacity"
+                        required
+                        error={errors.capacity}
+                        helpText="Het maximum aantal gasten voor deze voorstelling"
+                    >
+                        <AdminInput
+                            id="capacity"
+                            type="number"
+                            value={capacity}
+                            onChange={e => setCapacity(parseInt(e.target.value) || 0)}
+                            min={1}
+                            max={1000}
+                            error={!!errors.capacity}
+                            placeholder="bijv. 240"
+                        />
+                    </AdminFormGroup>
+
+                    {!isMultiMode && (
+                        <AdminFormGroup
+                            label="📅 Datum"
+                            htmlFor="singleDate"
+                            required
+                            error={errors.singleDate}
+                        >
+                            <AdminInput
+                                id="singleDate"
+                                type="date"
+                                value={singleDate}
+                                onChange={e => setSingleDate(e.target.value)}
+                                error={!!errors.singleDate}
+                            />
+                        </AdminFormGroup>
+                    )}
+
+                    {isMultiMode && (
+                        <div className="admin-card bg-admin-primary-light border-admin-primary p-md rounded-md">
+                            <h4 className="text-admin-primary font-semibold mb-sm flex items-center gap-xs">
+                                📅 Geselecteerde datums ({dates.length})
+                            </h4>
+                            <div className="flex flex-wrap gap-xs max-h-32 overflow-y-auto">
+                                {dates.map((date, index) => (
+                                    <span key={index} className="admin-badge admin-badge--primary admin-badge--sm">
+                                        {new Date(date).toLocaleDateString('nl-NL', { 
+                                            weekday: 'short', 
+                                            day: 'numeric', 
+                                            month: 'short' 
+                                        })}
+                                    </span>
+                                ))}
+                            </div>
+                            {dates.length > 10 && (
+                                <div className="text-admin-primary-dark text-sm mt-xs">
+                                    Scroll om alle datums te bekijken
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Preview Card */}
+                    {name && type && capacity > 0 && (
+                        <div className="admin-card bg-admin-success-light border-admin-success p-md rounded-md">
+                            <h4 className="text-admin-success font-semibold mb-sm flex items-center gap-xs">
+                                ✨ Preview
+                            </h4>
+                            <div className="space-y-xs text-admin-success-dark">
+                                <div><strong>Show:</strong> {name}</div>
+                                <div><strong>Type:</strong> {type}</div>
+                                <div><strong>Capaciteit:</strong> {capacity} plaatsen</div>
+                                {isMultiMode && (
+                                    <div><strong>Datums:</strong> {dates.length} geselecteerd</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </form>
+            </div>
         </AdminModal>
     );
 };

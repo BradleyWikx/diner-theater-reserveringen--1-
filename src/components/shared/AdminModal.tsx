@@ -3,7 +3,7 @@ import { AdminButton } from '../layout';
 import { Icon } from '../UI/Icon';
 
 interface AdminModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   title: string;
   subtitle?: string;
@@ -11,19 +11,21 @@ interface AdminModalProps {
   className?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  actions?: React.ReactNode;
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({
-  isOpen,
+  isOpen = true,
   onClose,
   title,
   subtitle,
   size = 'md',
   className = '',
   children,
-  footer
+  footer,
+  actions
 }) => {
-  if (!isOpen) return null;
+  if (isOpen === false) return null;
 
   const sizeClasses = {
     sm: 'max-w-md',
@@ -59,9 +61,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           {children}
         </div>
 
-        {footer && (
+        {(footer || actions) && (
           <div className="admin-modal-footer">
-            {footer}
+            {actions || footer}
           </div>
         )}
       </div>
@@ -75,6 +77,7 @@ interface AdminFormGroupProps {
   htmlFor?: string;
   required?: boolean;
   error?: string;
+  helpText?: string;
   children: React.ReactNode;
   className?: string;
 }
@@ -84,6 +87,7 @@ export const AdminFormGroup: React.FC<AdminFormGroupProps> = ({
   htmlFor,
   required,
   error,
+  helpText,
   children,
   className = ''
 }) => {
@@ -96,6 +100,11 @@ export const AdminFormGroup: React.FC<AdminFormGroupProps> = ({
         {label}
         {required && <span className="text-admin-danger ml-1">*</span>}
       </label>
+      {helpText && (
+        <p className="admin-form-help text-admin-text-secondary text-sm mb-xs">
+          {helpText}
+        </p>
+      )}
       {children}
       {error && (
         <p className="admin-form-error text-admin-danger text-sm mt-xs">

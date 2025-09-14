@@ -385,10 +385,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             }}>
               <div className="no-show-icon" style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎭</div>
               <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#334155' }}>Geen voorstelling vandaag</h2>
-              <p style={{ marginBottom: '1.5rem', color: '#64748b' }}>Een perfecte dag voor planning en voorbereiding van komende shows.</p>
+              <p style={{ marginBottom: '1.5rem', color: '#64748b' }}>Een perfecte dag voor beheer en voorbereiding van komende shows.</p>
               <button 
                 className="secondary-action-button"
-                onClick={() => setActiveView('planning')}
+                onClick={() => setActiveView('calendar')}
                 style={{
                   backgroundColor: '#A00000',
                   color: '#ffffff',
@@ -400,7 +400,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 }}
               >
                 <SimpleIcon id="calendar-day" />
-                Bekijk Planning
+                Bekijk Kalender
               </button>
             </div>
           )}
@@ -482,7 +482,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <SimpleIcon id="chevron-right" />
             </div>
             
-            <div className="premium-action-item" onClick={() => setActiveView('planning')} style={{
+            <div className="premium-action-item" onClick={() => setActiveView('calendar')} style={{
               display: 'flex',
               alignItems: 'center',
               gap: '1rem',
@@ -510,78 +510,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </div>
               <SimpleIcon id="chevron-right" />
             </div>
-          </div>
-        </div>
-
-        {/* --- PRESTATIE ANALYTICS --- */}
-        <div className="performance-analytics-card" style={{ 
-          backgroundColor: '#2a2a2a', 
-          borderRadius: '16px', 
-          padding: '1.5rem',
-          border: '1px solid #444444',
-          gridColumn: 'span 2'
-        }}>
-          <div className="card-header-premium" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
-            marginBottom: '1rem',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <SimpleIcon id="chart" />
-              <h3 style={{ margin: '0', color: '#ffffff' }}>Prestatie Analytics</h3>
-            </div>
-            <span className="analytics-period" style={{ color: '#b0b0b0', fontSize: '0.85rem' }}>Laatste 7 dagen</span>
-          </div>
-          <div className="premium-chart-container" style={{ height: '280px' }}>
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={weeklyPerformanceData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#d4af37" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#d4af37" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#7f8c8d" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                />
-                <YAxis 
-                  stroke="#7f8c8d" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tickFormatter={(value) => `€${value}`}
-                />
-                <Tooltip
-                  cursor={{ fill: 'rgba(212, 175, 55, 0.1)' }}
-                  contentStyle={{
-                    backgroundColor: '#2c3e50',
-                    border: 'none',
-                    borderRadius: '12px',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                    color: '#ecf0f1'
-                  }}
-                  labelStyle={{ color: '#d4af37' }}
-                  formatter={(value: any, name: string) => [
-                    name === 'Omzet' ? `€${value}` : `${value} gasten`,
-                    name
-                  ]}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="Omzet" 
-                  stroke="#d4af37" 
-                  strokeWidth={3}
-                  fillOpacity={1} 
-                  fill="url(#revenueGradient)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
         </div>
 

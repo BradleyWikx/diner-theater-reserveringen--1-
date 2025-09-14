@@ -41,9 +41,6 @@ const PremiumDashboard: React.FC<PremiumDashboardProps> = ({
         case 'capacity':
           onNavigate('capacity');
           break;
-        case 'planning':
-          onNavigate('planning');
-          break;
         default:
           onNavigate(action);
       }

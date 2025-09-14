@@ -1,5 +1,4 @@
-export { AdminLogin } from './AdminLogin';
+export { AdminLogin } from './AdminLogin-Simple';
 export { AdminSettings } from './AdminSettings';
 export { DiscreteAdminButton } from './DiscreteAdminButton';
-export { ProtectedRoute } from './ProtectedRoute';
-export { default as AdminPlanning } from './AdminPlanning';
+export { default as AdminPage } from './AdminPage';

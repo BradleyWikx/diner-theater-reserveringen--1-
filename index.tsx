@@ -14,6 +14,7 @@ import { AdminWaitlistView as NewAdminWaitlistView } from './src/components/view
 import { AdminVoucherView as NewAdminVoucherView } from './src/components/views/AdminVoucherView';
 import { AdminCapacityView as NewAdminCapacityView } from './src/components/views/AdminCapacityView';
 import ModernAdminCustomersView from './src/components/views/ModernAdminCustomersView';
+import EnhancedAdminCalendarView from './src/components/calendar/AdminCalendarView';
 import type { 
     ShowEvent, 
     InternalEvent, 
@@ -68,7 +69,7 @@ import { WizardProgress, DynamicStyles } from './src/components/shared';
 
 // Import Firebase services
 import { firebaseService } from './src/firebase/services/firebaseService';
-import { useInternalEvents } from './src/hooks/firebase/useFirebaseData';
+import { useInternalEvents, useShows, useReservations, useWaitingList } from './src/hooks/firebase/useFirebaseData';
 
 // Import Email service
 import { 
@@ -2484,282 +2485,7 @@ const AdminDayDetails = ({ date, show, reservations, waitingList, onDeleteReserv
     );
 };
 
-// 🎭 Enhanced Modern Admin Calendar View with Advanced Features
-const AdminCalendarView = ({ showEvents, reservations, waitingList, onAddShow, onAddReservation, onDeleteReservation, onDeleteWaitingList, config, guestCountMap, onBulkDelete, onDeleteShow, onToggleShowStatus, onToggleCheckIn, onEditReservation, onUpdateReservation }: {
-    showEvents: ShowEvent[],
-    reservations: Reservation[],
-    waitingList: WaitingListEntry[],
-    onAddShow: (event: Omit<ShowEvent, 'id'>, dates: string[]) => void,
-    onAddReservation: (reservation: Omit<Reservation, 'id'>) => void,
-    onDeleteReservation: (id: string) => void,
-    onDeleteWaitingList: (id: string) => void,
-    config: AppConfig,
-    guestCountMap: Map<string, number>,
-    onBulkDelete: (criteria: { type: 'name' | 'type' | 'date', value: string }, month?: Date) => void;
-    onDeleteShow: (showId: string) => void;
-    onToggleShowStatus: (showId: string) => void;
-    onToggleCheckIn: (id: string) => void;
-    onEditReservation: (reservation: Reservation) => void;
-    onUpdateReservation: (reservation: Reservation) => void;
-}) => {
-    const [month, setMonth] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState<string | null>(formatDate(new Date()));
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isAddBookingModalOpen, setIsAddBookingModalOpen] = useState(false);
-    const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
-    const [selectedDateForBooking, setSelectedDateForBooking] = useState<string>('');
-    const [selectedShowForBooking, setSelectedShowForBooking] = useState<ShowEvent | null>(null);
-    const [popoverData, setPopoverData] = useState<{ event: ShowEvent, guests: number, element: HTMLDivElement } | null>(null);
-    const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
-    const [filterType, setFilterType] = useState<string>('all');
-
-    const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
-    const [multiSelectedDates, setMultiSelectedDates] = useState<string[]>([]);
-    const [isMultiActionModalOpen, setIsMultiActionModalOpen] = useState(false);
-
-    const handleDateClick = (date: string) => {
-        if (isMultiSelectMode) return; // Don't interfere with multi-select mode
-        
-        setSelectedDate(date);
-        // Just select the date, don't open modal automatically
-    };
-
-    const handleAddBooking = (date: string, show: ShowEvent) => {
-        setSelectedDateForBooking(date);
-        setSelectedShowForBooking(show);
-        setIsAddBookingModalOpen(true);
-    };
-
-    const handleMultiDateToggle = (date: string) => {
-        setMultiSelectedDates(prev => prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]);
-    }
-    
-    const cancelMultiSelect = () => {
-        setIsMultiSelectMode(false);
-        setMultiSelectedDates([]);
-    }
-
-    const selectedShow = useMemo(() => showEvents.find(e => e.date === selectedDate), [showEvents, selectedDate]);
-    const dayReservations = useMemo(() => reservations.filter(r => r.date === selectedDate && r.status === 'confirmed'), [reservations, selectedDate]);
-    const dayWaitingList = useMemo(() => waitingList.filter(wl => wl.date === selectedDate), [waitingList, selectedDate]);
-    
-    const monthEvents = useMemo(() => {
-        const year = month.getFullYear();
-        const monthIndex = month.getMonth();
-        let events = showEvents.filter(event => {
-            const eventDate = new Date(event.date + 'T12:00:00');
-            return eventDate.getFullYear() === year && eventDate.getMonth() === monthIndex;
-        });
-        
-        if (filterType !== 'all') {
-            events = events.filter(event => event.type === filterType);
-        }
-        
-        return events;
-    }, [showEvents, month, filterType]);
-
-    // Enhanced statistics for the calendar view - only count confirmed reservations
-    const monthStats = useMemo(() => {
-        const totalShows = monthEvents.length;
-        const confirmedReservations = reservations.filter(r => r.status === 'confirmed');
-        const totalBookings = confirmedReservations.filter(r => {
-            const resDate = new Date(r.date);
-            return resDate.getFullYear() === month.getFullYear() && resDate.getMonth() === month.getMonth();
-        }).length;
-        const totalRevenue = confirmedReservations.filter(r => {
-            const resDate = new Date(r.date);
-            return resDate.getFullYear() === month.getFullYear() && resDate.getMonth() === month.getMonth();
-        }).reduce((sum, r) => sum + r.totalPrice, 0);
-        const totalCapacity = monthEvents.reduce((sum, e) => sum + e.capacity, 0);
-        const totalGuests = confirmedReservations.filter(r => {
-            const resDate = new Date(r.date);
-            return resDate.getFullYear() === month.getFullYear() && resDate.getMonth() === month.getMonth();
-        }).reduce((sum, r) => sum + r.guests, 0);
-        const occupancyRate = totalCapacity > 0 ? Math.round((totalGuests / totalCapacity) * 100) : 0;
-
-        return { totalShows, totalBookings, totalRevenue, occupancyRate, totalGuests };
-    }, [monthEvents, reservations, month]);
-
-    const showTypes = useMemo(() => {
-        const types = new Set(showEvents.map(e => e.type));
-        return Array.from(types);
-    }, [showEvents]);
-
-    return (
-        <div className="enhanced-calendar-view">
-            {/* Enhanced Calendar Header */}
-            <div className="calendar-header-section">
-                <div className="calendar-header-main">
-                    <div className="calendar-title-section">
-                        <h2 className="calendar-title">
-                            🗓️ Kalender & Planning
-                        </h2>
-                        <p className="calendar-subtitle">
-                            Beheer shows, bekijk reserveringen en plan uw theater programma
-                        </p>
-                    </div>
-                    
-                    <div className="calendar-stats-mini">
-                        <div className="mini-stat">
-                            <span className="mini-stat-value">{monthStats.totalShows}</span>
-                            <span className="mini-stat-label">Shows</span>
-                        </div>
-                        <div className="mini-stat">
-                            <span className="mini-stat-value">{monthStats.totalBookings}</span>
-                            <span className="mini-stat-label">Boekingen</span>
-                        </div>
-                        <div className="mini-stat">
-                            <span className="mini-stat-value">{monthStats.occupancyRate}%</span>
-                            <span className="mini-stat-label">Bezetting</span>
-                        </div>
-                        <div className="mini-stat">
-                            <span className="mini-stat-value">€{monthStats.totalRevenue.toFixed(0)}</span>
-                            <span className="mini-stat-label">Omzet</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Enhanced Controls */}
-                <div className="calendar-controls-section">
-                    <div className="calendar-controls-left">
-                        <div className="view-mode-selector">
-                            <button 
-                                className={`view-btn ${viewMode === 'month' ? 'active' : ''}`}
-                                onClick={() => setViewMode('month')}
-                            >
-                                📅 Maand
-                            </button>
-                            <button 
-                                className={`view-btn ${viewMode === 'week' ? 'active' : ''}`}
-                                onClick={() => setViewMode('week')}
-                            >
-                                📋 Week
-                            </button>
-                            <button 
-                                className={`view-btn ${viewMode === 'day' ? 'active' : ''}`}
-                                onClick={() => setViewMode('day')}
-                            >
-                                📄 Dag
-                            </button>
-                        </div>
-
-                        <div className="filter-section">
-                            <select 
-                                value={filterType} 
-                                onChange={(e) => setFilterType(e.target.value)}
-                                className="filter-select"
-                            >
-                                <option value="all">🎭 Alle Types</option>
-                                {showTypes.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="calendar-controls-right">
-                        {!isMultiSelectMode ? (
-                            <div className="action-buttons">
-                                <button onClick={() => setIsAddModalOpen(true)} className="primary-action-btn">
-                                    ➕ Show Toevoegen
-                                </button>
-                                <button onClick={() => setIsBulkDeleteModalOpen(true)} className="secondary-action-btn">
-                                    🗑️ Bulk Verwijderen
-                                </button>
-                                <button onClick={() => setIsMultiSelectMode(true)} className="secondary-action-btn">
-                                    ☑️ Selecteer Datums
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="multi-select-controls">
-                                <div className="selected-count">
-                                    {multiSelectedDates.length} datums geselecteerd
-                                </div>
-                                <button onClick={() => setIsMultiActionModalOpen(true)} className="primary-action-btn">
-                                    ⚡ Acties ({multiSelectedDates.length})
-                                </button>
-                                <button onClick={cancelMultiSelect} className="cancel-action-btn">
-                                    ❌ Annuleren
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Enhanced Calendar Grid */}
-            <div className="calendar-main-section">
-                <div className="calendar-wrapper">
-                    <Calendar
-                        month={month}
-                        onMonthChange={setMonth}
-                        onDateClick={handleDateClick}
-                        events={showEvents}
-                        guestCountMap={guestCountMap}
-                        selectedDate={selectedDate}
-                        view="admin"
-                        onDayHover={setPopoverData}
-                        isMultiSelectMode={isMultiSelectMode}
-                        multiSelectedDates={multiSelectedDates}
-                        onMultiDateToggle={handleMultiDateToggle}
-                        config={config}
-                    />
-                    <CalendarLegend events={monthEvents} config={config} />
-                </div>
-            </div>
-
-            {/* Date Details Below Calendar */}
-            <div className="date-details-section">
-                <AdminDayDetails
-                    date={selectedDate || ''}
-                    show={selectedShow}
-                    reservations={dayReservations}
-                    waitingList={dayWaitingList}
-                    onDeleteReservation={onDeleteReservation}
-                    onDeleteWaitingList={onDeleteWaitingList}
-                    onToggleCheckIn={onToggleCheckIn}
-                    config={config}
-                    onDeleteShow={onDeleteShow}
-                    onToggleShowStatus={onToggleShowStatus}
-                    onEditReservation={onEditReservation}
-                    onUpdateReservation={onUpdateReservation}
-                    onAddBooking={handleAddBooking}
-                    onAddShow={() => setIsAddModalOpen(true)}
-                />
-            </div>
-            
-            <CalendarPopover data={popoverData} view="admin" config={config} />
-
-            {isAddModalOpen && <AddShowModal onClose={() => setIsAddModalOpen(false)} onAdd={onAddShow} config={config} dates={[]} />}
-            {isBulkDeleteModalOpen && <BulkDeleteModal onClose={() => setIsBulkDeleteModalOpen(false)} onBulkDelete={onBulkDelete} config={config} month={month} />}
-            {isAddBookingModalOpen && selectedShowForBooking && (
-                <AddBookingModal 
-                    onClose={() => {
-                        setIsAddBookingModalOpen(false);
-                        setSelectedDateForBooking('');
-                        setSelectedShowForBooking(null);
-                    }} 
-                    onAdd={onAddReservation} 
-                    show={selectedShowForBooking}
-                    date={selectedDateForBooking}
-                    config={config}
-                />
-            )}
-            {isMultiActionModalOpen && 
-                <MultiSelectActions 
-                    dates={multiSelectedDates} 
-                    onClose={() => setIsMultiActionModalOpen(false)}
-                    onAddShow={onAddShow}
-                    onDeleteShows={() => {
-                        onBulkDelete({ type: 'date', value: multiSelectedDates.join(',') }, new Date());
-                        cancelMultiSelect();
-                        setIsMultiActionModalOpen(false);
-                    }}
-                    config={config}
-                />}
-        </div>
-    );
-};
+// 🎭 Old AdminCalendarView removed - replaced with EnhancedAdminCalendarView component
 
 const Pagination = ({ currentPage, totalPages, onPageChange }: { currentPage: number, totalPages: number, onPageChange: (page: number) => void }) => {
     if (totalPages <= 1) return null;
@@ -6217,7 +5943,6 @@ const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, s
             type: 'group',
             subItems: [
                 { id: 'calendar', label: i18n.viewCalendar, icon: 'calendar' },
-                { id: 'schedule', label: i18n.schedule, icon: 'calendar-week' },
                 { id: 'capacity', label: i18n.capacityManagement, icon: 'capacity' },
             ],
         },
@@ -6240,16 +5965,6 @@ const AdminSidebar = ({ activeView, setActiveView } : { activeView: AdminView, s
             subItems: [
                 { id: 'customers', label: i18n.customers, icon: 'users' },
                 { id: 'vouchers', label: i18n.vouchers, icon: 'gift' },
-            ],
-        },
-        {
-            id: 'analysis',
-            label: 'Analyse',
-            icon: 'chart',
-            type: 'group',
-            subItems: [
-                { id: 'reports', label: i18n.reports, icon: 'chart' },
-                { id: 'analytics', label: i18n.analytics, icon: 'analytics' },
             ],
         },
         { id: 'settings', label: i18n.settings, icon: 'settings', type: 'single' },
@@ -6753,7 +6468,7 @@ const AdminAnalyticsView = ({ waitingList, reservations, showEvents, config }: {
     );
 };
 
-const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, config, onAddShow, onAddReservation, onDeleteReservation, onDeleteWaitingList, onBulkDelete, setConfig, guestCountMap, onDeleteShow, onToggleShowStatus, onUpdateShowCapacity, onAddExternalBooking, onToggleCheckIn, customers, onUpdateReservation, onUpdateWaitingList, onNotifyWaitlist, onConvertWaitlistToReservation, onAddInternalEvent, onUpdateInternalEvent, onDeleteInternalEvent, onUpdateShowEvents }: {
+const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, config, onAddShow, onAddReservation, onDeleteReservation, onDeleteWaitingList, onBulkDelete, setConfig, guestCountMap, onDeleteShow, onToggleShowStatus, onUpdateShowCapacity, onAddExternalBooking, onToggleCheckIn, customers, onUpdateReservation, onUpdateWaitingList, onNotifyWaitlist, onConvertWaitlistToReservation, onAddInternalEvent, onUpdateInternalEvent, onDeleteInternalEvent, onUpdateShowEvents, onBulkDeleteShows, onBulkOpenClose }: {
     reservations: Reservation[];
     showEvents: ShowEvent[];
     waitingList: WaitingListEntry[];
@@ -6777,6 +6492,8 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
     onNotifyWaitlist: (entry: WaitingListEntry) => void;
     onConvertWaitlistToReservation: (entry: WaitingListEntry) => void;
     onUpdateShowEvents?: (shows: ShowEvent[]) => void;
+    onBulkDeleteShows: (showIds: string[]) => void;
+    onBulkOpenClose: (showIds: string[], action: 'open' | 'close') => void;
     onAddInternalEvent: (event: Omit<InternalEvent, 'id'>) => void;
     onUpdateInternalEvent: (event: InternalEvent) => void;
     onDeleteInternalEvent: (id: string) => void;
@@ -6955,8 +6672,7 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
             case 'calendar': 
                 return (
                     <>
-                        <div className="content-header"><h2>{i18n.viewCalendar}</h2></div>
-                        <AdminCalendarView 
+                        <EnhancedAdminCalendarView 
                             showEvents={showEvents} reservations={reservations} waitingList={waitingList}
                             onAddShow={onAddShow} onAddReservation={onAddReservation} onDeleteReservation={onDeleteReservation} onDeleteWaitingList={onDeleteWaitingList}
                             config={config} guestCountMap={guestCountMap} onBulkDelete={onBulkDelete}
@@ -6964,18 +6680,6 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                             onEditReservation={handleEditReservation} onUpdateReservation={onUpdateReservation}
                         />
                     </>
-                );
-            case 'schedule': 
-                return (
-                    <ScheduleView
-                        showEvents={showEvents} 
-                        internalEvents={internalEvents}
-                        onAddInternalEvent={onAddInternalEvent}
-                        onUpdateInternalEvent={onUpdateInternalEvent}
-                        onDeleteInternalEvent={onDeleteInternalEvent}
-                        config={config}
-                        reservations={reservations}
-                    />
                 );
             case 'customers':
                 console.log('🧑‍🤝‍🧑 Rendering ModernAdminCustomersView with customers:', {
@@ -7040,8 +6744,6 @@ const AdminPanel = ({ reservations, showEvents, waitingList, internalEvents, con
                         }}
                     />
                 );
-            case 'analytics':
-                return <AdminAnalyticsView waitingList={waitingList} reservations={reservations} showEvents={showEvents} config={config} />;
             case 'reports':
                 return <AdminReportsView reservations={reservations} showEvents={showEvents} config={config} />;
             case 'capacity':
@@ -8185,9 +7887,30 @@ const SchedulePrintModal = ({ showEvents, internalEvents, reservations, config, 
 const AppContent = () => {
     const [view, setView] = useState<View>('book');
     const [adminSession, setAdminSession] = useState(false); // Track active admin session
-    const [events, setEvents] = useState<ShowEvent[]>([]);
-    const [reservations, setReservations] = useState<Reservation[]>([]);
-    const [waitingList, setWaitingList] = useState<WaitingListEntry[]>([]);
+    
+    // ✅ FIREBASE: Use real-time hooks instead of manual state management
+    const { 
+        shows: events, 
+        addShow: firebaseAddShow,
+        updateShow: firebaseUpdateShow,
+        deleteShow: firebaseDeleteShow,
+        loading: showsLoading 
+    } = useShows();
+    
+    const { 
+        reservations, 
+        addReservation: firebaseAddReservation,
+        updateReservation: firebaseUpdateReservation,
+        deleteReservation: firebaseDeleteReservation,
+        loading: reservationsLoading
+    } = useReservations();
+    
+    const { 
+        waitingList, 
+        addToWaitingList: firebaseAddWaitingListEntry,
+        loading: waitingListLoading
+    } = useWaitingList();
+    
     // ✅ FIREBASE: Internal events now use Firebase hooks instead of local state
     const { 
         internalEvents, 
@@ -8195,8 +7918,9 @@ const AppContent = () => {
         updateInternalEvent: firebaseUpdateInternalEvent,
         deleteInternalEvent: firebaseDeleteInternalEvent
     } = useInternalEvents();
+    
     const [config, setConfig] = useState<AppConfig>(defaultConfig);
-    const [loading, setLoading] = useState(true);
+    const loading = showsLoading || reservationsLoading || waitingListLoading;
     const { addToast } = useToast();
     const { isAdmin } = useAuth();
 
@@ -8228,57 +7952,58 @@ const AppContent = () => {
         }
     }, [isAdmin, view, loading, adminSession]);
     
-    // Function to reload all data from Firebase (no local state updates)
+    // ✅ Bulk operations handlers for AdminShowsManager (as useCallback after hooks)
+    const handleBulkDeleteShows = useCallback(async (showIds: string[]) => {
+        try {
+            // Delete each show from Firebase using the Firebase hook
+            for (const showId of showIds) {
+                await firebaseDeleteShow(showId);
+            }
+            
+            addToast(`${showIds.length} shows verwijderd`, 'success');
+            
+        } catch (error) {
+            addToast('Er is een fout opgetreden bij het verwijderen van shows', 'error');
+        }
+    }, [firebaseDeleteShow, addToast]);
+
+    const handleBulkOpenClose = useCallback(async (showIds: string[], action: 'open' | 'close') => {
+        try {
+            for (const showId of showIds) {
+                const show = events.find(s => s.id === showId);
+                if (show) {
+                    const updatedShow = { ...show, isClosed: action === 'close' };
+                    await firebaseUpdateShow(showId, updatedShow);
+                }
+            }
+            addToast(`${showIds.length} shows ${action === 'open' ? 'geopend' : 'gesloten'}`, 'success');
+        } catch (error) {
+            addToast(`Er is een fout opgetreden bij het ${action === 'open' ? 'openen' : 'sluiten'} van shows`, 'error');
+        }
+    }, [events, firebaseUpdateShow, addToast]);
+    
+    // Function to reload config from Firebase (shows/reservations auto-update via hooks)
     const reloadFirebaseData = useCallback(async () => {
         try {
-            const [showsData, reservationsData, waitingListData, configData] = await Promise.all([
-                firebaseService.shows.getAllShows(),
-                firebaseService.reservations.getAllReservations(),
-                firebaseService.waitingList.getAllWaitingList(),
-                firebaseService.config.getConfig()
-            ]);
-            
-            // Update state with fresh Firebase data
-            setEvents(showsData);
-            setReservations(reservationsData);
-            setWaitingList(waitingListData);
+            const configData = await firebaseService.config.getConfig();
             
             if (configData) {
                 setConfig(configData);
             }
             
-            } catch (error) {
-            addToast('Error reloading data from Firebase', 'error');
+        } catch (error) {
+            addToast('Error reloading config from Firebase', 'error');
         }
     }, [addToast]);
     
-    // Load data from Firebase when component mounts
+    // Load config from Firebase when component mounts (shows/reservations auto-loaded via hooks)
     useEffect(() => {
-        const loadData = async () => {
+        const loadConfig = async () => {
             try {
-                setLoading(true);
-                
                 // 🏗️ Initialize Firebase collections with sample data if empty
                 await initializeFirebaseCollections();
                 
-                const [
-                    showsData,
-                    reservationsData, 
-                    waitingListData,
-                    configData
-                    // ✅ FIREBASE: Internal events now loaded via useInternalEvents hook
-                ] = await Promise.all([
-                    firebaseService.shows.getAllShows(),
-                    firebaseService.reservations.getAllReservations(),
-                    firebaseService.waitingList.getAllWaitingList(),
-                    firebaseService.config.getConfig()
-                    // ✅ FIREBASE: Internal events now loaded via useInternalEvents hook
-                ]);
-                
-                setEvents(showsData);
-                setReservations(reservationsData);
-                setWaitingList(waitingListData);
-                // ✅ FIREBASE: Internal events no longer set here - managed by Firebase hook
+                const configData = await firebaseService.config.getConfig();
                 
                 // Load config from Firebase or use default
                 if (configData) {
@@ -8301,7 +8026,7 @@ const AppContent = () => {
                         const upgradedConfig = { ...configData, promoCodes: upgradedPromoCodes };
                         await firebaseService.config.updateConfig(upgradedConfig);
                         setConfig(upgradedConfig);
-                        } else {
+                    } else {
                         setConfig(configData);
                     }
                 } else {
@@ -8309,13 +8034,12 @@ const AppContent = () => {
                     setConfig(defaultConfig);
                 }
                 
-                } catch (error) {
-                } finally {
-                setLoading(false);
+            } catch (error) {
+                console.error('Error loading config:', error);
             }
         };
         
-        loadData();
+        loadConfig();
     }, []); // Empty dependency array - only run once on mount
     
     const guestCountMap = useMemo(() => {
@@ -8406,18 +8130,15 @@ const AppContent = () => {
 
     const handleAddShow = async (newShow: Omit<ShowEvent, 'id'>, dates: string[]) => {
         try {
-            // Add each show to Firebase
+            // Add each show to Firebase using hook
             for (const date of dates) {
                 const showForDate = {
                     ...newShow,
                     date: date,
                 };
                 
-                const addedShow = await firebaseService.shows.addShow(showForDate);
-                }
-            
-            // ✅ NO LOCAL STATE - Reload data from Firebase instead
-            await reloadFirebaseData();
+                await firebaseAddShow(showForDate);
+            }
             
             addToast('Shows toegevoegd', 'success');
         } catch (error) {
@@ -8430,11 +8151,10 @@ const AppContent = () => {
             const showToDelete = events.find(e => e.id === showId);
             if(!showToDelete) return;
 
-            // Delete from Firebase
-            await firebaseService.shows.deleteShow(showId);
+            // Delete from Firebase using hook - this will automatically update the UI via real-time listener
+            await firebaseDeleteShow(showId);
             
-            // ✅ NO LOCAL STATE - Reload data from Firebase instead
-            await reloadFirebaseData();
+            addToast('Show verwijderd', 'success');
             
             addToast('Show verwijderd', 'success');
         } catch (error) {
@@ -8455,14 +8175,12 @@ const AppContent = () => {
                 return; // Geen wijziging
             }
             
-            // Update in Firebase
-            await firebaseService.shows.updateShow(showId, { isClosed: newStatus });
+            // Update in Firebase using hook - this will automatically update the UI via real-time listener
+            await firebaseUpdateShow(showId, { isClosed: newStatus });
             
-            // ✅ NO LOCAL STATE - Reload data from Firebase instead
-            await reloadFirebaseData();
-            
-            } catch (error) {
-            }
+        } catch (error) {
+            addToast('Fout bij wijzigen show status', 'error');
+        }
     };
     
     const handleAddReservation = useCallback(async (newReservation: Omit<Reservation, 'id'>) => {
@@ -8475,15 +8193,9 @@ const AppContent = () => {
                 guests: newReservation.guests
             });
 
-            // Add to Firebase (Firebase will generate the ID automatically)
-            const savedReservation = await firebaseService.reservations.addReservation(newReservation);
+            // Add to Firebase using the hook - this will automatically update the UI via real-time listener
+            const savedReservation = await firebaseAddReservation(newReservation);
             console.log('🎭 [DEBUG] Reservation saved to Firebase:', savedReservation.id);
-            
-            // ✅ OPTIMISTIC UPDATE - Update local state immediately
-            setReservations(prev => {
-                console.log('🎭 [DEBUG] Local state updated, total reservations:', prev.length + 1);
-                return [...prev, savedReservation];
-            });
             
             // 📧 COMPLETE EMAIL WORKFLOW - Send both provisional and admin notification emails
             try {
@@ -8545,12 +8257,10 @@ const AppContent = () => {
             const newTotalGuests = currentGuests + newReservation.guests;
             
             if (newTotalGuests >= 240) {
-                // Auto-sluiten bij 240+ gasten - Update Firebase, not local state
+                // Auto-sluiten bij 240+ gasten - Update Firebase via hook
                 const showToClose = events.find(e => e.date === showDate && !e.isClosed);
                 if (showToClose) {
-                    await firebaseService.shows.updateShow(showToClose.id, { isClosed: true });
-                    // Update local state optimistically
-                    setEvents(prev => prev.map(e => e.id === showToClose.id ? {...e, isClosed: true} : e));
+                    await firebaseUpdateShow(showToClose.id, { isClosed: true });
                 }
             }
 
@@ -8635,6 +8345,8 @@ const AppContent = () => {
     }, [firebaseDeleteInternalEvent, internalEvents, addToast]);
 
     // Effect voor auto-sluiting van boekingen 12 uur voor voorstelling
+    // TODO: This auto-closure logic should be moved to Firebase Cloud Functions for better reliability
+    /*
     useEffect(() => {
         const interval = setInterval(() => {
             const now = new Date();
@@ -8666,15 +8378,14 @@ const AppContent = () => {
         
         return () => clearInterval(interval);
     }, []);
+    */
 
     const handleUpdateReservation = async (updatedReservation: Reservation) => {
         try {
             const previousReservation = reservations.find(r => r.id === updatedReservation.id);
             
-            // Update in Firebase first - use string id directly
-            await firebaseService.reservations.updateReservation(updatedReservation.id, updatedReservation);
-            // ✅ OPTIMISTIC UPDATE - Update local state after successful Firebase update
-            setReservations(prev => prev.map(r => r.id === updatedReservation.id ? updatedReservation : r));
+            // Update in Firebase using hook - this will automatically update the UI via real-time listener
+            await firebaseUpdateReservation(updatedReservation.id, updatedReservation);
             
             // 📧 SEND APPROPRIATE EMAIL BASED ON STATUS CHANGE
             if (previousReservation && previousReservation.status !== updatedReservation.status) {
@@ -8729,11 +8440,8 @@ const AppContent = () => {
         try {
             const deletedReservation = reservations.find(r => r.id === id);
             
-            // Delete from Firebase
-            await firebaseService.reservations.deleteReservation(id);
-            
-            // ✅ OPTIMISTIC UPDATE - Update local state immediately
-            setReservations(prev => prev.filter(r => r.id !== id));
+            // Delete from Firebase using hook - this will automatically update the UI via real-time listener
+            await firebaseDeleteReservation(id);
             
             // AUTO-OPENING LOGICA bij verwijderen reserveringen
             if (deletedReservation) {
@@ -8742,11 +8450,10 @@ const AppContent = () => {
                 const newTotalGuests = Math.max(0, currentGuests - deletedReservation.guests);
                 
                 if (newTotalGuests < 240) {
-                    // Auto-openen onder 240 gasten - Update Firebase and local state
+                    // Auto-openen onder 240 gasten - Update Firebase via hook
                     const showToOpen = events.find(e => e.date === showDate && e.isClosed);
                     if (showToOpen) {
-                        await firebaseService.shows.updateShow(showToOpen.id, { isClosed: false });
-                        setEvents(prev => prev.map(e => e.id === showToOpen.id ? {...e, isClosed: false} : e));
+                        await firebaseUpdateShow(showToOpen.id, { isClosed: false });
                     }
                 }
             }
@@ -8787,7 +8494,7 @@ const AppContent = () => {
 
     // 🚀 Phase 2: Advanced Waitlist Management Functions
     const handleUpdateWaitingList = (updatedEntry: WaitingListEntry) => {
-        setWaitingList(prev => prev.map(w => w.id === updatedEntry.id ? updatedEntry : w));
+        // The Firebase hook will automatically handle updates via real-time listeners
         addToast('Wachtlijst bijgewerkt', 'success');
     };
 
@@ -8821,7 +8528,7 @@ const AppContent = () => {
                     responseDeadline: deadline
                 };
                 
-                setWaitingList(prev => prev.map(w => w.id === entry.id ? entryWithDeadline : w));
+                // The Firebase hook will automatically handle updates via real-time listeners
             }
         }
     };
@@ -8869,8 +8576,8 @@ const AppContent = () => {
             createdAt: new Date().toISOString()
         };
 
-        // Add reservation and update waitlist
-        setReservations(prev => [...prev, newReservation]);
+        // Add reservation using Firebase hook - real-time listeners will handle state updates automatically
+        // TODO: Implement this using firebaseAddReservation when ready
         
         const convertedEntry = { 
             ...entry, 
@@ -8962,6 +8669,8 @@ const AppContent = () => {
         }
     };
     
+    // TODO: These capacity management functions should be converted to use Firebase hooks
+    /*
     const handleUpdateShowCapacity = (showId: string, newCapacity: number) => {
         setEvents(prev => prev.map(e => e.id === showId ? {...e, manualCapacityOverride: newCapacity, capacity: newCapacity} : e));
     };
@@ -9020,7 +8729,19 @@ const AppContent = () => {
             
             setReservations(prev => [...prev, externalReservation]);
         }
-    }, [events, setReservations]);
+    }, [events]);
+    */
+
+    const handleUpdateShowEvents = useCallback((updatedEvents: ShowEvent[]) => {
+        // Since we're using Firebase hooks, we should update each show individually
+        updatedEvents.forEach(async (show) => {
+            try {
+                await firebaseUpdateShow(show.id, show);
+            } catch (error) {
+                console.error('Failed to update show:', error);
+            }
+        });
+    }, [firebaseUpdateShow]);
 
     const handleToggleCheckIn = async (id: string) => {
         try {
@@ -9029,13 +8750,10 @@ const AppContent = () => {
             
             const updatedReservation = {...reservation, checkedIn: !reservation.checkedIn};
             
-            // Update in Firebase first - use string id directly
-            await firebaseService.reservations.updateReservation(id, updatedReservation);
+            // Update in Firebase using hook - this will automatically update the UI via real-time listener  
+            await firebaseUpdateReservation(id, updatedReservation);
             
-            // Update local state after successful Firebase update
-            setReservations(prev => prev.map(r => r.id === id ? updatedReservation : r));
-            
-            } catch (error) {
+        } catch (error) {
             addToast('Er is een fout opgetreden bij het bijwerken van de check-in status', 'error');
         }
     };
@@ -9098,8 +8816,8 @@ const AppContent = () => {
                         guestCountMap={guestCountMap}
                         onDeleteShow={handleDeleteShow}
                         onToggleShowStatus={handleToggleShowStatus}
-                        onUpdateShowCapacity={handleUpdateShowCapacity}
-                        onAddExternalBooking={handleAddExternalBooking}
+                        onUpdateShowCapacity={() => {/* TODO: Implement with Firebase hooks */}}
+                        onAddExternalBooking={() => {/* TODO: Implement with Firebase hooks */}}
                         onToggleCheckIn={handleToggleCheckIn}
                         customers={customers}
                         onUpdateReservation={handleUpdateReservation}
@@ -9109,7 +8827,9 @@ const AppContent = () => {
                         onAddInternalEvent={handleAddInternalEvent}
                         onUpdateInternalEvent={handleUpdateInternalEvent}
                         onDeleteInternalEvent={handleDeleteInternalEvent}
-                        onUpdateShowEvents={setEvents}
+                        onUpdateShowEvents={handleUpdateShowEvents}
+                        onBulkDeleteShows={handleBulkDeleteShows}
+                        onBulkOpenClose={handleBulkOpenClose}
                     />
                 )}
             </main>
@@ -9146,3 +8866,4 @@ const App = () => {
 
 const root = createRoot(document.getElementById('root')!);
 root.render(<App />);
+

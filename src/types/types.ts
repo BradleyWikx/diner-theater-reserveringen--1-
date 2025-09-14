@@ -179,54 +179,8 @@ export interface MerchItem {
     updatedAt: string;
 }
 
-// Phase 3: Analytics Interfaces
-export interface AnalyticsData {
-    waitlistMetrics: WaitlistMetrics;
-    conversionMetrics: ConversionMetrics;
-    revenueMetrics: RevenueMetrics;
-    customerInsights: CustomerInsights;
-    predictiveMetrics: PredictiveMetrics;
-}
-
-export interface WaitlistMetrics {
-    totalActive: number;
-    averageWaitTime: number; // in days
-    conversionRate: number; // percentage
-    notificationResponseRate: number;
-    dropOffRate: number;
-    peakRequestTimes: { hour: number; count: number }[];
-}
-
-export interface ConversionMetrics {
-    dailyConversions: { date: string; count: number }[];
-    channelPerformance: { channel: string; rate: number }[];
-    segmentConversion: { segment: string; rate: number }[];
-    timeToConversion: number; // average hours
-}
-
-export interface RevenueMetrics {
-    waitlistRevenuePotential: number;
-    actualWaitlistRevenue: number;
-    averageWaitlistOrderValue: number;
-    revenueByShow: { showDate: string; revenue: number; potential: number }[];
-}
-
-export interface CustomerInsights {
-    repeatWaitlistCustomers: number;
-    vipWaitlistRatio: number;
-    averageGroupSize: number;
-    mostRequestedShows: { date: string; requests: number }[];
-}
-
-export interface PredictiveMetrics {
-    expectedCancellations: { date: string; probability: number }[];
-    optimalPricing: { date: string; suggestedPrice: number; confidence: number }[];
-    demandForecast: { date: string; expectedDemand: number }[];
-    notificationOptimalTiming: { hour: number; responseRate: number }[];
-}
-
 export type View = 'book' | 'admin';
-export type AdminView = 'dashboard' | 'calendar' | 'reservations' | 'customers' | 'settings' | 'capacity' | 'reports' | 'customerDetail' | 'approvals' | 'waitlist' | 'analytics' | 'vouchers' | 'schedule';
+export type AdminView = 'dashboard' | 'calendar' | 'reservations' | 'customers' | 'settings' | 'capacity' | 'reports' | 'customerDetail' | 'approvals' | 'waitlist' | 'vouchers';
 export type SettingsTab = 'shows' | 'booking' | 'merchandise' | 'promo' | 'archive';
 
 // Package management interfaces verwijderd - we gebruiken simpele merchandise lijst
