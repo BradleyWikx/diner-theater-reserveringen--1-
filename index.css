@@ -23,9 +23,10 @@ body {
   font-size: var(--admin-font-size-base);
   line-height: 1.6;
   color: var(--admin-text-primary);
-  background: var(--admin-bg);
+  background: var(--theater-cream);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
 a {

@@ -8792,10 +8792,10 @@ const AppContent = () => {
             {/* 🧪 EMAIL TEST BUTTON - Development Only */}
             <main>
                 {loading ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🔄</div>
-                            <p>Gegevens worden geladen uit Firebase...</p>
+                    <div className="loading-container">
+                        <div className="loading-content">
+                            <div className="loading-icon">🎭</div>
+                            <p className="loading-text">Gegevens worden geladen uit Firebase...</p>
                         </div>
                     </div>
                 ) : view === 'book' ? (
@@ -8846,6 +8846,13 @@ const AppContent = () => {
                     />
                 )}
             </main>
+            
+            <footer className="footer">
+                <div className="theater-footer-content">
+                    <p>&copy; 2025 Inspiration Point Valkenswaard - Alle rechten voorbehouden</p>
+                    <p className="theater-footer-tagline">✨ Waar gastronomie en theater samenkomen ✨</p>
+                </div>
+            </footer>
             
             <DynamicStyles config={config} />
             <DiscreteAdminButton 
