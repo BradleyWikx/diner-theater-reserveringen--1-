@@ -48,8 +48,8 @@ import type {
 import { i18n, defaultConfig, calculateEndTime, calculateDoorsOpenTime } from './src/config/config';
 
 // Import components
-import { Icon } from './src/components/ui/Icon';
-import { Header } from './src/components/ui/Header';
+import { Icon } from './src/components/UI/Icon';
+import { Header } from './src/components/UI/Header';
 
 import { ToastProvider, useToast } from './src/context/ToastProvider';
 import { ConfirmationProvider, useConfirmation } from './src/context/ConfirmationProvider';
