@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { ShowEvent, Reservation, WaitingListEntry, AppConfig } from '../../types/types';
 import { i18n } from '../../config/config';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import { getShowTimes } from '../../utils/utilities';
 import '../../styles/BookingFlow.css';
 import { ShowSummaryPremium } from '../booking/ShowSummaryPremium';
@@ -163,18 +163,18 @@ export const BookingView: React.FC<BookingViewProps> = ({
 
     return (
         <div className={`booking-view-v2 ${bookingMode ? 'booking-mode-active' : ''}`}>
-            <div className="booking-main-content">
-                {bookingMode && selectedShow ? (
-                     <ReservationWizard 
-                        show={selectedShow} 
-                        date={selectedDate!} 
-                        onAddReservation={onAddReservation} 
-                        config={config} 
-                        remainingCapacity={remainingCapacity}
-                        onClose={handleCloseWizard}
-                    />
-                ) : (
-                    <>
+            {bookingMode && selectedShow ? (
+                <ReservationWizard 
+                    show={selectedShow} 
+                    date={selectedDate!} 
+                    onAddReservation={onAddReservation} 
+                    config={config} 
+                    remainingCapacity={remainingCapacity}
+                    onClose={handleCloseWizard}
+                />
+            ) : (
+                <div className="calendar-wrapper">
+                    <div className="calendar-section">
                         <p className="instructions">{i18n.instructions}</p>
                         <Calendar
                             month={month}
@@ -186,17 +186,30 @@ export const BookingView: React.FC<BookingViewProps> = ({
                             view="book"
                             onDayHover={setPopoverData}
                             config={config}
-                            className="calendar-v2" // Add a new class for V2 styles
+                            className="calendar-v2"
                         />
                         <CalendarLegend events={monthEvents} config={config} />
-                    </>
-                )}
-            </div>
-            <div className="booking-sidebar">
-                <div className="booking-sidebar-sticky">
-                    {renderBookingPanelContent()}
+                    </div>
+                    <div className="info-sidebar">
+                        <h3 className="info-title">Reservering maken</h3>
+                        <div className="info-content">
+                            {!selectedDate || !selectedShow ? (
+                                <>
+                                    <span className="theater-icon">🎭</span>
+                                    <p>{i18n.selectDatePromptBooking}</p>
+                                </>
+                            ) : (
+                                <ShowSummaryPremium 
+                                    show={selectedShow}
+                                    onStartBooking={handleStartBooking}
+                                    isUnavailable={isUnavailable}
+                                    config={config}
+                                />
+                            )}
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
             
             <CalendarPopover data={popoverData} view="book" config={config} />
 

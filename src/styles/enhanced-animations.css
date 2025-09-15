@@ -1,0 +1,410 @@
+/* =============================================================================
+   ENHANCED CALENDAR & BOOKING FLOW ANIMATIONS
+   Professional animations and micro-interactions
+   ============================================================================= */
+
+/* Calendar day hover effects with smooth animations */
+.calendar-day {
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.calendar-day::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.2) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all var(--transition-normal);
+  z-index: 0;
+}
+
+.calendar-day:hover::before {
+  width: 120%;
+  height: 120%;
+}
+
+.calendar-day .day-number {
+  position: relative;
+  z-index: 1;
+  transition: all var(--transition-normal);
+}
+
+.calendar-day:hover .day-number {
+  transform: scale(1.1);
+  font-weight: var(--font-weight-bold);
+}
+
+/* Enhanced calendar navigation buttons */
+.calendar-nav-button {
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.calendar-nav-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.3), transparent);
+  transition: left 0.6s ease;
+}
+
+.calendar-nav-button:hover::before {
+  left: 100%;
+}
+
+.calendar-nav-button:hover {
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+/* Show event indicators with pulsing animation */
+.calendar-day.has-event::after {
+  animation: eventPulse 2s infinite;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+@keyframes eventPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+
+/* Calendar legend improvements */
+.calendar-legend {
+  animation: slideInUp var(--transition-slow) ease-out;
+}
+
+.legend-item {
+  transition: all var(--transition-normal);
+  position: relative;
+}
+
+.legend-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent);
+  transition: width var(--transition-normal);
+  border-radius: var(--radius-md);
+}
+
+.legend-item:hover::before {
+  width: 100%;
+}
+
+/* Sidebar card animations */
+.info-sidebar {
+  animation: slideInRight var(--transition-slow) ease-out;
+}
+
+.theater-icon {
+  animation: bounceIn 1s ease-out;
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced button animations */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.6s ease;
+}
+
+.btn-primary:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+/* Loading animations for better UX */
+.loading-icon {
+  animation: loadingBounce 1s infinite alternate;
+}
+
+@keyframes loadingBounce {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Header animations */
+.main-header {
+  animation: slideDownFade 0.6s ease-out;
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.logo {
+  transition: all var(--transition-normal);
+}
+
+.logo:hover {
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+}
+
+/* Nav button enhanced animations */
+.nav-button {
+  position: relative;
+  transition: all var(--transition-normal);
+}
+
+.nav-button::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--theater-gold);
+  transition: all var(--transition-normal);
+  transform: translateX(-50%);
+}
+
+.nav-button:hover::after,
+.nav-button.active::after {
+  width: 100%;
+}
+
+.nav-button.active {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+}
+
+/* Enhanced footer animation */
+.app-footer {
+  animation: slideInUp var(--transition-slow) ease-out;
+}
+
+.footer-content:hover .copyright-symbol {
+  transform: rotate(360deg);
+  transition: transform 0.6s ease;
+}
+
+/* Calendar container entrance animation */
+.calendar-container {
+  animation: calendarEntrance 0.8s ease-out;
+  transform-origin: center top;
+}
+
+@keyframes calendarEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Staggered animation for calendar days */
+.calendar-day:nth-child(1) { animation-delay: 0.1s; }
+.calendar-day:nth-child(2) { animation-delay: 0.15s; }
+.calendar-day:nth-child(3) { animation-delay: 0.2s; }
+.calendar-day:nth-child(4) { animation-delay: 0.25s; }
+.calendar-day:nth-child(5) { animation-delay: 0.3s; }
+.calendar-day:nth-child(6) { animation-delay: 0.35s; }
+.calendar-day:nth-child(7) { animation-delay: 0.4s; }
+
+.calendar-day {
+  animation: dayFadeIn 0.4s ease-out both;
+}
+
+@keyframes dayFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Smooth focus states */
+*:focus-visible {
+  outline: 2px solid var(--theater-gold);
+  outline-offset: 2px;
+  animation: focusPulse 0.3s ease-out;
+}
+
+@keyframes focusPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 215, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+  }
+}
+
+/* Enhanced modal animations */
+.modal-overlay {
+  animation: modalBackdropFade var(--transition-normal) ease-out;
+}
+
+.modal {
+  animation: modalSlideInScale var(--transition-slow) cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalBackdropFade {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+}
+
+@keyframes modalSlideInScale {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Responsive animation optimizations */
+@media (max-width: 768px) {
+  /* Reduce animations on mobile for better performance */
+  .calendar-day,
+  .nav-button,
+  .btn-primary {
+    transition-duration: 150ms;
+  }
+  
+  /* Disable complex animations on mobile */
+  .calendar-day::before,
+  .nav-button::before,
+  .btn-primary::before {
+    display: none;
+  }
+  
+  /* Keep essential hover states */
+  .calendar-day:hover {
+    transform: scale(1.03);
+  }
+  
+  .btn-primary:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* High performance mode for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  /* Disable all animations but keep essential transitions */
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  /* Keep basic hover states for UX */
+  .calendar-day:hover,
+  .btn:hover,
+  .nav-button:hover {
+    transform: none !important;
+    animation: none !important;
+  }
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  /* Enhanced shadows for dark mode */
+  .calendar-container {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  }
+  
+  .info-sidebar {
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Stronger glow effects in dark mode */
+  .calendar-nav-button:hover {
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+  }
+}

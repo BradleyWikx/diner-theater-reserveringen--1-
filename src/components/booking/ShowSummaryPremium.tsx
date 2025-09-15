@@ -31,7 +31,7 @@ export const ShowSummaryPremium: React.FC<ShowSummaryPremiumProps> = ({ show, on
         <p className="summary-description">
           {showConfig?.description || 'Bereid je voor op een onvergetelijke avond vol spektakel, humor en culinaire verrassingen.'}
         </p>
-        <button onClick={onStartBooking} className="summary-cta-button">
+        <button onClick={onStartBooking} className={isUnavailable ? "btn btn-secondary" : "btn btn-primary"}>
           {isUnavailable ? 'Plaats op Wachtlijst' : 'Reserveer Nu'}
         </button>
       </div>

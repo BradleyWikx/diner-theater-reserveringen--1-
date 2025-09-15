@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import type { ShowEvent, View, AppConfig, Reservation } from '../../types/types';
 import { getDaysInMonth, formatDate, slugify, getShowColorClass, calculateAvailableCapacity } from '../../utils/utilities';
 import { useMobile } from '../../hooks/useMobile';

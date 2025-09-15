@@ -378,12 +378,16 @@ const Calendar = React.memo(({ month, onMonthChange, onDateClick, events, guestC
     return (
         <div className="calendar-container">
             <div className="calendar-header">
-                <button onClick={handlePrevMonth} aria-label={i18n.prevMonth}><Icon id="chevron-left" /></button>
-                <h2>{month.toLocaleString('nl-NL', { month: 'long', year: 'numeric' })}</h2>
-                <button onClick={handleNextMonth} aria-label={i18n.nextMonth}><Icon id="chevron-right" /></button>
+                <button onClick={handlePrevMonth} aria-label={i18n.prevMonth} className="calendar-nav-button">
+                    <Icon id="chevron-left" />
+                </button>
+                <h2 className="calendar-month-title">{month.toLocaleString('nl-NL', { month: 'long', year: 'numeric' })}</h2>
+                <button onClick={handleNextMonth} aria-label={i18n.nextMonth} className="calendar-nav-button">
+                    <Icon id="chevron-right" />
+                </button>
             </div>
             <div className="calendar-grid">
-                {i18n.dayNames.map(day => <div key={day} className="day-name">{day}</div>)}
+                {i18n.dayNames.map(day => <div key={day} className="calendar-day-header">{day}</div>)}
                 {paddingDays.map((_, index) => <div key={`pad-${index}`} className="calendar-day other-month"></div>)}
                 {days.map(day => {
                     const dateStr = formatDate(day);
@@ -8792,10 +8796,10 @@ const AppContent = () => {
             {/* 🧪 EMAIL TEST BUTTON - Development Only */}
             <main>
                 {loading ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🔄</div>
-                            <p>Gegevens worden geladen uit Firebase...</p>
+                    <div className="loading-wrapper">
+                        <div className="loading-content">
+                            <div className="loading-icon">🔄</div>
+                            <p className="loading-text">Gegevens worden geladen uit Firebase...</p>
                         </div>
                     </div>
                 ) : view === 'book' ? (
@@ -8846,6 +8850,14 @@ const AppContent = () => {
                     />
                 )}
             </main>
+            
+            {/* Enhanced Footer */}
+            <footer className="app-footer">
+                <div className="footer-content">
+                    <span className="copyright-symbol">©</span>
+                    <span>Alle rechten voorbehouden | Inspiration Point Valkenswaard</span>
+                </div>
+            </footer>
             
             <DynamicStyles config={config} />
             <DiscreteAdminButton 

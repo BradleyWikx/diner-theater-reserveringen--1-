@@ -1,7 +1,7 @@
 // src/components/booking/wizard/ReservationWizard.tsx
 import React, { useState } from 'react';
 import type { ShowEvent, Reservation, AppConfig } from '../../../types/types';
-import { Icon } from '../../ui/Icon';
+import { Icon } from '../../UI/Icon';
 
 // --- Reusable Wizard Components ---
 

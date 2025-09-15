@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import type { ShowEvent, WaitingListEntry } from '../../types/types';
 import { i18n } from '../../config/config';
 
