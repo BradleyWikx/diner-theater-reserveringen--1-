@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMobile, useTouchGestures } from '../../hooks/useMobile';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 
 interface MobileModalProps {
   isOpen: boolean;

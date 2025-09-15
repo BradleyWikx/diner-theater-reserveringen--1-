@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import { AddShowModal } from './AddShowModal';
 import { useConfirmation } from '../../context/ConfirmationProvider';
 import { i18n } from '../../config/config';

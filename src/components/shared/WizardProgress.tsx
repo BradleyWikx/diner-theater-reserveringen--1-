@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import { i18n } from '../../config/config';
 
 interface WizardProgressProps {

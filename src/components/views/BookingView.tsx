@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { ShowEvent, Reservation, WaitingListEntry, AppConfig } from '../../types/types';
 import { i18n } from '../../config/config';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import { getShowTimes } from '../../utils/utilities';
 import '../../styles/BookingFlow.css';
 import { ShowSummaryPremium } from '../booking/ShowSummaryPremium';

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AdminLayout, AdminCard, AdminButton, AdminBadge, AdminGrid, AdminDataTable } from '../layout/AdminLayout';
 import { getAllCustomers } from '../../services/customerService';
 import { Customer } from '../../types/types';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import { formatDate } from '../../utils/utilities';
 
 interface ModernAdminCustomersViewProps {

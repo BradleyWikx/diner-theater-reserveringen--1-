@@ -117,9 +117,9 @@
 .stat-item {
   text-align: center;
   padding: 20px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: var(--theater-pearl);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 2px solid var(--theater-silver);
   transition: all 0.2s ease;
 }
 
@@ -330,8 +330,8 @@
 
 .date-details-header {
   padding: 20px;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--theater-champagne);
+  border-bottom: 2px solid var(--theater-gold);
   display: flex;
   flex-direction: column;
   gap: 16px;
