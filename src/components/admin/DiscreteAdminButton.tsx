@@ -1,5 +1,5 @@
 import React, { useState, memo } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { AdminLogin } from './AdminLogin-Simple';
 import { logoutAdmin } from '../../firebase/config';
 

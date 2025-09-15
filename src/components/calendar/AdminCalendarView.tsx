@@ -111,10 +111,13 @@ const AdminCalendarView: React.FC<AdminCalendarViewProps> = ({
     if (isMultiSelectMode && multiSelectedDates.length > 0) {
       setShowAddShowModal(true);
     } else if (selectedDate) {
+      // Als we niet in multi-select mode zijn, maar wel een datum hebben,
+      // voegen we die ene datum toe en openen de modal.
       setMultiSelectedDates([selectedDate]);
       setShowAddShowModal(true);
     } else {
-      alert('Selecteer eerst een datum om een show toe te voegen');
+      // Vraag de gebruiker om eerst een datum te selecteren.
+      alert('Selecteer eerst een of meerdere datums om een show toe te voegen.');
     }
   };
 
@@ -145,75 +148,41 @@ const AdminCalendarView: React.FC<AdminCalendarViewProps> = ({
     setMultiSelectedDates([]);
   };
 
-  const formatSelectedDate = (dateStr: string | null) => {
+  const formatSelectedDate = (dateStr: string | null, options?: Intl.DateTimeFormatOptions) => {
     if (!dateStr) return 'Geen datum geselecteerd';
     const date = new Date(dateStr + 'T12:00:00');
-    return date.toLocaleDateString('nl-NL', { 
+    const defaultOptions: Intl.DateTimeFormatOptions = { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
-    });
+    };
+    return date.toLocaleDateString('nl-NL', options || defaultOptions);
   };
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'calendar':
         return (
-          <div className="calendar-tab-content">
-            <div className="calendar-main-section">
-              {/* Multi-select Info */}
-              {isMultiSelectMode && (
-                <div className="multi-select-info">
-                  <div className="multi-select-header">
-                    <h4>📅 Multi-selectie modus</h4>
-                    <p>Klik op datums om meerdere te selecteren. Geselecteerd: {multiSelectedDates.length} datum(s)</p>
+          <>
+            <div className="calendar-content-grid">
+              <div className="card">
+                <div className="card-header calendar-header-controls">
+                  <div className="view-toggle-group">
+                    <button className={`btn ${viewMode === 'month' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('month')}>Maand</button>
+                    <button className={`btn ${viewMode === 'week' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('week')}>Week</button>
+                    <button className={`btn ${viewMode === 'day' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('day')}>Dag</button>
                   </div>
-                  {multiSelectedDates.length > 0 && (
-                    <div className="selected-dates">
-                      {multiSelectedDates.map(date => (
-                        <span key={date} className="selected-date-chip">
-                          {formatSelectedDate(date)}
-                          <button onClick={() => handleMultiDateToggle(date)}>×</button>
-                        </span>
+                  <div className="filter-controls">
+                    <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="form-control">
+                      <option value="all">Alle Types</option>
+                      {config.showTypes.map(type => (
+                        <option key={type.id} value={type.name}>{type.name}</option>
                       ))}
-                    </div>
-                  )}
+                    </select>
+                  </div>
                 </div>
-              )}
-
-              {/* Calendar Controls */}
-              <div className="calendar-header-controls">
-                <div className="view-toggle-group">
-                  {['month', 'week', 'day'].map((mode) => (
-                    <button
-                      key={mode}
-                      className={`view-toggle-btn ${viewMode === mode ? 'active' : ''}`}
-                      onClick={() => setViewMode(mode as any)}
-                    >
-                      {mode === 'month' ? '📅 Maand' : mode === 'week' ? '📋 Week' : '📄 Dag'}
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="filter-controls">
-                  <select 
-                    value={filterType} 
-                    onChange={(e) => setFilterType(e.target.value)}
-                    className="admin-select"
-                  >
-                    <option value="all">🎭 Alle Types</option>
-                    {config.showTypes.map(type => (
-                      <option key={type.id} value={type.name}>{type.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Calendar and Details Grid */}
-              <div className="calendar-content-grid">
-                {/* Main Calendar */}
-                <div className="calendar-card">
+                <div className="card-body">
                   <Calendar
                     month={month}
                     onMonthChange={setMonth}
@@ -228,107 +197,77 @@ const AdminCalendarView: React.FC<AdminCalendarViewProps> = ({
                     onMultiDateToggle={handleMultiDateToggle}
                   />
                 </div>
+              </div>
 
-                {/* Date Details Panel */}
-                <div className="date-details-card">
-                  <div className="date-details-header">
-                    <h3>{formatSelectedDate(selectedDate)}</h3>
-                    <div className="date-actions">
-                      <button
-                        className="add-show-btn"
-                        onClick={handleAddShow}
-                      >
-                        ➕ Show Toevoegen
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="date-details-content">
-                    {selectedShow ? (
-                      <div className="show-details">
-                        <div className="show-badge">
-                          🎭 {selectedShow.name}
-                        </div>
-                        
-                        <div className="show-info-grid">
-                          <div className="info-item">
-                            <span className="label">Tijd:</span>
-                            <span className="value">{selectedShow.time}</span>
-                          </div>
-                          <div className="info-item">
-                            <span className="label">Type:</span>
-                            <span className="value">{selectedShow.type}</span>
-                          </div>
-                          <div className="info-item">
-                            <span className="label">Capaciteit:</span>
-                            <span className="value">{selectedShow.capacity} personen</span>
-                          </div>
-                          <div className="info-item">
-                            <span className="label">Geboekt:</span>
-                            <span className="value">{guestCountMap.get(selectedShow.id) || 0} gasten</span>
-                          </div>
-                        </div>
-
-                        {dayReservations.length > 0 && (
-                          <div className="reservations-section">
-                            <h4>Reserveringen ({dayReservations.length})</h4>
-                            <div className="reservations-list">
-                              {dayReservations.slice(0, 5).map(res => (
-                                <div key={res.id} className="reservation-item">
-                                  <span className="guest-name">{res.name}</span>
-                                  <span className="guest-count">{res.guests} gasten</span>
-                                </div>
-                              ))}
-                              {dayReservations.length > 5 && (
-                                <div className="more-reservations">
-                                  +{dayReservations.length - 5} meer...
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {dayWaitingList.length > 0 && (
-                          <div className="waitlist-section">
-                            <h4>Wachtlijst ({dayWaitingList.length})</h4>
-                            <div className="waitlist-badge">
-                              {dayWaitingList.length} wachtende gasten
-                            </div>
-                          </div>
-                        )}
+              <div className="card date-details-card">
+                <div className="card-header date-details-header">
+                  <h3 className="m-0">{formatSelectedDate(selectedDate)}</h3>
+                  {!isMultiSelectMode && (
+                    <button className="btn btn-primary btn-sm" onClick={handleAddShow}>
+                      ➕ Show
+                    </button>
+                  )}
+                </div>
+                <div className="card-body">
+                  {selectedShow ? (
+                    <div>
+                      <div className="badge bg-primary text-white mb-3">
+                        🎭 {selectedShow.name}
                       </div>
-                    ) : (
-                      <div className="empty-date">
-                        <div className="empty-icon">🎭</div>
-                        <h4>Geen voorstelling</h4>
-                        <p>Voeg een show toe om reserveringen te kunnen ontvangen</p>
-                        <button className="add-show-primary-btn" onClick={handleAddShow}>
+                      <div className="row">
+                        <div className="col-6"><strong className="text-muted">Tijd:</strong></div>
+                        <div className="col-6">{selectedShow.time}</div>
+                        <div className="col-6"><strong className="text-muted">Type:</strong></div>
+                        <div className="col-6">{selectedShow.type}</div>
+                        <div className="col-6"><strong className="text-muted">Capaciteit:</strong></div>
+                        <div className="col-6">{selectedShow.capacity}</div>
+                        <div className="col-6"><strong className="text-muted">Geboekt:</strong></div>
+                        <div className="col-6">{guestCountMap.get(selectedShow.id) || 0}</div>
+                      </div>
+                      {dayReservations.length > 0 && (
+                        <div className="mt-4">
+                          <h5>Reserveringen ({dayReservations.length})</h5>
+                          <ul className="list-group">
+                            {dayReservations.slice(0, 5).map(res => (
+                              <li key={res.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                {res.name}
+                                <span className="badge bg-secondary">{res.guests}p</span>
+                              </li>
+                            ))}
+                          </ul>
+                          {dayReservations.length > 5 && <p className="text-muted text-sm mt-2">+{dayReservations.length - 5} meer...</p>}
+                        </div>
+                      )}
+                      {dayWaitingList.length > 0 && (
+                         <div className="mt-4">
+                           <h5>Wachtlijst ({dayWaitingList.length})</h5>
+                           <p>{dayWaitingList.length} wachtende(n)</p>
+                         </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="empty-date">
+                      <div className="empty-icon">🗓️</div>
+                      <h4>Geen voorstelling</h4>
+                      <p>Selecteer een datum of voeg een nieuwe show toe.</p>
+                      {!isMultiSelectMode && (
+                        <button className="btn btn-primary" onClick={handleAddShow}>
                           ➕ Show Toevoegen
                         </button>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
+          </>
         );
 
       case 'schedule':
-        return (
-          <div className="schedule-view">
-            <h3>📋 Schema Overzicht</h3>
-            <p>Weekoverzicht en planning details komen hier...</p>
-          </div>
-        );
+        return <div className="card"><div className="card-body">Schema overzicht komt hier...</div></div>;
 
       case 'analytics':
-        return (
-          <div className="analytics-view">
-            <h3>📊 Kalender Analytics</h3>
-            <p>Bezettingsgraad en trends analyse komt hier...</p>
-          </div>
-        );
+        return <div className="card"><div className="card-body">Analytics dashboard komt hier...</div></div>;
 
       default:
         return null;
@@ -336,77 +275,78 @@ const AdminCalendarView: React.FC<AdminCalendarViewProps> = ({
   };
 
   return (
-    <div className="enhanced-calendar-view">
-      {/* Page Header */}
-      <div className="page-header">
-        <div className="page-title">
-          <h1>🗓️ Kalender & Planning</h1>
-          <p>Beheer shows, bekijk reserveringen en plan uw theater programma</p>
-        </div>
-        <div className="page-actions">
-          <button className="primary-btn" onClick={handleAddShow}>
-            ➕ Show Toevoegen
-          </button>
-          <button 
-            className={`secondary-btn ${isMultiSelectMode ? 'active' : ''}`} 
-            onClick={handleBulkActions}
-          >
-            {isMultiSelectMode ? `🗑️ Bulk Acties (${multiSelectedDates.length})` : '🗑️ Bulk Acties'}
-          </button>
-          {isMultiSelectMode && (
-            <button className="btn-outline" onClick={exitMultiSelectMode}>
-              ❌ Annuleren
+    <div className="admin-view-container">
+      {isMultiSelectMode ? (
+        <div className="multi-select-action-bar">
+          <div className="multi-select-info">
+            <strong>{multiSelectedDates.length} datum(s) geselecteerd</strong>
+            <div className="selected-dates-chips">
+              {multiSelectedDates.slice(0, 5).map(date => (
+                <span key={date} className="chip">
+                  {formatSelectedDate(date, { day: '2-digit', month: 'short' })}
+                  <button onClick={() => handleMultiDateToggle(date)} className="chip-delete">&times;</button>
+                </span>
+              ))}
+              {multiSelectedDates.length > 5 && (
+                <span className="chip">... en {multiSelectedDates.length - 5} meer</span>
+              )}
+            </div>
+          </div>
+          <div className="multi-select-actions">
+            <button className="btn btn-primary" onClick={handleAddShow} disabled={multiSelectedDates.length === 0}>
+              ➕ Show Toevoegen
             </button>
-          )}
+            <button className="btn btn-danger" onClick={() => setShowBulkDeleteModal(true)} disabled={multiSelectedDates.length === 0}>
+              🗑️ Verwijderen
+            </button>
+            <button className="btn btn-secondary" onClick={exitMultiSelectMode}>
+              Annuleren
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="admin-page-header">
+          <div className="admin-page-title">
+            <h1>🗓️ Kalender & Planning</h1>
+            <p>Beheer shows, bekijk reserveringen en plan uw theater programma</p>
+          </div>
+          <div className="admin-page-actions">
+            <button className="btn btn-secondary" onClick={() => setIsMultiSelectMode(true)}>
+              Selecteer Meerdere
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="stats-grid">
+        <div className="stat-item card">
+          <div className="stat-value">{monthStats.totalShows}</div>
+          <div className="stat-label">Shows deze maand</div>
+        </div>
+        <div className="stat-item card">
+          <div className="stat-value">{monthStats.totalBookings}</div>
+          <div className="stat-label">Totale boekingen</div>
+        </div>
+        <div className="stat-item card">
+          <div className="stat-value">{monthStats.occupancyRate}%</div>
+          <div className="stat-label">Bezettingsgraad</div>
+        </div>
+        <div className="stat-item card">
+          <div className="stat-value">€{monthStats.totalRevenue.toLocaleString()}</div>
+          <div className="stat-label">Maand omzet</div>
         </div>
       </div>
 
-      {/* Statistics Bar */}
-      <div className="stats-overview">
-        <div className="stats-grid">
-          <div className="stat-item">
-            <div className="stat-value">{monthStats.totalShows}</div>
-            <div className="stat-label">Shows deze maand</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-value">{monthStats.totalBookings}</div>
-            <div className="stat-label">Totale boekingen</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-value">{monthStats.occupancyRate}%</div>
-            <div className="stat-label">Bezettingsgraad</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-value">€{monthStats.totalRevenue.toLocaleString()}</div>
-            <div className="stat-label">Maand omzet</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab Navigation */}
       <div className="tab-navigation">
-        {[
-          { id: 'calendar', label: '📅 Kalender', description: 'Maand- en dagweergave' },
-          { id: 'schedule', label: '📋 Schema', description: 'Week planning' },
-          { id: 'analytics', label: '📊 Analytics', description: 'Bezetting & trends' }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id as any)}
-          >
-            <span className="tab-label">{tab.label}</span>
-            <span className="tab-description">{tab.description}</span>
-          </button>
-        ))}
+        <button className={`tab-button ${activeTab === 'calendar' ? 'active' : ''}`} onClick={() => setActiveTab('calendar')}>📅 Kalender</button>
+        <button className={`tab-button ${activeTab === 'schedule' ? 'active' : ''}`} onClick={() => setActiveTab('schedule')}>📋 Schema</button>
+        <button className={`tab-button ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>📊 Analytics</button>
       </div>
 
-      {/* Tab Content */}
       <div className="tab-content">
         {renderTabContent()}
       </div>
 
-      {/* Modals */}
       {showAddShowModal && (
         <AddShowModal
           onClose={() => setShowAddShowModal(false)}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { AdminButton } from '../layout';
-import { Icon } from '../UI/Icon';
+import { Icon } from '../ui/Icon';
 
 interface AdminModalProps {
   isOpen?: boolean;

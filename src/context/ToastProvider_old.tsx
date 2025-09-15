@@ -1,5 +1,5 @@
 import React, { ReactNode, createContext, useContext, useState } from 'react';
-import { Icon } from '../UI/Icon';
+import { Icon } from '../ui/Icon';
 
 interface Toast {
     id: number;

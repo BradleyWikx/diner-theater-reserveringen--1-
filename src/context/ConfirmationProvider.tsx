@@ -1,6 +1,6 @@
 import React, { ReactNode, createContext, useContext, useState } from 'react';
-import { Icon } from '../UI/Icon';
-import { i18n } from '../../config/config';
+import { Icon } from '../components/ui/Icon';
+import { useI18n } from '../hooks/useI18n';
 
 interface ConfirmationOptions {
     title: string;
@@ -21,6 +21,7 @@ interface ConfirmationProviderProps {
 }
 
 export const ConfirmationProvider: React.FC<ConfirmationProviderProps> = ({ children }) => {
+    const { t } = useI18n();
     const [options, setOptions] = useState<ConfirmationOptions | null>(null);
 
     const confirm = (newOptions: ConfirmationOptions) => {
@@ -42,8 +43,8 @@ export const ConfirmationProvider: React.FC<ConfirmationProviderProps> = ({ chil
             {options && (
                 <div className="modal-overlay" onClick={handleClose}>
                     <div className="modal confirmation-modal" onClick={e => e.stopPropagation()}>
-                        <button type="button" className="modal-close" onClick={handleClose} aria-label={i18n.general.close}>
-                            <Icon id="close"/>
+                        <button type="button" className="modal-close" onClick={handleClose} aria-label={t('common.close')}>
+                            <Icon name="close"/>
                         </button>
                         
                         <div className="modal-content">
@@ -52,10 +53,10 @@ export const ConfirmationProvider: React.FC<ConfirmationProviderProps> = ({ chil
                             
                             <div className="modal-actions">
                                 <button type="button" onClick={handleClose} className="btn-secondary">
-                                    {i18n.general.cancel}
+                                    {t('common.cancel')}
                                 </button>
                                 <button type="button" onClick={handleConfirm} className={options.confirmButtonClass || 'btn-danger'}>
-                                    {options.confirmText || i18n.general.confirm}
+                                    {options.confirmText || t('common.confirm')}
                                 </button>
                             </div>
                         </div>

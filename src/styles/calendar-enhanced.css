@@ -749,3 +749,54 @@
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
+
+/* Calendar Styles */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background-color: var(--border-color);
+  border: 1px solid var(--border-color);
+}
+
+.calendar-day-header,
+.calendar-day {
+  padding: var(--spacing-sm);
+  text-align: center;
+  background-color: var(--background-color);
+}
+
+.calendar-day-header {
+  font-weight: 600;
+  background-color: #e9ecef;
+}
+
+.calendar-day {
+  min-height: 120px;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.calendar-day:hover {
+  background-color: #e9ecef;
+}
+
+.calendar-day.empty {
+  background-color: #f8f9fa;
+  cursor: default;
+}
+
+.calendar-day.selected {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.calendar-day .day-number {
+  font-weight: 500;
+}
+
+.calendar-day.today .day-number {
+  color: var(--primary-color);
+  font-weight: 700;
+}

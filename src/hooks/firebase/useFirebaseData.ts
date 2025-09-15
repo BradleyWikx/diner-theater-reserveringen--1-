@@ -1,6 +1,6 @@
 // Firebase React Hooks for Dinner Theater Reservation System
 import { useState, useEffect, useCallback } from 'react';
-import { firebaseService } from '../../firebase/services/firebaseService';
+import { firebaseService } from '../../services/firebaseService';
 import { 
   ShowEvent, 
   Reservation, 

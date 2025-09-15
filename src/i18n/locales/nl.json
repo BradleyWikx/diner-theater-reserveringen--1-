@@ -1,0 +1,119 @@
+{
+  "common": {
+    "loading": "Laden...",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "delete": "Verwijderen",
+    "edit": "Bewerken",
+    "add": "Toevoegen",
+    "close": "Sluiten",
+    "confirm": "Bevestigen",
+    "search": "Zoeken",
+    "filter": "Filteren",
+    "back": "Terug",
+    "next": "Volgende",
+    "previous": "Vorige",
+    "yes": "Ja",
+    "no": "Nee",
+    "email": "E-mail",
+    "phone": "Telefoon",
+    "name": "Naam",
+    "date": "Datum",
+    "time": "Tijd",
+    "price": "Prijs",
+    "status": "Status",
+    "actions": "Acties"
+  },
+  "navigation": {
+    "reservations": "Reserveringen",
+    "calendar": "Kalender",
+    "shows": "Voorstellingen",
+    "customers": "Klanten",
+    "waitlist": "Wachtlijst",
+    "settings": "Instellingen",
+    "reports": "Rapporten",
+    "admin": "Beheer"
+  },
+  "reservations": {
+    "title": "Reserveringen",
+    "newReservation": "Nieuwe Reservering",
+    "confirmReservation": "Reservering Bevestigen",
+    "editReservation": "Reservering Bewerken",
+    "deleteReservation": "Reservering Verwijderen",
+    "guestCount": "Aantal Gasten",
+    "showDate": "Voorstelling Datum",
+    "customerInfo": "Klantgegevens",
+    "specialRequests": "Speciale Verzoeken",
+    "status": {
+      "confirmed": "Bevestigd",
+      "pending": "In Behandeling",
+      "cancelled": "Geannuleerd",
+      "checkedIn": "Ingecheckt"
+    }
+  },
+  "shows": {
+    "title": "Voorstellingen",
+    "newShow": "Nieuwe Voorstelling",
+    "editShow": "Voorstelling Bewerken",
+    "deleteShow": "Voorstelling Verwijderen",
+    "capacity": "Capaciteit",
+    "available": "Beschikbaar",
+    "sold": "Verkocht",
+    "showType": "Type Voorstelling",
+    "startTime": "Starttijd",
+    "endTime": "Eindtijd"
+  },
+  "customers": {
+    "title": "Klanten",
+    "newCustomer": "Nieuwe Klant",
+    "editCustomer": "Klant Bewerken",
+    "deleteCustomer": "Klant Verwijderen",
+    "firstName": "Voornaam",
+    "lastName": "Achternaam",
+    "address": "Adres",
+    "city": "Plaats",
+    "postalCode": "Postcode",
+    "country": "Land"
+  },
+  "waitlist": {
+    "title": "Wachtlijst",
+    "addToWaitlist": "Toevoegen aan Wachtlijst",
+    "removeFromWaitlist": "Verwijderen van Wachtlijst",
+    "position": "Positie",
+    "requestedDate": "Gewenste Datum",
+    "requestedGuests": "Gewenst Aantal Gasten"
+  },
+  "forms": {
+    "validation": {
+      "required": "Dit veld is verplicht",
+      "email": "Voer een geldig e-mailadres in",
+      "phone": "Voer een geldig telefoonnummer in",
+      "minLength": "Minimaal {{count}} karakters vereist",
+      "maxLength": "Maximaal {{count}} karakters toegestaan",
+      "min": "Minimaal {{min}}",
+      "max": "Maximaal {{max}}"
+    }
+  },
+  "messages": {
+    "success": {
+      "saved": "Succesvol opgeslagen",
+      "deleted": "Succesvol verwijderd",
+      "updated": "Succesvol bijgewerkt",
+      "created": "Succesvol aangemaakt"
+    },
+    "error": {
+      "general": "Er is een fout opgetreden",
+      "notFound": "Niet gevonden",
+      "unauthorized": "Geen toegang",
+      "network": "Netwerkfout"
+    }
+  },
+  "auth": {
+    "login": "Inloggen",
+    "logout": "Uitloggen",
+    "username": "Gebruikersnaam",
+    "password": "Wachtwoord",
+    "forgotPassword": "Wachtwoord vergeten?",
+    "invalidCredentials": "Ongeldige inloggegevens"
+  }
+}

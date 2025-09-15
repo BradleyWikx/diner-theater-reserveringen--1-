@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Icon } from '../UI/Icon';
+import { Icon } from '../ui/Icon';
 import { i18n } from '../../config/config';
 import type { ShowEvent, Reservation, AppConfig } from '../../types/types';
 

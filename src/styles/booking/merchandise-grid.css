@@ -1,0 +1,166 @@
+/* Enhanced Merchandise Grid - 3 Column Layout */
+.merchandise-grid-3cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    padding: 1rem 0;
+    max-width: 100%;
+}
+
+/* Merchandise Card Styling */
+.merchandise-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.merchandise-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    border-color: #d1d5db;
+}
+
+/* Merchandise Image */
+.merchandise-image {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    background-color: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* Merchandise Content */
+.merchandise-content {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    justify-content: space-between;
+}
+
+/* Merchandise Name */
+.merchandise-name {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.4;
+}
+
+/* Merchandise Description */
+.merchandise-description {
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin: 0 0 1rem 0;
+    flex-grow: 1;
+}
+
+/* Merchandise Price */
+.merchandise-price {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #059669;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+/* Merchandise Controls */
+.merchandise-controls {
+    margin-top: auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .merchandise-grid-3cols {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        padding: 0.5rem 0;
+    }
+    
+    .merchandise-card {
+        border-radius: 8px;
+    }
+    
+    .merchandise-content {
+        padding: 1rem;
+    }
+    
+    .merchandise-image {
+        height: 150px;
+    }
+    
+    .merchandise-name {
+        font-size: 1rem;
+    }
+    
+    .merchandise-description {
+        font-size: 0.8rem;
+    }
+    
+    .merchandise-price {
+        font-size: 1.125rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .merchandise-grid-3cols {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .merchandise-image {
+        height: 120px;
+    }
+    
+    .merchandise-content {
+        padding: 0.875rem;
+    }
+}
+
+/* QuantityStepper enhancements for merchandise cards */
+.merchandise-card .quantity-stepper {
+    justify-content: center;
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 0.5rem;
+}
+
+.merchandise-card .quantity-stepper button {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.merchandise-card .quantity-stepper button:hover:not(:disabled) {
+    background-color: #e5e7eb;
+    transform: scale(1.05);
+}
+
+.merchandise-card .quantity-stepper .quantity-display {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    min-width: 60px;
+}
+
+/* Empty state styling */
+.merchandise-grid-3cols:empty::after {
+    content: "Geen merchandise items beschikbaar";
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #6b7280;
+    font-style: italic;
+    padding: 2rem;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 2px dashed #d1d5db;
+}

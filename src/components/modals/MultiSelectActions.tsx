@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Icon } from '../UI/Icon';
+import { Icon } from '../ui/Icon';
 import { AddShowModal } from './AddShowModal';
-import { useConfirmation } from '../providers/ConfirmationProvider';
+import { useConfirmation } from '../../context/ConfirmationProvider';
 import { i18n } from '../../config/config';
 import type { ShowEvent, AppConfig } from '../../types/types';
 

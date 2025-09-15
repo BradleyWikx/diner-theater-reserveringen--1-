@@ -41,7 +41,7 @@ Dit rapport documenteert de grondige opruiming van de diner-theater-reserveringe
 - ✅ `src/styles/merchandise/` - Bijbehorende styles
 
 ### CSS Bestanden
-- ✅ `src/styles/admin-design-system.css` - Ongebruikt design systeem
+- ✅ `src/styles/design-system.css` - Ongebruikt en samengevoegd met `unified-admin-design.css`
 - ✅ `src/styles/admin-reservations-enhanced.css` - Enhanced reservations styling
 - ✅ `src/styles/mobile-booking-optimization.css` - Mobile optimization niet gebruikt
 - ✅ `src/styles/premium-theater-theme.css` - Premium theme niet gebruikt

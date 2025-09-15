@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon } from '../UI/Icon';
+import { Icon } from '../ui/Icon';
 import type { ShowEvent, WaitingListEntry } from '../../types/types';
 import { i18n } from '../../config/config';
 
@@ -15,16 +15,42 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [guests, setGuests] = useState(1);
+    const [drinkPackage, setDrinkPackage] = useState<'standard' | 'premium'>('standard');
+    const [remarks, setRemarks] = useState('');
+    const [acceptPartialBooking, setAcceptPartialBooking] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onAddToWaitingList({ name, email, phone, guests, date });
+        
+        const waitlistEntry: Omit<WaitingListEntry, 'id'> = {
+            name, 
+            email, 
+            phone, 
+            guests, 
+            date,
+            showName: show.name,
+            showType: show.type,
+            drinkPackage,
+            remarks,
+            acceptPartialBooking,
+            status: 'active',
+            addedAt: new Date(),
+            sourceChannel: 'website'
+        };
+        
+        onAddToWaitingList(waitlistEntry);
         setSubmitted(true);
+        
+        // Reset form
         setName('');
         setEmail('');
         setPhone('');
         setGuests(1);
+        setDrinkPackage('standard');
+        setRemarks('');
+        setAcceptPartialBooking(false);
+        
         setTimeout(() => {
           setSubmitted(false);
           onClose();
@@ -41,33 +67,22 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
     
     if (submitted) {
         return (
-            <div className="waitlist-success-card modern-card">
-                <div className="success-header">
-                    <div className="success-icon-large">
-                        <Icon id="check" />
-                    </div>
-                    <h3 className="success-title">Toegevoegd aan wachtlijst!</h3>
+            <div className="card">
+                <div className="card-header text-center">
+                    <Icon id="check" />
+                    <h3 className="card-title">Toegevoegd aan wachtlijst!</h3>
                 </div>
-                <div className="success-content">
-                    <p className="success-message">
+                <div className="card-body">
+                    <p>
                         U bent succesvol toegevoegd aan de wachtlijst voor <strong>{show.name}</strong>. 
                         We sturen u een email zodra er plaatsen beschikbaar komen.
                     </p>
-                    <div className="success-details">
-                        <div className="detail-item">
-                            <Icon id="calendar" />
-                            <span>{formattedDate}</span>
-                        </div>
-                        <div className="detail-item">
-                            <Icon id="users" />
-                            <span>{guests} {guests === 1 ? 'persoon' : 'personen'}</span>
-                        </div>
-                        <div className="detail-item">
-                            <Icon id="mail" />
-                            <span>{email}</span>
-                        </div>
+                    <div className="mt-4">
+                        <p><strong>Datum:</strong> {formattedDate}</p>
+                        <p><strong>Aantal:</strong> {guests} {guests === 1 ? 'persoon' : 'personen'}</p>
+                        <p><strong>Email:</strong> {email}</p>
                     </div>
-                    <button onClick={onClose} className="btn-primary btn-wide">
+                    <button onClick={onClose} className="btn btn-primary mt-4 w-full">
                         <Icon id="arrow-left" />
                         Terug naar kalender
                     </button>
@@ -75,115 +90,52 @@ export const WaitingListForm: React.FC<WaitingListFormProps> = ({ show, date, on
             </div>
         );
     }
-
+    
     return (
-        <div className="waitlist-container-modern">
-            <div className="waitlist-header-card modern-card">
-                <div className="header-icon">
-                    <Icon id="clock" />
-                </div>
-                <div className="header-content">
-                    <h2 className="waitlist-title">Wachtlijst - {show.name}</h2>
-                    <p className="waitlist-date">{formattedDate}</p>
-                </div>
-                <button onClick={onClose} className="close-btn" aria-label="Sluiten">
-                    <Icon id="close" />
-                </button>
+        <form onSubmit={handleSubmit} className="card">
+            <div className="card-header">
+                <h3 className="card-title">Plaats op wachtlijst</h3>
+                <p>{show.name} - {formattedDate}</p>
             </div>
-
-            <div className="waitlist-info-card modern-card">
-                <div className="info-badge">
-                    <Icon id="info" />
-                    <span>Vol</span>
+            <div className="card-body">
+                <div className="form-group">
+                    <label htmlFor="name" className="form-label">Naam</label>
+                    <input type="text" id="name" className="form-control" value={name} onChange={e => setName(e.target.value)} required />
                 </div>
-                <div className="info-content">
-                    <h4>Deze show is momenteel vol</h4>
-                    <p>Voeg jezelf toe aan de wachtlijst en we informeren je direct zodra er plaatsen vrijkomen.</p>
+                <div className="form-group">
+                    <label htmlFor="email" className="form-label">Email</label>
+                    <input type="email" id="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                    <label htmlFor="phone" className="form-label">Telefoon</label>
+                    <input type="tel" id="phone" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} />
+                </div>
+                <div className="form-group">
+                    <label htmlFor="guests" className="form-label">Aantal personen</label>
+                    <input type="number" id="guests" className="form-control" value={guests} onChange={e => setGuests(parseInt(e.target.value))} min="1" required />
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Drankarrangement</label>
+                    <select className="form-control" value={drinkPackage} onChange={e => setDrinkPackage(e.target.value as 'standard' | 'premium')}>
+                        <option value="standard">Standaard</option>
+                        <option value="premium">Premium</option>
+                    </select>
+                </div>
+                <div className="form-group">
+                    <label htmlFor="remarks" className="form-label">Opmerkingen</label>
+                    <textarea id="remarks" className="form-control" value={remarks} onChange={e => setRemarks(e.target.value)}></textarea>
+                </div>
+                <div className="form-group">
+                    <label className="flex items-center">
+                        <input type="checkbox" checked={acceptPartialBooking} onChange={e => setAcceptPartialBooking(e.target.checked)} />
+                        <span className="ml-2">Ik accepteer een deel van de boeking als niet alle plaatsen beschikbaar zijn.</span>
+                    </label>
                 </div>
             </div>
-            
-            <form onSubmit={handleSubmit} className="waitlist-form-modern modern-card">
-                <div className="form-section-modern">
-                    <div className="section-header">
-                        <Icon id="user" />
-                        <h4>Contactgegevens</h4>
-                    </div>
-                    
-                    <div className="form-grid">
-                        <div className="form-group">
-                            <label htmlFor="name" className="form-label">Volledige naam *</label>
-                            <input 
-                                id="name" 
-                                type="text" 
-                                className="form-input"
-                                value={name} 
-                                onChange={e => setName(e.target.value)} 
-                                placeholder="Bijv. Jan van der Berg"
-                                required 
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label htmlFor="email" className="form-label">E-mailadres *</label>
-                            <input 
-                                id="email" 
-                                type="email" 
-                                className="form-input"
-                                value={email} 
-                                onChange={e => setEmail(e.target.value)}
-                                placeholder="bijv@voorbeeld.nl" 
-                                required 
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label htmlFor="phone" className="form-label">Telefoonnummer *</label>
-                            <input 
-                                id="phone" 
-                                type="tel" 
-                                className="form-input"
-                                value={phone} 
-                                onChange={e => setPhone(e.target.value)}
-                                placeholder="06 12 34 56 78" 
-                                required 
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label htmlFor="guests" className="form-label">Aantal personen *</label>
-                            <div className="quantity-selector">
-                                <button 
-                                    type="button" 
-                                    className="quantity-btn"
-                                    onClick={() => setGuests(Math.max(1, guests - 1))}
-                                    disabled={guests <= 1}
-                                >
-                                    <Icon id="minus" />
-                                </button>
-                                <span className="quantity-value">{guests}</span>
-                                <button 
-                                    type="button" 
-                                    className="quantity-btn"
-                                    onClick={() => setGuests(guests + 1)}
-                                >
-                                    <Icon id="plus" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="form-actions">
-                    <button type="button" onClick={onClose} className="btn-secondary">
-                        <Icon id="arrow-left" />
-                        Annuleren
-                    </button>
-                    <button type="submit" className="btn-primary">
-                        <Icon id="plus" />
-                        Toevoegen aan wachtlijst
-                    </button>
-                </div>
-            </form>
-        </div>
-    )
+            <div className="card-footer flex justify-between">
+                <button type="button" onClick={onClose} className="btn btn-secondary">Annuleren</button>
+                <button type="submit" className="btn btn-primary">Plaats op wachtlijst</button>
+            </div>
+        </form>
+    );
 };

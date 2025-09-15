@@ -1,5 +1,5 @@
 // Firebase Data Migration Utility
-import { firebaseService } from '../../firebase/services/firebaseService';
+import { firebaseService } from '../../services/firebaseService';
 import { 
   ShowEvent, 
   Reservation, 

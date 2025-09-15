@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Reservation, ShowEvent } from '../../types/types';
 import { AdminLayout, AdminCard, AdminButton, AdminBadge, AdminGrid, AdminDataTable } from '../layout/AdminLayout';
-import { resendConfirmationEmail, type BookingEmailData } from '../../services/emailService';
+import { resendConfirmationEmail, sendBookingConfirmedEmail, sendBookingRejectedEmail, type BookingEmailData } from '../../services/emailService';
+import { calculateAvailableCapacity, getBookingMessage } from '../../utils/utilities';
 
 interface AdminApprovalsViewProps {
   reservations: Reservation[];
@@ -21,6 +22,8 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [sortKey, setSortKey] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [rejectingReservation, setRejectingReservation] = useState<Reservation | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string>('');
 
   // Calculate approval statistics
   const approvalStats = useMemo(() => {
@@ -152,24 +155,102 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
     }
   };
 
-  // Handle approval
-  const handleApprove = (reservation: Reservation) => {
-    const updatedReservation: Reservation = {
-      ...reservation,
-      status: 'confirmed',
-      approvedBy: 'Admin' // In a real app, this would be the current user
-    };
-    onUpdateReservation(updatedReservation);
-    handleResendEmail(reservation, 'confirmed');
+  // Handle approval with proper email and capacity management
+  const handleApprove = async (reservation: Reservation) => {
+    try {
+      const show = showEvents.find(s => s.date === reservation.date);
+      if (!show) {
+        console.error('Show not found for reservation');
+        return;
+      }
+
+      // Get current capacity info
+      const availableCapacity = calculateAvailableCapacity(show, filteredReservations);
+      const isOverbooking = reservation.guests > availableCapacity;
+
+      const updatedReservation: Reservation = {
+        ...reservation,
+        status: 'confirmed',
+        approvedBy: 'Admin', // In real app, get current user
+        isOverbooking: isOverbooking,
+        capacityOverride: isOverbooking ? show.capacity : undefined,
+        originalAvailableSpots: availableCapacity
+      };
+
+      // Send confirmation email
+      const emailData: BookingEmailData = {
+        customerName: reservation.contactName,
+        customerEmail: reservation.email,
+        customerPhone: reservation.phone,
+        customerAddress: reservation.address,
+        customerCity: reservation.city,
+        customerPostalCode: reservation.postalCode,
+        customerCountry: reservation.country,
+        companyName: reservation.companyName,
+        showTitle: getShowName(reservation.date),
+        showDate: reservation.date,
+        packageType: reservation.drinkPackage,
+        numberOfGuests: reservation.guests,
+        totalPrice: reservation.totalPrice,
+        reservationId: reservation.id,
+        allergies: reservation.allergies,
+        preShowDrinks: reservation.preShowDrinks,
+        afterParty: reservation.afterParty ? reservation.guests : 0,
+        remarks: reservation.remarks,
+        promoCode: reservation.promoCode,
+        discountAmount: reservation.discountAmount
+      };
+
+      await sendBookingConfirmedEmail(emailData);
+      onUpdateReservation(updatedReservation);
+      
+      console.log(`Booking ${reservation.id} approved successfully`);
+    } catch (error) {
+      console.error('Error approving reservation:', error);
+    }
   };
 
-  // Handle rejection
-  const handleReject = (reservation: Reservation) => {
-    const updatedReservation: Reservation = {
-      ...reservation,
-      status: 'cancelled'
-    };
-    onUpdateReservation(updatedReservation);
+  // Handle rejection with proper email
+  const handleReject = async (reservation: Reservation, rejectionReason: string = '') => {
+    try {
+      const updatedReservation: Reservation = {
+        ...reservation,
+        status: 'rejected',
+        rejectedBy: 'Admin', // In real app, get current user
+        rejectionReason: rejectionReason || 'Capaciteit overschreden - kan niet worden geaccommodeerd'
+      };
+
+      // Send rejection email
+      const emailData: BookingEmailData = {
+        customerName: reservation.contactName,
+        customerEmail: reservation.email,
+        customerPhone: reservation.phone,
+        customerAddress: reservation.address,
+        customerCity: reservation.city,
+        customerPostalCode: reservation.postalCode,
+        customerCountry: reservation.country,
+        companyName: reservation.companyName,
+        showTitle: getShowName(reservation.date),
+        showDate: reservation.date,
+        packageType: reservation.drinkPackage,
+        numberOfGuests: reservation.guests,
+        totalPrice: reservation.totalPrice,
+        reservationId: reservation.id,
+        allergies: reservation.allergies,
+        preShowDrinks: reservation.preShowDrinks,
+        afterParty: reservation.afterParty ? reservation.guests : 0,
+        remarks: reservation.remarks,
+        promoCode: reservation.promoCode,
+        discountAmount: reservation.discountAmount
+      };
+
+      await sendBookingRejectedEmail(emailData, rejectionReason);
+      onUpdateReservation(updatedReservation);
+      
+      console.log(`Booking ${reservation.id} rejected successfully`);
+    } catch (error) {
+      console.error('Error rejecting reservation:', error);
+    }
   };
 
   // Get urgency indicator
@@ -199,6 +280,8 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
         return <AdminBadge variant="success">✅ Goedgekeurd</AdminBadge>;
       case 'cancelled':
         return <AdminBadge variant="danger">❌ Afgewezen</AdminBadge>;
+      case 'rejected':
+        return <AdminBadge variant="danger">🚫 Geweigerd</AdminBadge>;
       default:
         return <AdminBadge variant="neutral">{reservation.status}</AdminBadge>;
     }
@@ -383,7 +466,10 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
         <AdminButton
           variant="danger"
           size="sm"
-          onClick={() => handleReject(reservation)}
+          onClick={() => {
+            setRejectingReservation(reservation);
+            setRejectionReason('');
+          }}
           title="Afwijzen"
         >
           ❌
@@ -555,6 +641,58 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
           }
         />
       </AdminCard>
+
+      {/* Rejection Modal */}
+      {rejectingReservation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-lg max-w-md w-full mx-md">
+            <h3 className="text-lg font-semibold text-admin-text-primary mb-md">
+              Boeking Afwijzen
+            </h3>
+            <p className="text-admin-text-secondary mb-lg">
+              Klant: <strong>{rejectingReservation.contactName}</strong><br/>
+              Show: <strong>{getShowName(rejectingReservation.date)}</strong><br/>
+              Datum: <strong>{new Date(rejectingReservation.date).toLocaleDateString('nl-NL')}</strong><br/>
+              Gasten: <strong>{rejectingReservation.guests}</strong>
+            </p>
+            
+            <div className="mb-lg">
+              <label className="block text-sm font-medium text-admin-text-primary mb-sm">
+                Reden voor afwijzing (optioneel)
+              </label>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Bijvoorbeeld: Capaciteit overschreden, geen extra accommodatie mogelijk..."
+                className="w-full p-sm border border-admin-border rounded-md resize-none"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-sm">
+              <AdminButton
+                variant="ghost"
+                onClick={() => {
+                  setRejectingReservation(null);
+                  setRejectionReason('');
+                }}
+              >
+                Annuleren
+              </AdminButton>
+              <AdminButton
+                variant="danger"
+                onClick={() => {
+                  handleReject(rejectingReservation, rejectionReason);
+                  setRejectingReservation(null);
+                  setRejectionReason('');
+                }}
+              >
+                ❌ Afwijzen
+              </AdminButton>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

@@ -1,80 +1,11 @@
 ﻿
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Roboto:wght@300;400;500;600;700&display=swap');
+@import './src/styles/unified-admin-design.css';
+@import './src/styles/components.css';
+@import './src/styles/layout.css';
 @import './src/styles/calendar-enhanced.css';
 
-/* ========================================================= */
-/* === GLOBALE KLEUR & TYPOGRAFIE VARIABELEN (ROOT) === */
-/* ========================================================= */
-
-:root {
-  /* ============ MOBILE & RESPONSIVE VARIABELEN ============ */
-  /* Safe Area Insets (voor mobile browsers met notch/island) */
-  --safe-area-inset-top: env(safe-area-inset-top, 0px);
-  --safe-area-inset-right: env(safe-area-inset-right, 0px);
-  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-area-inset-left: env(safe-area-inset-left, 0px);
-  
-  /* Viewport units (voor mobile browsers) */
-  --vh: 1vh;
-  --vw: 1vw;
-  --vmin: 1vmin;
-  --vmax: 1vmax;
-  
-  /* Touch target minimums */
-  --touch-target-min: 44px;
-  --touch-target-recommended: 48px;
-  
-  /* --- Primaire Kleuren --- */
-  --primary-color: #A00000; /* Donkerrood / Bordeaux */
-  --primary-color-dark: #700000; /* Dieper rood voor actieve staten */
-  --primary-color-light: #C00000; /* Lichter rood voor hover */
-  --accent-color-gold: #FFD700; /* Goud */
-  --accent-color-gold-dark: #DAA520; /* Donkerder goud voor hover/actief */
-
-  /* --- Achtergrond Kleuren --- */
-  --bg-color: #1a1a1a;        /* Donkere achtergrond voor hele app */
-  --surface-color: #2a2a2a;   /* Lichtere donkere achtergrond voor kaarten/panelen */
-  --surface-color-light: #3a3a3a; /* Nog lichter donker voor ingevoerde velden */
-  --border-color: #444444;    /* Donkere randkleur */
-  --border-color-light: #555555; /* Nog lichtere donkere rand */
-
-  /* --- Tekst Kleuren --- */
-  --text-color: #e0e0e0;      /* Lichtgrijze tekst op donkere achtergrond */
-  --text-color-dark: #ffffff; /* Witte tekst voor belangrijke titels */
-  --text-color-light: #b0b0b0; /* Lichtere grijze tekst voor subtiele info */
-  --text-color-placeholder: #888888; /* Voor placeholder tekst */
-  --text-color-error: #FF6347; /* Tomatenrood voor foutmeldingen */
-  --text-color-success: #32CD32; /* Limegroen voor succesmeldingen */
-
-  /* --- Admin Specifieke Kleuren (voor consistentie) --- */
-  --admin-bg: var(--bg-color);
-  --admin-surface: var(--surface-color);
-  --admin-text: var(--text-color);
-  --admin-text-secondary: var(--text-color-light);
-  --admin-primary: var(--primary-color);
-  --admin-primary-light: var(--primary-color-light);
-  --admin-border: var(--border-color);
-
-  /* --- Algemene Stylings --- */
-  --border-radius-sm: 4px;
-  --border-radius-md: 8px;
-  --border-radius-lg: 12px;
-  --font-family: 'Roboto', sans-serif; /* Of een ander elegant lettertype */
-
-  /* Legacy variabelen (voor backwards compatibility) */
-  --kleur-primair: var(--primary-color);
-  --kleur-primair-donker: var(--primary-color-dark);
-  --kleur-primair-licht: var(--primary-color-light);
-  --kleur-secundair: var(--accent-color-gold);
-  --kleur-secundair-licht: var(--accent-color-gold);
-  --kleur-secundair-donker: var(--accent-color-gold-dark);
-  --kleur-accent: var(--text-color-success);
-  --kleur-accent-licht: var(--text-color-success);
-  --kleur-accent-donker: var(--text-color-success);
-  --kleur-achtergrond: var(--bg-color);
-  --kleur-oppervlak: var(--surface-color);
-  --kleur-oppervlak-alt: var(--surface-color-light);
-}
+/* De :root variabelen zijn nu onderdeel van unified-admin-design.css */
 
 /* === GLOBALE STYLING === */
 html {

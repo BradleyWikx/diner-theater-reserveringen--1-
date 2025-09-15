@@ -1,9 +1,12 @@
 
 
+// Initialize i18n before any components
+import './src/i18n';
+
 import React, { useState, useEffect, useMemo, useCallback, ReactNode, Fragment, useRef, createContext, useContext } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AuthProvider } from './src/contexts/AuthContext';
-import { useAuth } from './src/contexts/AuthContext';
+import { AuthProvider } from './src/context/AuthContext';
+import { useAuth } from './src/context/AuthContext';
 import { DiscreteAdminButton } from './src/components/admin/DiscreteAdminButton';
 import PremiumDashboard from './PremiumDashboard';
 import { AdminDashboardView } from './src/components/views/AdminDashboardView';
@@ -50,10 +53,11 @@ import type {
 import { i18n, defaultConfig, calculateEndTime, calculateDoorsOpenTime } from './src/config/config';
 
 // Import components
-import { Icon } from './src/components/UI/Icon';
-import { Header } from './src/components/UI/Header';
-import { ToastProvider, useToast } from './src/components/providers/ToastProvider';
-import { ConfirmationProvider, useConfirmation } from './src/components/providers/ConfirmationProvider';
+import { Icon } from './src/components/ui/Icon';
+import { Header } from './src/components/ui/Header';
+
+import { ToastProvider, useToast } from './src/context/ToastProvider';
+import { ConfirmationProvider, useConfirmation } from './src/context/ConfirmationProvider';
 import { BookingView } from './src/components/views/BookingView';
 import { WaitingListForm } from './src/components/forms';
 import { BulkDeleteModal, MultiSelectActions, PrintableListModal } from './src/components/modals';
@@ -68,7 +72,7 @@ import { useMediaQuery, useMobile, usePagination } from './src/hooks';
 import { WizardProgress, DynamicStyles } from './src/components/shared';
 
 // Import Firebase services
-import { firebaseService } from './src/firebase/services/firebaseService';
+import { firebaseService } from './src/services/firebaseService';
 import { useInternalEvents, useShows, useReservations, useWaitingList } from './src/hooks/firebase/useFirebaseData';
 
 // Import Email service
@@ -1638,39 +1642,51 @@ const ReservationWizard = ({ show, date, onAddReservation, config, remainingCapa
                         <legend>🎁 Stap 3: Extra's en souvenirs</legend>
                         <p className="fieldset-subtitle">Maak uw avond nog specialer met onze optionele extra's.</p>
 
-                        <div className="simple-addons-list">
+                        <div className="merchandise-grid-3cols">
                             {merchandiseItems.map(item => (
-                                <div key={item.id} className="addon-item">
-                                    <img src={item.imageUrl || 'https://placehold.co/100x100/eee/ccc?text=Geen+Foto'} alt={item.name} className="addon-image" />
-                                    <div className="addon-info">
-                                        <span className="addon-name">{item.name}</span>
-                                        <span className="addon-description">{item.description}</span>
-                                    </div>
-                                    <div className="addon-price">€{item.price.toFixed(2)}</div>
-                                    <QuantityStepper
-                                        value={reservation.addons[item.id] || 0}
-                                        onChange={(newValue) => handleAddonNumberChange(item.id, newValue)}
-                                        groupSize={reservation.guests}
+                                <div key={item.id} className="merchandise-card">
+                                    <img 
+                                        src={item.imageUrl || 'https://placehold.co/150x150/eee/ccc?text=Geen+Foto'} 
+                                        alt={item.name} 
+                                        className="merchandise-image" 
                                     />
+                                    <div className="merchandise-content">
+                                        <h4 className="merchandise-name">{item.name}</h4>
+                                        <p className="merchandise-description">{item.description}</p>
+                                        <div className="merchandise-price">€{item.price.toFixed(2)}</div>
+                                        <div className="merchandise-controls">
+                                            <QuantityStepper
+                                                value={reservation.addons[item.id] || 0}
+                                                onChange={(newValue) => handleAddonNumberChange(item.id, newValue)}
+                                                groupSize={reservation.guests}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
 
-                            {/* Sectie voor Petten (als je die wilt behouden) */}
-                            <h4 style={{marginTop: '2rem'}}>Aandenken: Theater Petten</h4>
+                            {/* Sectie voor Petten in grid layout */}
                             {capItems.map((slogan, index) => {
                                 const capId = `cap${index}`;
                                 return (
-                                    <div key={capId} className="addon-item">
-                                        <img src={'https://placehold.co/100x100/2a2a2a/f0b429?text=🧢'} alt="Theater Pet" className="addon-image" />
-                                        <div className="addon-info">
-                                            <span className="addon-name">Pet: "{slogan}"</span>
-                                        </div>
-                                        <div className="addon-price">€{config.prices.cap.toFixed(2)}</div>
-                                        <QuantityStepper
-                                            value={reservation.addons[capId] || 0}
-                                            onChange={(newValue) => handleAddonNumberChange(capId, newValue)}
-                                            groupSize={reservation.guests}
+                                    <div key={capId} className="merchandise-card">
+                                        <img 
+                                            src={'https://placehold.co/150x150/2a2a2a/f0b429?text=🧢'} 
+                                            alt="Theater Pet" 
+                                            className="merchandise-image" 
                                         />
+                                        <div className="merchandise-content">
+                                            <h4 className="merchandise-name">Theater Pet</h4>
+                                            <p className="merchandise-description">"{slogan}"</p>
+                                            <div className="merchandise-price">€{config.prices.cap.toFixed(2)}</div>
+                                            <div className="merchandise-controls">
+                                                <QuantityStepper
+                                                    value={reservation.addons[capId] || 0}
+                                                    onChange={(newValue) => handleAddonNumberChange(capId, newValue)}
+                                                    groupSize={reservation.guests}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 );
                             })}

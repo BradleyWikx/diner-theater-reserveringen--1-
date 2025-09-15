@@ -1,0 +1,119 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "close": "Close",
+    "confirm": "Confirm",
+    "search": "Search",
+    "filter": "Filter",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "yes": "Yes",
+    "no": "No",
+    "email": "Email",
+    "phone": "Phone",
+    "name": "Name",
+    "date": "Date",
+    "time": "Time",
+    "price": "Price",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "navigation": {
+    "reservations": "Reservations",
+    "calendar": "Calendar",
+    "shows": "Shows",
+    "customers": "Customers",
+    "waitlist": "Waitlist",
+    "settings": "Settings",
+    "reports": "Reports",
+    "admin": "Admin"
+  },
+  "reservations": {
+    "title": "Reservations",
+    "newReservation": "New Reservation",
+    "confirmReservation": "Confirm Reservation",
+    "editReservation": "Edit Reservation",
+    "deleteReservation": "Delete Reservation",
+    "guestCount": "Guest Count",
+    "showDate": "Show Date",
+    "customerInfo": "Customer Information",
+    "specialRequests": "Special Requests",
+    "status": {
+      "confirmed": "Confirmed",
+      "pending": "Pending",
+      "cancelled": "Cancelled",
+      "checkedIn": "Checked In"
+    }
+  },
+  "shows": {
+    "title": "Shows",
+    "newShow": "New Show",
+    "editShow": "Edit Show",
+    "deleteShow": "Delete Show",
+    "capacity": "Capacity",
+    "available": "Available",
+    "sold": "Sold",
+    "showType": "Show Type",
+    "startTime": "Start Time",
+    "endTime": "End Time"
+  },
+  "customers": {
+    "title": "Customers",
+    "newCustomer": "New Customer",
+    "editCustomer": "Edit Customer",
+    "deleteCustomer": "Delete Customer",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "address": "Address",
+    "city": "City",
+    "postalCode": "Postal Code",
+    "country": "Country"
+  },
+  "waitlist": {
+    "title": "Waitlist",
+    "addToWaitlist": "Add to Waitlist",
+    "removeFromWaitlist": "Remove from Waitlist",
+    "position": "Position",
+    "requestedDate": "Requested Date",
+    "requestedGuests": "Requested Guests"
+  },
+  "forms": {
+    "validation": {
+      "required": "This field is required",
+      "email": "Please enter a valid email address",
+      "phone": "Please enter a valid phone number",
+      "minLength": "Minimum {{count}} characters required",
+      "maxLength": "Maximum {{count}} characters allowed",
+      "min": "Minimum {{min}}",
+      "max": "Maximum {{max}}"
+    }
+  },
+  "messages": {
+    "success": {
+      "saved": "Successfully saved",
+      "deleted": "Successfully deleted",
+      "updated": "Successfully updated",
+      "created": "Successfully created"
+    },
+    "error": {
+      "general": "An error occurred",
+      "notFound": "Not found",
+      "unauthorized": "Unauthorized",
+      "network": "Network error"
+    }
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "username": "Username",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "invalidCredentials": "Invalid credentials"
+  }
+}

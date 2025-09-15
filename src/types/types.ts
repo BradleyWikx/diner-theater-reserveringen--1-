@@ -80,10 +80,15 @@ export interface Reservation {
     promoCode?: string;
     discountAmount?: number;
     checkedIn: boolean;
-    status: 'confirmed' | 'provisional' | 'waitlisted' | 'cancelled'; // Enhanced booking status
+    status: 'confirmed' | 'provisional' | 'waitlisted' | 'cancelled' | 'rejected'; // Enhanced booking status
     bookingSource: 'internal' | 'external'; // Track booking source
     createdAt: string; // Timestamp for analytics
     approvedBy?: string; // Admin who approved provisional booking
+    rejectedBy?: string; // Admin who rejected provisional booking
+    rejectionReason?: string; // Reason for rejection
+    capacityOverride?: number; // Original capacity when booked over limit
+    originalAvailableSpots?: number; // How many spots were available when booking was made
+    isOverbooking?: boolean; // Flag to indicate this booking exceeds capacity
     // STAP 6: New fields for allergies and billing address
     allergies?: string; // Allergieën en dieetwensen - heel belangrijk voor restaurant
     differentBillingAddress?: boolean; // Factuuradres wijkt af van contactadres
@@ -110,12 +115,18 @@ export interface WaitingListEntry {
     priority?: number;
     responseDeadline?: Date;
     reservationId?: string; // Changed to string for Firestore
+    showName?: string; // Show name for this date
+    showType?: string; // Show type for this date
     // Phase 3: Analytics tracking
     sourceChannel?: 'website' | 'phone' | 'email' | 'walk-in' | 'referral';
     conversionScore?: number; // 0-100 likelihood to convert
     customerSegment?: 'vip' | 'regular' | 'new' | 'corporate';
     priceFlexibility?: 'high' | 'medium' | 'low'; // willingness to pay premium
     notes?: string;
+    // Enhanced waitlist features
+    drinkPackage?: 'standard' | 'premium'; // Preferred package
+    remarks?: string; // Customer remarks/requests
+    acceptPartialBooking?: boolean; // Accept booking for fewer guests if needed
 }
 
 // New Firestore-ready types

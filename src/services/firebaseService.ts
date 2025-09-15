@@ -20,7 +20,7 @@ import {
   CollectionReference,
   DocumentReference
 } from 'firebase/firestore';
-import { db } from '../config';
+import { db } from '../firebase/config';
 import { 
   ShowEvent, 
   Reservation, 
@@ -34,7 +34,7 @@ import {
   Table,
   MenuItem,
   MerchItem
-} from '../../types/types';
+} from '../types/types';
 
 // 🎭 SHOW EVENTS SERVICE
 export class ShowEventsService {
@@ -334,9 +334,9 @@ export class ReservationsService {
   }
 }
 
-// 📋 WAITING LIST SERVICE (Legacy)
+// 📋 ENHANCED WAITING LIST SERVICE
 export class WaitingListService {
-  private collection = collection(db, 'waitingListLegacy');
+  private collection = collection(db, 'waitingList');
 
   async getAllWaitingList(): Promise<WaitingListEntry[]> {
     try {
@@ -349,10 +349,12 @@ export class WaitingListService {
         
         return {
           ...data,
-          id: doc.id, // Use Firestore document ID as string
-          addedAt: data.addedAt?.toDate?.() || undefined
-        } as unknown as WaitingListEntry;
-      });
+          id: doc.id,
+          addedAt: data.addedAt?.toDate?.() || data.addedAt,
+          lastNotificationAt: data.lastNotificationAt?.toDate?.() || data.lastNotificationAt,
+          responseDeadline: data.responseDeadline?.toDate?.() || data.responseDeadline
+        };
+      }) as WaitingListEntry[];
       
       
       return waitingList;
@@ -362,32 +364,47 @@ export class WaitingListService {
     }
   }
 
-  async addWaitingListEntry(entry: Omit<WaitingListEntry, 'id'>): Promise<WaitingListEntry> {
+  async addToWaitingList(entry: Omit<WaitingListEntry, 'id'>): Promise<WaitingListEntry> {
     try {
       
+      
+      // Filter out undefined values
+      const cleanedEntry = Object.keys(entry).reduce((acc, key) => {
+        const value = (entry as any)[key];
+        if (value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as any);
+      
       const docRef = await addDoc(this.collection, {
-        ...entry,
-        addedAt: serverTimestamp()
+        ...cleanedEntry,
+        addedAt: serverTimestamp(),
+        status: 'active',
+        priority: 1, // Default priority
+        notificationsSent: 0
       });
       
       
-      // Return the complete waiting list entry with the new ID
       const savedEntry: WaitingListEntry = {
         ...entry,
-        id: docRef.id
+        id: docRef.id,
+        status: 'active',
+        addedAt: new Date(),
+        priority: 1,
+        notificationsSent: 0
       };
       
       return savedEntry;
     } catch (error) {
       
-      throw new Error('Failed to add waiting list entry');
+      throw new Error('Failed to add to waiting list');
     }
   }
 
   async updateWaitingListEntry(id: string, updates: Partial<WaitingListEntry>): Promise<void> {
     try {
-      const docRef = doc(this.collection, id);
-      await updateDoc(docRef, {
+      await updateDoc(doc(this.collection, id), {
         ...updates,
         updatedAt: serverTimestamp()
       });
@@ -397,14 +414,64 @@ export class WaitingListService {
     }
   }
 
-  async deleteWaitingListEntry(id: string): Promise<void> {
+  async removeFromWaitingList(id: string): Promise<void> {
     try {
-      // Use doc ID directly since Firebase uses string IDs
       await deleteDoc(doc(this.collection, id));
-      
     } catch (error) {
       
-      throw new Error('Failed to delete waiting list entry');
+      throw new Error('Failed to remove from waiting list');
+    }
+  }
+
+  async getWaitingListByDate(date: string): Promise<WaitingListEntry[]> {
+    try {
+      const q = query(
+        this.collection, 
+        where('date', '==', date),
+        where('status', '==', 'active'),
+        orderBy('addedAt', 'asc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          addedAt: data.addedAt?.toDate?.() || data.addedAt,
+          lastNotificationAt: data.lastNotificationAt?.toDate?.() || data.lastNotificationAt,
+          responseDeadline: data.responseDeadline?.toDate?.() || data.responseDeadline
+        };
+      }) as WaitingListEntry[];
+    } catch (error) {
+      
+      throw new Error('Failed to fetch waiting list by date');
+    }
+  }
+
+  async notifyWaitingListEntry(id: string, notificationType: string): Promise<void> {
+    try {
+      await updateDoc(doc(this.collection, id), {
+        status: 'notified',
+        lastNotificationAt: serverTimestamp(),
+        notificationsSent: increment(1),
+        responseDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours from now
+      });
+    } catch (error) {
+      
+      throw new Error('Failed to notify waiting list entry');
+    }
+  }
+
+  async convertToReservation(id: string, reservationId: string): Promise<void> {
+    try {
+      await updateDoc(doc(this.collection, id), {
+        status: 'converted',
+        reservationId: reservationId,
+        convertedAt: serverTimestamp()
+      });
+    } catch (error) {
+      
+      throw new Error('Failed to convert waiting list entry');
     }
   }
 
@@ -413,11 +480,17 @@ export class WaitingListService {
     return onSnapshot(
       query(this.collection, orderBy('addedAt', 'asc')),
       (snapshot) => {
-        const waitingList = snapshot.docs.map(doc => ({
-          ...doc.data(),
-          id: doc.id,
-          addedAt: doc.data().addedAt?.toDate?.() || undefined
-        })) as WaitingListEntry[];
+        const waitingList = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            addedAt: data.addedAt?.toDate?.() || data.addedAt,
+            lastNotificationAt: data.lastNotificationAt?.toDate?.() || data.lastNotificationAt,
+            responseDeadline: data.responseDeadline?.toDate?.() || data.responseDeadline
+          };
+        }) as WaitingListEntry[];
+        
         callback(waitingList);
       },
       (error) => {
@@ -1399,9 +1472,9 @@ export const deleteReservation = (id: string) => firebaseService.reservations.de
 
 // Waitlist
 export const getWaitlistEntries = () => firebaseService.waitingList.getAllWaitingList();
-export const addWaitlistEntry = (data: Omit<WaitingListEntry, 'id'>) => firebaseService.waitingList.addWaitingListEntry(data);
+export const addWaitlistEntry = (data: Omit<WaitingListEntry, 'id'>) => firebaseService.waitingList.addToWaitingList(data);
 export const updateWaitlistEntry = (id: string, data: Partial<WaitingListEntry>) => firebaseService.waitingList.updateWaitingListEntry(id, data);
-export const deleteWaitlistEntry = (id: string) => firebaseService.waitingList.deleteWaitingListEntry(id);
+export const deleteWaitlistEntry = (id: string) => firebaseService.waitingList.removeFromWaitingList(id);
 
 // Internal Events
 export const getInternalEvents = () => firebaseService.internalEvents.getAllInternalEvents();

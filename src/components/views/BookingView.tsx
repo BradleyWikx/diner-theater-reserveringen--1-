@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { ShowEvent, Reservation, WaitingListEntry, AppConfig } from '../../types/types';
 import { i18n } from '../../config/config';
-import { Icon } from '../UI/Icon';
+import { Icon } from '../ui/Icon';
 import { getShowTimes } from '../../utils/utilities';
 
 interface BookingViewProps {

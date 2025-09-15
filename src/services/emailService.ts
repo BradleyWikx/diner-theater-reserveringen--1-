@@ -53,7 +53,9 @@ const EMAIL_TEMPLATES = {
     BOOKING_CONFIRMED: 'template_sc4hcps',             // Voor booking bevestiging (goedkeuring)
     BOOKING_REJECTED: 'template_rejected',             // Voor booking afwijzing
     BOOKING_MODIFIED: 'template_modified',             // Voor wijzigingen
-    RESEND_CONFIRMATION: 'template_resend'             // Voor handmatig opnieuw versturen
+    RESEND_CONFIRMATION: 'template_resend',            // Voor handmatig opnieuw versturen
+    WAITLIST_ADDED: 'template_waitlist_added',         // Voor wachtlijst bevestiging
+    WAITLIST_AVAILABLE: 'template_waitlist_available'  // Voor wachtlijst availability notification
 };
 
 // Helper Functions
@@ -341,3 +343,99 @@ export const resendConfirmationEmail = async (bookingData: BookingEmailData, ema
 
 // Legacy support - backward compatibility
 export const sendBookingNotification = sendAdminNotificationEmail;
+
+/**
+ * 🎭 SEND WAITLIST CONFIRMATION EMAIL - Bevestiging wachtlijst aanmelding
+ */
+export const sendWaitlistConfirmationEmail = async (waitlistData: {
+    customerName: string;
+    customerEmail: string;
+    showTitle: string;
+    showDate: string;
+    requestedGuests: number;
+    position?: number;
+}): Promise<boolean> => {
+    try {
+        if (!EMAIL_ENABLED) {
+            console.log('📧 [WAITLIST] Email disabled - would confirm waitlist:', waitlistData.customerEmail);
+            return true;
+        }
+
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+        
+        const result = await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAIL_TEMPLATES.WAITLIST_ADDED,
+            {
+                to_email: waitlistData.customerEmail,
+                to_name: waitlistData.customerName,
+                from_name: 'Theater Wachtlijst',
+                subject: `📝 Wachtlijst Bevestiging - ${waitlistData.showTitle}`,
+                
+                customer_name: waitlistData.customerName,
+                show_title: waitlistData.showTitle,
+                show_date: formatDate(waitlistData.showDate),
+                requested_guests: waitlistData.requestedGuests.toString(),
+                position: waitlistData.position?.toString() || 'Onbekend',
+                
+                next_steps: 'We houden u op de hoogte van beschikbaarheid',
+                contact_info: 'Bij vragen: info@theater.nl of +32 123 456 789'
+            }
+        );
+        
+        console.log('📧 [WAITLIST] Confirmation sent successfully:', result);
+        return true;
+    } catch (error) {
+        console.error('📧 [WAITLIST] Confirmation failed:', error);
+        return false;
+    }
+};
+
+/**
+ * 🎭 SEND WAITLIST AVAILABILITY EMAIL - Plaats vrijgekomen op wachtlijst
+ */
+export const sendWaitlistAvailabilityEmail = async (waitlistData: {
+    customerName: string;
+    customerEmail: string;
+    showTitle: string;
+    showDate: string;
+    availableSpots: number;
+    requestedGuests: number;
+    responseDeadline?: string;
+}): Promise<boolean> => {
+    try {
+        if (!EMAIL_ENABLED) {
+            console.log('📧 [WAITLIST_AVAILABLE] Email disabled - would notify availability:', waitlistData.customerEmail);
+            return true;
+        }
+
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+        
+        const result = await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAIL_TEMPLATES.WAITLIST_AVAILABLE,
+            {
+                to_email: waitlistData.customerEmail,
+                to_name: waitlistData.customerName,
+                from_name: 'Theater Wachtlijst',
+                subject: `🎉 Plaats Beschikbaar - ${waitlistData.showTitle}`,
+                
+                customer_name: waitlistData.customerName,
+                show_title: waitlistData.showTitle,
+                show_date: formatDate(waitlistData.showDate),
+                available_spots: waitlistData.availableSpots.toString(),
+                requested_guests: waitlistData.requestedGuests.toString(),
+                response_deadline: waitlistData.responseDeadline || '48 uur',
+                
+                booking_url: 'www.theater.nl/book',
+                contact_info: 'Snel reageren aanbevolen: info@theater.nl of +32 123 456 789'
+            }
+        );
+        
+        console.log('📧 [WAITLIST_AVAILABLE] Notification sent successfully:', result);
+        return true;
+    } catch (error) {
+        console.error('📧 [WAITLIST_AVAILABLE] Notification failed:', error);
+        return false;
+    }
+};

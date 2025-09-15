@@ -1,4 +1,9 @@
-import { TheaterVoucher } from '../types/types';
+import { TheaterVoucher, ShowEvent, Reservation } from '../types/types';
+
+// CSS class name utility for conditional styling
+export const cn = (...classes: (string | undefined | null | false)[]): string => {
+    return classes.filter(Boolean).join(' ');
+};
 
 // Date utilities
 export const getDaysInMonth = (year: number, month: number) => {
@@ -9,6 +14,72 @@ export const getDaysInMonth = (year: number, month: number) => {
         date.setDate(date.getDate() + 1);
     }
     return days;
+};
+
+// Booking capacity utilities
+export const calculateAvailableCapacity = (
+    event: ShowEvent, 
+    reservations: Reservation[]
+): number => {
+    const confirmedReservations = reservations.filter(r => 
+        r.date === event.date && 
+        (r.status === 'confirmed' || r.status === 'provisional')
+    );
+    const totalBooked = confirmedReservations.reduce((sum, r) => sum + r.guests, 0);
+    const capacity = event.manualCapacityOverride || event.capacity;
+    return Math.max(0, capacity - totalBooked);
+};
+
+export const determineBookingStatus = (
+    requestedGuests: number,
+    availableCapacity: number,
+    isDateClosed: boolean
+): 'confirmed' | 'provisional' | 'waitlisted' => {
+    if (isDateClosed) {
+        return 'waitlisted';
+    }
+    
+    if (requestedGuests <= availableCapacity) {
+        return 'confirmed';
+    }
+    
+    // If requesting more than available, it becomes provisional (overbooking)
+    return 'provisional';
+};
+
+export const canAcceptBooking = (
+    requestedGuests: number,
+    availableCapacity: number,
+    isDateClosed: boolean,
+    allowOverbooking: boolean = true
+): boolean => {
+    if (isDateClosed) {
+        return false; // Closed dates only accept waitlist
+    }
+    
+    if (requestedGuests <= availableCapacity) {
+        return true; // Normal booking
+    }
+    
+    return allowOverbooking; // Allow overbooking as provisional
+};
+
+export const getBookingMessage = (
+    status: 'confirmed' | 'provisional' | 'waitlisted',
+    requestedGuests: number,
+    availableCapacity: number
+): string => {
+    switch (status) {
+        case 'confirmed':
+            return 'Uw boeking is direct bevestigd! U ontvangt een bevestigingsmail.';
+        case 'provisional':
+            const overbooked = requestedGuests - availableCapacity;
+            return `Bedankt voor uw boeking! Omdat uw boeking de huidige capaciteit met ${overbooked} ${overbooked === 1 ? 'persoon' : 'personen'} overschrijdt, is dit een voorlopige reservering. We controleren of we de extra gasten kunnen accommoderen en sturen u zo snel mogelijk een definitieve bevestiging.`;
+        case 'waitlisted':
+            return 'Deze datum is volledig geboekt. U bent toegevoegd aan de wachtlijst en wordt gecontacteerd als er plaatsen vrijkomen.';
+        default:
+            return 'Er is een fout opgetreden bij het verwerken van uw boeking.';
+    }
 };
 
 export const formatDateToNL = (date: Date, options?: Intl.DateTimeFormatOptions): string => {
@@ -249,48 +320,26 @@ export const getShowLegend = (config: any) => {
 };
 
 // Show color utilities
-export const getShowColorClass = (event: any, config: any, guests: number) => {
-    const eventDate = new Date(event.date + 'T12:00:00');
-    const showTimes = getShowTimes(eventDate, event.type);
-    const showTypeConfig = config.showTypes.find((type: any) => type.name === event.type || type.id === event.type);
+export const getShowColorClass = (showType: string, config: any, guests: number): string => {
+    const showTypeConfig = config.showTypes.find((type: any) => type.name === showType || type.id === showType);
     
-    // NIEUWE LOGICA: Shows met 240+ gasten of gesloten shows krijgen rode kleur
-    if (event.isClosed || guests >= 240) {
-        return 'show-waitlist';
-    }
-    
-    // Gebruik configuratie uit instellingen voor show type kleuren
+    // De logica voor 'isClosed' of gastenaantallen wordt nu in de component zelf afgehandeld.
+    // Deze functie retourneert alleen de basiskleurklasse.
+
     if (showTypeConfig && showTypeConfig.color) {
         return `show-type-${showTypeConfig.id}`;
     }
     
-    // Fallback: bepaal kleur op basis van eigenschappen
     if (showTypeConfig) {
-        const standardPrice = 70; // Basis prijs
+        const standardPrice = 70;
         if (showTypeConfig.priceStandard > standardPrice || showTypeConfig.pricePremium > 95) {
             return 'show-premium';
         }
     }
     
-    // Speciale tijden (bijvoorbeeld Matinee of late shows)
-    if (event.type === 'Matinee') {
+    if (showType === 'Matinee') {
         return 'show-matinee';
     }
     
-    if (showTimes.start && showTimes.start >= '19:30') {
-        return 'show-late';
-    }
-    
-    // Premiere shows
-    if (event.type.toLowerCase().includes('première') || event.type.toLowerCase().includes('premiere')) {
-        return 'show-premiere';
-    }
-    
-    // Zorgheld shows (speciale evenementen)
-    if (event.type.toLowerCase().includes('zorg') || event.type.toLowerCase().includes('held')) {
-        return 'show-special';
-    }
-    
-    // Standaard show
-    return 'show-normal';
+    return 'show-default';
 };

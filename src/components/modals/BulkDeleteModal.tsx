@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminModal, AdminFormGroup, AdminSelect } from '../shared/AdminModal';
 import { AdminButton, AdminGrid, AdminBadge } from '../layout';
-import { useConfirmation } from '../providers/ConfirmationProvider';
+import { useConfirmation } from '../../context/ConfirmationProvider';
 import { i18n } from '../../config/config';
 import type { AppConfig } from '../../types/types';
 

@@ -18,29 +18,29 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   loading = false
 }) => {
   return (
-    <div className={`admin-layout-wrapper ${className}`}>
+    <section className={`section ${className}`}>
       {(title || subtitle || actions) && (
-        <header className="admin-content-header">
-          <div className="header-info">
-            {title && <h1 className="page-title">{title}</h1>}
+        <header className="row" style={{ alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
+          <div className="col">
+            {title && <h1 className="section-title" style={{ marginBottom: 'var(--spacing-xs)', borderBottom: 'none' }}>{title}</h1>}
             {subtitle && <p className="page-subtitle">{subtitle}</p>}
           </div>
           {actions && (
-            <div className="header-actions">
+            <div className="col" style={{ flex: '0 0 auto' }}>
               {actions}
             </div>
           )}
         </header>
       )}
-      <div className="admin-content-body">
+      <div className="content-body">
         {loading ? (
-          <div className="flex items-center justify-center p-xl">
-            <div className="admin-btn-spinner" style={{ width: '2rem', height: '2rem' }}></div>
-            <span className="ml-3 text-admin-secondary">Loading...</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-xl)' }}>
+            {/* Hier kan een spinner component komen */}
+            <span>Loading...</span>
           </div>
         ) : children}
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -50,7 +50,6 @@ interface AdminCardProps {
   subtitle?: string;
   actions?: React.ReactNode;
   className?: string;
-  variant?: 'default' | 'elevated' | 'bordered' | 'ghost';
 }
 
 export const AdminCard: React.FC<AdminCardProps> = ({
@@ -59,24 +58,25 @@ export const AdminCard: React.FC<AdminCardProps> = ({
   subtitle,
   actions,
   className = '',
-  variant = 'default'
 }) => {
   return (
-    <div className={`admin-card admin-card--${variant} ${className}`}>
+    <div className={`card ${className}`}>
       {(title || subtitle || actions) && (
-        <div className="admin-card-header">
-          <div className="card-info">
-            {title && <h3 className="card-title">{title}</h3>}
-            {subtitle && <p className="card-subtitle">{subtitle}</p>}
-          </div>
-          {actions && (
-            <div className="card-actions">
-              {actions}
+        <div className="card-header">
+          <div className="row" style={{ alignItems: 'center' }}>
+            <div className="col">
+              {title && <h3 className="card-title">{title}</h3>}
+              {subtitle && <p>{subtitle}</p>}
             </div>
-          )}
+            {actions && (
+              <div className="col" style={{ flex: '0 0 auto' }}>
+                {actions}
+              </div>
+            )}
+          </div>
         </div>
       )}
-      <div className="admin-card-body">
+      <div className="card-body">
         {children}
       </div>
     </div>
@@ -100,15 +100,17 @@ export const AdminButton: React.FC<AdminButtonProps> = ({
   disabled,
   ...props
 }) => {
+  const btnClass = `btn btn-${variant} btn-${size}`;
+
   return (
-    <button
-      className={`admin-btn admin-btn--${variant} admin-btn--${size} ${className}`}
+    <button 
+      className={`${btnClass} ${className}`}
       disabled={disabled || loading}
       {...props}
     >
-      {loading && <div className="admin-btn-spinner" />}
-      {!loading && icon && <span className="admin-btn-icon">{icon}</span>}
-      {children}
+      {loading && <span>Laden...</span> /* Vervang met een spinner */}
+      {!loading && icon}
+      {!loading && children}
     </button>
   );
 };
