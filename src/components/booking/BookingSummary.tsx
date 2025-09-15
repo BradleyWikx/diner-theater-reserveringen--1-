@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import { i18n, calculateDoorsOpenTime } from '../../config/config';
 import { formatDateToNL, getShowTimes } from '../../utils/utilities';
 import type { ShowEvent, Reservation, AppConfig, ShowType } from '../../types/types';

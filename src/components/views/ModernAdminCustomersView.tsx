@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { AdminLayout, AdminCard, AdminButton, AdminBadge, AdminGrid, AdminDataTable } from '../layout/AdminLayout';
 import { usePagination } from '../../hooks/usePagination';
 import { Customer } from '../../types/types';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import { formatDate } from '../../utils/utilities';
 
 interface ModernAdminCustomersViewProps {

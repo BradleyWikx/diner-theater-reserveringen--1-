@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
-import { Icon } from '../ui/Icon';
+import { Icon } from '../UI/Icon';
 import { formatDate, getShowTimes } from '../../utils/utilities';
 import { ShowEvent, Reservation, WaitingListEntry } from '../../types/types';
 import { DashboardHeader } from '../dashboard/DashboardHeader';

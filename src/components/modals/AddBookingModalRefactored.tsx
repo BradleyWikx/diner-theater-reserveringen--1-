@@ -2,7 +2,7 @@
 // Example of how to integrate new UI components, stores, and i18n
 
 import React, { useState } from 'react';
-import { Modal, ModalBody, ModalFooter, Button, Input, CustomSelect } from '../ui';
+import { Modal, ModalBody, ModalFooter, Button, Input, CustomSelect } from '../UI';
 import { useI18n } from '../../hooks/useI18n';
 import { useReservationStore } from '../../stores';
 import type { Reservation } from '../../types/types';

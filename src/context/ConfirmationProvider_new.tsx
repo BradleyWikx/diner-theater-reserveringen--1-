@@ -2,7 +2,7 @@
 // Provides confirmation dialogs across the application
 
 import React, { createContext, useContext, useState } from 'react';
-import { Icon } from '../components/ui/Icon';
+import { Icon } from '../components/UI/Icon';
 import { useI18n } from '../hooks/useI18n';
 
 interface ConfirmationOptions {

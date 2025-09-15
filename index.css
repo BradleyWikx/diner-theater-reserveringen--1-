@@ -4,6 +4,7 @@
 @import './src/styles/components.css';
 @import './src/styles/layout.css';
 @import './src/styles/calendar-enhanced.css';
+@import './src/styles/responsive-enhancements.css';
 
 /* De :root variabelen zijn nu onderdeel van unified-admin-design.css */
 
