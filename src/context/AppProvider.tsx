@@ -6,6 +6,9 @@ import '../i18n'; // Initialize i18n
 import { ToastProvider } from './ToastProvider';
 import { FirebaseProvider } from './FirebaseProvider';
 import { AuthProvider } from './AuthContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 interface AppProviderProps {
   children: React.ReactNode;
@@ -13,12 +16,14 @@ interface AppProviderProps {
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return (
-    <FirebaseProvider>
-      <AuthProvider>
-        <ToastProvider>
-          {children}
-        </ToastProvider>
-      </AuthProvider>
-    </FirebaseProvider>
+    <QueryClientProvider client={queryClient}>
+      <FirebaseProvider>
+        <AuthProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </AuthProvider>
+      </FirebaseProvider>
+    </QueryClientProvider>
   );
 };

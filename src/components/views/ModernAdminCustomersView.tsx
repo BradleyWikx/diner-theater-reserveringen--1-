@@ -1,24 +1,27 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AdminLayout, AdminCard, AdminButton, AdminBadge, AdminGrid, AdminDataTable } from '../layout/AdminLayout';
-import { usePagination } from '../../hooks/usePagination';
+import { getAllCustomers } from '../../services/customerService';
 import { Customer } from '../../types/types';
 import { Icon } from '../ui/Icon';
 import { formatDate } from '../../utils/utilities';
 
 interface ModernAdminCustomersViewProps {
-  customers: Customer[];
   onSelectCustomer: (customer: Customer) => void;
 }
 
 const ModernAdminCustomersView: React.FC<ModernAdminCustomersViewProps> = ({ 
-  customers, 
   onSelectCustomer 
 }) => {
   // Debug logging
   console.log('🧑‍🤝‍🧑 ModernAdminCustomersView Props:', {
-    customersCount: customers?.length || 0,
-    customers: customers?.slice(0, 3), // First 3 customers for debugging
     onSelectCustomer: !!onSelectCustomer
+  });
+
+  // Data fetching
+  const { data: customers = [], isLoading } = useQuery<Customer[]>({
+    queryKey: ['customers'],
+    queryFn: getAllCustomers,
   });
 
   // Early return if no customers
@@ -145,6 +148,15 @@ const ModernAdminCustomersView: React.FC<ModernAdminCustomersViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  // Customer Tags Logic
+  const getCustomerTags = (customer: Customer) => {
+    const tags = [];
+    if (customer.totalSpent > 1000) tags.push('VIP');
+    if (customer.totalBookings > 3) tags.push('Terugkerende Gast');
+    if (customer.totalBookings <= 1) tags.push('Nieuwe Klant');
+    return tags;
+  };
+
   // Table Columns
   const tableColumns = [
     {
@@ -216,6 +228,23 @@ const ModernAdminCustomersView: React.FC<ModernAdminCustomersViewProps> = ({
           <AdminBadge variant={tier.variant}>
             {tier.tier}
           </AdminBadge>
+        );
+      }
+    },
+    {
+      key: 'tags',
+      label: 'Tags',
+      render: (customer: Customer) => {
+        const tags = getCustomerTags(customer);
+        return (
+          <div className="flex gap-xs">
+            {tags.map(tag => {
+              const color = tag === 'VIP' ? 'purple' : tag === 'Terugkerende Gast' ? 'blue' : 'green';
+              return <AdminBadge key={tag} variant="info" style={{ backgroundColor: color }}>
+                {tag}
+              </AdminBadge>
+            })}
+          </div>
         );
       }
     },

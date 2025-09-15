@@ -1,0 +1,241 @@
+/* src/styles/AdminDashboard.css */
+
+:root {
+  --dash-bg: #1a1a1a;
+  --dash-surface: #2c2c2c;
+  --dash-surface-accent: #383838;
+  --dash-border: #444;
+  --dash-text-primary: #f0f0f0;
+  --dash-text-secondary: #a0a0a0;
+  --dash-gold: #FFD700;
+  --dash-gold-dark: #B8860B;
+  --dash-gold-transparent: rgba(255, 215, 0, 0.1);
+  --dash-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.theater-dashboard {
+  background-color: var(--dash-bg);
+  color: var(--dash-text-primary);
+  padding: 1.5rem;
+  min-height: 100vh;
+}
+
+.mission-control-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "hero hero kpi1 kpi2"
+    "hero hero kpi3 kpi4"
+    "actions actions feed feed";
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.grid-area-hero { grid-area: hero; }
+.grid-area-kpi1 { grid-area: kpi1; }
+.grid-area-kpi2 { grid-area: kpi2; }
+.grid-area-kpi3 { grid-area: kpi3; }
+.grid-area-kpi4 { grid-area: kpi4; }
+.grid-area-actions { grid-area: actions; }
+.grid-area-feed { grid-area: feed; }
+
+/* Kpi Card Styling */
+.kpi-card {
+  background: linear-gradient(145deg, var(--dash-surface), var(--dash-surface-accent));
+  border: 1px solid var(--dash-border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: var(--dash-shadow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.kpi-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  border-color: var(--dash-gold);
+}
+
+.kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--dash-text-secondary);
+}
+
+.kpi-icon {
+  font-size: 1.5rem;
+  color: var(--dash-gold);
+  opacity: 0.8;
+}
+
+.kpi-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--dash-text-primary);
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+.kpi-trend {
+  display: flex;
+  align-items: center;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.kpi-trend.positive {
+  color: #4ade80; /* green-400 */
+}
+
+.kpi-trend.negative {
+  color: #f87171; /* red-400 */
+}
+
+.kpi-trend-icon {
+  margin-right: 0.25rem;
+}
+
+/* Override existing component styles for dark theme */
+.theater-dashboard .hero-today-card,
+.theater-dashboard .action-center-card,
+.theater-dashboard .activity-feed-card {
+  background: linear-gradient(145deg, var(--dash-surface), var(--dash-surface-accent));
+  border: 1px solid var(--dash-border);
+  box-shadow: var(--dash-shadow);
+  color: var(--dash-text-primary);
+}
+
+.theater-dashboard .hero-overlay {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.85) 100%);
+}
+
+.theater-dashboard .show-title {
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+
+.theater-dashboard .show-badge {
+  background-color: var(--dash-gold);
+  color: #000;
+  font-weight: 700;
+}
+
+.theater-dashboard .checkin-section {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.theater-dashboard .premium-progress-fill {
+  background: var(--dash-gold);
+}
+
+.theater-dashboard .hero-action-button {
+  background-color: var(--dash-gold);
+  color: #000;
+  font-weight: 700;
+}
+.theater-dashboard .hero-action-button:hover {
+  background-color: var(--dash-gold-dark);
+  color: #fff;
+}
+
+.theater-dashboard .card-header-premium {
+  background: var(--dash-surface-accent);
+  border-bottom: 1px solid var(--dash-border);
+}
+
+.theater-dashboard .card-header-premium h3 {
+  color: var(--dash-text-primary);
+}
+
+.theater-dashboard .premium-action-item:hover {
+  background: var(--dash-surface-accent);
+}
+
+.theater-dashboard .action-title {
+  color: var(--dash-text-primary);
+}
+
+.theater-dashboard .action-subtitle {
+  color: var(--dash-text-secondary);
+}
+
+.theater-dashboard .no-show-hero {
+  color: var(--dash-text-secondary);
+}
+
+.theater-dashboard .secondary-action-button {
+  background: var(--dash-surface);
+  color: var(--dash-text-primary);
+  border-color: var(--dash-border);
+}
+
+.theater-dashboard .secondary-action-button:hover {
+  border-color: var(--dash-gold);
+  background: var(--dash-surface-accent);
+}
+
+.hero-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.hero-action-button.primary {
+  background-color: var(--dash-gold);
+  color: #000;
+}
+
+.hero-action-button.secondary {
+  background-color: var(--dash-surface-accent);
+  color: var(--dash-text-primary);
+  border: 1px solid var(--dash-border);
+}
+.hero-action-button.secondary:hover {
+  background-color: var(--dash-surface);
+}
+
+@media (max-width: 1200px) {
+  .mission-control-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-areas:
+      "hero hero"
+      "kpi1 kpi2"
+      "kpi3 kpi4"
+      "actions actions"
+      "feed feed";
+  }
+}
+
+@media (max-width: 768px) {
+  .mission-control-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "hero"
+      "kpi1"
+      "kpi2"
+      "kpi3"
+      "kpi4"
+      "actions"
+      "feed";
+  }
+
+  .kpi-value {
+    font-size: 2rem;
+  }
+}

@@ -28,6 +28,7 @@ interface CalendarProps {
     onDayHover?: (data: { event: ShowEvent; guests: number; element: HTMLDivElement } | null) => void;
     config: AppConfig;
     reservations?: Reservation[]; // Add reservations for better capacity calculation
+    className?: string; // Allow passing a custom class
 }
 
 export const Calendar: React.FC<CalendarProps> = React.memo(({ 
@@ -43,7 +44,8 @@ export const Calendar: React.FC<CalendarProps> = React.memo(({
     onMultiDateToggle, 
     onDayHover, 
     config,
-    reservations = []
+    reservations = [],
+    className = ''
 }) => {
     const { isMobile } = useMobile();
     const year = month.getFullYear();
@@ -60,13 +62,16 @@ export const Calendar: React.FC<CalendarProps> = React.memo(({
     const handleNextMonth = () => onMonthChange(new Date(year, monthIndex + 1, 1));
     
     const getMarkerText = (event: ShowEvent, availableCapacity: number, totalBooked: number) => {
+        if (view === 'book') {
+            return event.isClosed || availableCapacity <= 0 ? '' : 'Beschikbaar';
+        }
         if (event.isClosed) return i18n.waitingList;
         if (availableCapacity <= 0) return i18n.fullyBooked;
         return event.name;
     };
 
     return (
-        <div className={`card ${isMobile ? 'mobile-layout' : ''}`}>
+        <div className={`card ${isMobile ? 'mobile-layout' : ''} ${className}`}>
             <div className="card-header">
                 <div className="row" style={{alignItems: 'center'}}>
                     <div className="col">
@@ -107,6 +112,7 @@ export const Calendar: React.FC<CalendarProps> = React.memo(({
                             event ? 'has-event' : '',
                             isSelected ? 'selected' : '',
                             isToday ? 'today' : '',
+                            event && (event.isClosed || availableCapacity <= 0) ? 'fully-booked' : '',
                             event ? getShowColorClass(event.type, config, totalBooked) : ''
                         ].filter(Boolean).join(' ');
 
@@ -114,13 +120,14 @@ export const Calendar: React.FC<CalendarProps> = React.memo(({
                             <div 
                                 key={dateStr} 
                                 className={dayClasses}
-                                onClick={() => onDateClick(dateStr)}
+                                onClick={() => event && onDateClick(dateStr)}
                                 onMouseEnter={(e) => onDayHover && event ? onDayHover({ event, guests: totalBooked, element: e.currentTarget as HTMLDivElement }) : null}
                                 onMouseLeave={() => onDayHover && onDayHover(null)}
                             >
                                 <div className="day-number">{day.getDate()}</div>
                                 {event && (
                                     <div className="event-marker">
+                                        <span className="event-dot"></span>
                                         {getMarkerText(event, availableCapacity, totalBooked)}
                                     </div>
                                 )}

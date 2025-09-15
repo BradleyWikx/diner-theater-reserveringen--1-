@@ -5,18 +5,19 @@ import './src/i18n';
 
 import React, { useState, useEffect, useMemo, useCallback, ReactNode, Fragment, useRef, createContext, useContext } from 'react';
 import { createRoot } from 'react-dom/client';
+import { AppProvider } from './src/context/AppProvider';
 import { AuthProvider } from './src/context/AuthContext';
 import { useAuth } from './src/context/AuthContext';
 import { DiscreteAdminButton } from './src/components/admin/DiscreteAdminButton';
 import PremiumDashboard from './PremiumDashboard';
-import { AdminDashboardView } from './src/components/views/AdminDashboardView';
 import { SimpleDashboard } from './src/components/views/SimpleDashboard';
 import AdminApprovalsView from './src/components/views/AdminApprovalsView';
-import AdminScheduleView from './src/components/views/AdminScheduleView';
 import { AdminWaitlistView as NewAdminWaitlistView } from './src/components/views/AdminWaitlistView';
 import { AdminVoucherView as NewAdminVoucherView } from './src/components/views/AdminVoucherView';
 import { AdminCapacityView as NewAdminCapacityView } from './src/components/views/AdminCapacityView';
 import ModernAdminCustomersView from './src/components/views/ModernAdminCustomersView';
+// Removed duplicate import of CustomerDetailView
+import DailyPlannerView from './src/components/views/DailyPlannerView';
 import EnhancedAdminCalendarView from './src/components/calendar/AdminCalendarView';
 import type { 
     ShowEvent, 
@@ -26,12 +27,6 @@ import type {
     AddonQuantities, 
     Reservation, 
     WaitingListEntry,
-    AnalyticsData,
-    WaitlistMetrics,
-    ConversionMetrics,
-    RevenueMetrics,
-    CustomerInsights,
-    PredictiveMetrics,
     View,
     AdminView,
     SettingsTab,
@@ -153,6 +148,8 @@ import {
 
 // --- I1N (Internationalization) - Dutch ---
 // --- UTILITY FUNCTIONS & HOOKS ---
+import { getCustomerReservationHistory } from './src/services/customerService';
+import { useQuery } from '@tanstack/react-query';
 
 // --- NOTIFICATION & CONFIRMATION CONTEXT ---
 
@@ -8881,5 +8878,15 @@ const App = () => {
 };
 
 const root = createRoot(document.getElementById('root')!);
-root.render(<App />);
+
+// ...existing code...
+initializeFirebaseCollections().then(() => {
+    root.render(
+        <React.StrictMode>
+            <AppProvider>
+                <App />
+            </AppProvider>
+        </React.StrictMode>
+    );
+});
 

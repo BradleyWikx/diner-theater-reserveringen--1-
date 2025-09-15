@@ -53,6 +53,8 @@ export interface AddonQuantities {
 export interface Reservation {
     id: string; // Firestore document ID
     date: string; // YYYY-MM-DD
+    showName?: string; // Added for clarity in lists
+    package?: 'Standaard' | 'Premium' | 'Deluxe'; // Added for DailyPlanner
     companyName?: string;
     salutation: string;
     contactName: string;
@@ -82,7 +84,7 @@ export interface Reservation {
     checkedIn: boolean;
     status: 'confirmed' | 'provisional' | 'waitlisted' | 'cancelled' | 'rejected'; // Enhanced booking status
     bookingSource: 'internal' | 'external'; // Track booking source
-    createdAt: string; // Timestamp for analytics
+    createdAt: any; // Changed to any to accommodate both string and Firestore Timestamp
     approvedBy?: string; // Admin who approved provisional booking
     rejectedBy?: string; // Admin who rejected provisional booking
     rejectionReason?: string; // Reason for rejection
@@ -329,13 +331,15 @@ export interface WaitlistNotification {
 }
 
 export interface Customer {
+    id: string; // Added ID
     email: string;
     name: string;
     totalBookings: number;
     totalSpent: number;
     firstVisit: string;
     lastVisit: string;
-    reservations: Reservation[];
+    reservations: string[]; // Changed to array of reservation IDs
+    notes?: string; // Added notes field
 }
 
 // 🎭 NIEUWE THEATERBON INTERFACE - Flexibel systeem met waardebon en personenbon
@@ -380,3 +384,5 @@ export interface AppConfig {
         cap: number;
     };
 }
+
+

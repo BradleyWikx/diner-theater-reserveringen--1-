@@ -3,10 +3,14 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import { Icon } from '../ui/Icon';
 import { formatDate, getShowTimes } from '../../utils/utilities';
 import { ShowEvent, Reservation, WaitingListEntry } from '../../types/types';
-import { DashboardHeader } from '../dashboard/DashboardHeader';
 import { HeroCard } from '../dashboard/HeroCard';
+import { KpiCard } from '../dashboard/KpiCard';
 import { ActionCenter } from '../dashboard/ActionCenter';
 import { ActivityFeed } from '../dashboard/ActivityFeed';
+import './../../styles/AdminDashboard.css';
+import { PrintableDayList } from '../printable/PrintableDayList';
+import { createRoot } from 'react-dom/client';
+import '../../styles/Printable.css';
 
 // Definieer de props die het component nodig heeft
 interface AdminDashboardViewProps {
@@ -177,14 +181,37 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     }).slice(0, 6);
   }, [mockReservations, mockWaitingList]);
 
+  const handlePrintDayList = () => {
+    if (!todaysShow) {
+      alert("Er is geen show vandaag om een lijst voor te printen.");
+      return;
+    }
+
+    // Create a temporary div to render the printable component
+    const printableContainer = document.createElement('div');
+    printableContainer.id = 'printable-container';
+    document.body.appendChild(printableContainer);
+
+    const root = createRoot(printableContainer);
+    root.render(<PrintableDayList reservations={todaysReservations} show={todaysShow} />);
+
+    // Allow component to render, then print
+    setTimeout(() => {
+      window.print();
+      
+      // Clean up after printing
+      root.unmount();
+      document.body.removeChild(printableContainer);
+    }, 500);
+  };
+
   // Debug info en loading state
   if (!mockReservations && !mockShowEvents) {
     return (
-      <div className="modern-dashboard">
-        <DashboardHeader totalRevenue={0} expectedGuests={0} />
-        <div className="text-center p-xl">
+      <div className="theater-dashboard">
+        <div className="text-center p-xl" style={{padding: '5rem'}}>
           <div className="admin-btn-spinner" style={{ width: '3rem', height: '3rem', margin: 'auto' }}></div>
-          <p className="mt-lg text-admin-secondary">Dashboard wordt geladen...</p>
+          <p className="mt-lg" style={{color: 'var(--dash-text-secondary)', marginTop: '1.5rem'}}>Dashboard wordt geladen...</p>
         </div>
       </div>
     );
@@ -194,26 +221,64 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   console.log('🎭 Forcing dashboard render for debugging purposes');
 
   return (
-    <div className="modern-dashboard">
-      <DashboardHeader totalRevenue={stats.totalRevenue} expectedGuests={stats.expectedGuests} />
+    <div className="theater-dashboard">
+      <div className="mission-control-grid">
+        <div className="grid-area-hero">
+          <HeroCard 
+            todaysShow={todaysShow}
+            stats={stats}
+            showImage={showImage}
+            aiDailyBriefing={aiDailyBriefing}
+            setActiveView={setActiveView}
+            onPrint={handlePrintDayList} // Pass the print handler
+          />
+        </div>
 
-      <div className="dashboard-main-grid">
-        <HeroCard 
-          todaysShow={todaysShow}
-          stats={stats}
-          showImage={showImage}
-          aiDailyBriefing={aiDailyBriefing}
-          setActiveView={setActiveView}
+        <KpiCard
+          gridArea="grid-area-kpi1"
+          title="Totale Omzet (Vandaag)"
+          value={`€${stats.totalRevenue.toLocaleString('nl-NL')}`}
+          icon="💰"
+          trend={{ value: '+€2.1k vs gisteren', direction: 'positive' }}
+          onClick={() => setActiveView('reports/revenue')}
+        />
+        <KpiCard
+          gridArea="grid-area-kpi2"
+          title="Aantal Gasten (Vandaag)"
+          value={stats.expectedGuests}
+          icon="👥"
+          trend={{ value: '-12 vs gisteren', direction: 'negative' }}
+          onClick={() => setActiveView('reports/guests')}
+        />
+        <KpiCard
+          gridArea="grid-area-kpi3"
+          title="Check-in Progressie"
+          value={`${stats.checkinProgress.toFixed(1)}%`}
+          icon="📈"
+          trend={{ value: `${stats.checkedInGuests} ingecheckt`, direction: 'neutral' }}
+          onClick={() => setActiveView('capacity')}
+        />
+        <KpiCard
+          gridArea="grid-area-kpi4"
+          title="Nieuwe Boekingen (24u)"
+          value={recentActivity.filter(a => a.type === 'booking').length}
+          icon="🎟️"
+          trend={{ value: '+3 sinds gisteren', direction: 'positive' }}
+          onClick={() => setActiveView('reservations')}
         />
 
-        <ActionCenter 
-          reservations={mockReservations}
-          waitingList={mockWaitingList}
-          showEvents={mockShowEvents}
-          setActiveView={setActiveView}
-        />
+        <div className="grid-area-actions">
+          <ActionCenter 
+            reservations={mockReservations}
+            waitingList={mockWaitingList}
+            showEvents={mockShowEvents}
+            setActiveView={setActiveView}
+          />
+        </div>
 
-        <ActivityFeed recentActivity={recentActivity} />
+        <div className="grid-area-feed">
+          <ActivityFeed recentActivity={recentActivity} />
+        </div>
       </div>
     </div>
   );

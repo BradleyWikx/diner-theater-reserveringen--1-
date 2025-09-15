@@ -29,9 +29,10 @@ interface HeroCardProps {
   showImage: string | null;
   aiDailyBriefing: string | null;
   setActiveView: (view: string) => void;
+  onPrint: () => void; // Add onPrint handler
 }
 
-export const HeroCard: React.FC<HeroCardProps> = ({ todaysShow, stats, showImage, aiDailyBriefing, setActiveView }) => {
+export const HeroCard: React.FC<HeroCardProps> = ({ todaysShow, stats, showImage, aiDailyBriefing, setActiveView, onPrint }) => {
   const showTimes = todaysShow ? getShowTimes(new Date(todaysShow.date + 'T12:00:00'), todaysShow.type) : null;
 
   return (
@@ -95,13 +96,22 @@ export const HeroCard: React.FC<HeroCardProps> = ({ todaysShow, stats, showImage
               </div>
             )}
 
-            <button 
-              className="hero-action-button" 
-              onClick={() => setActiveView('capacity')}
-            >
-              <SimpleIcon id="check" />
-              Start Check-in Beheer
-            </button>
+            <div className="hero-actions-grid">
+              <button 
+                className="hero-action-button primary" 
+                onClick={() => setActiveView('capacity')}
+              >
+                <SimpleIcon id="check" />
+                Start Check-in Beheer
+              </button>
+              <button 
+                className="hero-action-button secondary"
+                onClick={onPrint}
+              >
+                <SimpleIcon id="print" />
+                Print Daglijst
+              </button>
+            </div>
           </div>
         </div>
       ) : (

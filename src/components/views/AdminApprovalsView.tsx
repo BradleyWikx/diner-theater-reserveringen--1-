@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Reservation, ShowEvent } from '../../types/types';
 import { AdminLayout, AdminCard, AdminButton, AdminBadge, AdminGrid, AdminDataTable } from '../layout/AdminLayout';
 import { resendConfirmationEmail, sendBookingConfirmedEmail, sendBookingRejectedEmail, type BookingEmailData } from '../../services/emailService';
 import { calculateAvailableCapacity, getBookingMessage } from '../../utils/utilities';
+import { getPendingReservations, updateReservationStatus } from '../../services/approvalService';
 
 interface AdminApprovalsViewProps {
   reservations: Reservation[];
@@ -19,6 +21,12 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   guestCountMap,
   loading = false
 }) => {
+  const queryClient = useQueryClient();
+  const { data: requests = [], isLoading } = useQuery<Reservation[]>({
+    queryKey: ['approvalRequests'],
+    queryFn: getPendingReservations,
+  });
+
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [sortKey, setSortKey] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -483,6 +491,75 @@ const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
           📧
         </AdminButton>
       </div>
+    );
+  };
+
+  // Capacity Indicator component
+  const CapacityIndicator = ({ current, max, approvalSize }: { current: number, max: number, approvalSize: number }) => {
+    const available = max - current;
+    const isOverbooked = approvalSize > available;
+
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-2.5 rounded-full bg-gray-200 overflow-hidden">
+          <div
+            className="h-full bg-green-600"
+            style={{ width: `${Math.min((current / max) * 100, 100)}%` }}
+           />
+        </div>
+        <div className="text-xs text-gray-500">
+          {isOverbooked ? 'Overboeking!' : 'Capaciteit beschikbaar'}
+        </div>
+      </div>
+    );
+  };
+
+  // Approval Card component
+  const ApprovalCard = ({ request }: { request: Reservation }) => {
+    const maxCapacity = 240; 
+    const currentCapacity = 180; 
+
+    const mutation = useMutation({
+        mutationFn: ({ status }: { status: 'confirmed' | 'rejected' }) => updateReservationStatus(request.id, status),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['approvalRequests'] });
+        },
+    });
+
+    const handleApprove = () => {
+        mutation.mutate({ status: 'confirmed' });
+    };
+
+    const handleReject = () => {
+        mutation.mutate({ status: 'rejected' });
+    };
+
+    return (
+        <div className="bg-white shadow-lg rounded-lg p-6 flex flex-col justify-between">
+            <div>
+                <header className="mb-4">
+                    <h3 className="text-xl font-bold text-gray-900">{request.contactName}</h3>
+                    <p className="text-sm text-gray-500">{request.guests} gasten op {request.date}</p>
+                </header>
+                <div className="mb-4">
+                    <p className="text-sm font-semibold text-gray-700">Reden voor goedkeuring:</p>
+                    <p className="text-sm text-yellow-700 bg-yellow-100 rounded-md p-2 mt-1">
+                        {request.isOverbooking ? 'Grote groep / Overboeking' : 'Speciale aanvraag'}
+                    </p>
+                </div>
+                <div className="mb-6">
+                    <CapacityIndicator current={currentCapacity} max={maxCapacity} approvalSize={request.guests} />
+                </div>
+            </div>
+            <div className="flex space-x-3">
+                <button onClick={handleApprove} disabled={mutation.isPending} className="flex-1 btn btn-success">
+                    {mutation.isPending ? '...' : 'Goedkeuren'}
+                </button>
+                <button onClick={handleReject} disabled={mutation.isPending} className="flex-1 btn btn-danger">
+                    {mutation.isPending ? '...' : 'Afwijzen'}
+                </button>
+            </div>
+        </div>
     );
   };
 

@@ -3,6 +3,8 @@ import type { ShowEvent, Reservation, WaitingListEntry, AppConfig } from '../../
 import { i18n } from '../../config/config';
 import { Icon } from '../ui/Icon';
 import { getShowTimes } from '../../utils/utilities';
+import '../../styles/BookingFlow.css';
+import { ShowSummaryPremium } from '../booking/ShowSummaryPremium';
 
 interface BookingViewProps {
     showEvents: ShowEvent[];
@@ -148,58 +150,56 @@ export const BookingView: React.FC<BookingViewProps> = ({
             );
         }
 
-        if (bookingMode) {
-            return (
-                <div className="wizard-container-wrapper">
-                    <ReservationWizard 
-                        show={selectedShow} 
-                        date={selectedDate} 
-                        onAddReservation={onAddReservation} 
-                        config={config} 
-                        remainingCapacity={remainingCapacity}
-                        onClose={handleCloseWizard}
-                    />
-                </div>
-            );
-        }
-
+        // The wizard is now handled in the main content area, so this part is simplified.
         return (
-            <ShowSummary 
+            <ShowSummaryPremium 
                 show={selectedShow}
                 onStartBooking={handleStartBooking}
                 isUnavailable={isUnavailable}
                 config={config}
-                remainingCapacity={remainingCapacity}
             />
         );
     };
 
     return (
-        <div className={`booking-view ${bookingMode ? 'booking-mode-active' : ''}`}>
-            <div className="calendar-wrapper">
-                <p className="instructions">{i18n.instructions}</p>
-                 <Calendar
-                    month={month}
-                    onMonthChange={setMonth}
-                    onDateClick={handleDateClick}
-                    events={activeShowEvents}
-                    guestCountMap={guestCountMap}
-                    selectedDate={selectedDate}
-                    view="book"
-                    onDayHover={setPopoverData}
-                    config={config}
-                />
-                <CalendarLegend events={monthEvents} config={config} />
+        <div className={`booking-view-v2 ${bookingMode ? 'booking-mode-active' : ''}`}>
+            <div className="booking-main-content">
+                {bookingMode && selectedShow ? (
+                     <ReservationWizard 
+                        show={selectedShow} 
+                        date={selectedDate!} 
+                        onAddReservation={onAddReservation} 
+                        config={config} 
+                        remainingCapacity={remainingCapacity}
+                        onClose={handleCloseWizard}
+                    />
+                ) : (
+                    <>
+                        <p className="instructions">{i18n.instructions}</p>
+                        <Calendar
+                            month={month}
+                            onMonthChange={setMonth}
+                            onDateClick={handleDateClick}
+                            events={activeShowEvents}
+                            guestCountMap={guestCountMap}
+                            selectedDate={selectedDate}
+                            view="book"
+                            onDayHover={setPopoverData}
+                            config={config}
+                            className="calendar-v2" // Add a new class for V2 styles
+                        />
+                        <CalendarLegend events={monthEvents} config={config} />
+                    </>
+                )}
             </div>
-            <div className="booking-panel-wrapper">
-                <div className="booking-panel">
+            <div className="booking-sidebar">
+                <div className="booking-sidebar-sticky">
                     {renderBookingPanelContent()}
                 </div>
             </div>
             
             <CalendarPopover data={popoverData} view="book" config={config} />
-            
-            {/* Wachtlijst Form - gewoon binnen de pagina */}
+
             {showWaitlistModal && selectedShow && selectedDate && (
                 <div style={{ marginTop: '20px' }}>
                     <WaitingListForm 
