@@ -6,26 +6,13 @@ interface SimpleDashboardProps {
 
 export const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ setActiveView }) => {
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      backgroundColor: '#f8fafc', 
-      color: '#334155', 
-      padding: '2rem',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      {/* Header */}
-      <div style={{ 
-        background: '#A00000', 
-        borderRadius: '16px', 
-        padding: '2rem', 
-        marginBottom: '2rem', 
-        color: '#ffffff',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>
+    <div className="theater-dashboard">
+      {/* Dashboard Header */}
+      <div className="theater-dashboard-header">
+        <h1 className="theater-dashboard-title">
           🎭 Theater Dashboard
         </h1>
-        <p style={{ fontSize: '1.1rem', margin: '0', opacity: '0.9' }}>
+        <p className="theater-dashboard-subtitle">
           Overzicht voor {new Date().toLocaleDateString('nl-NL', { 
             weekday: 'long', 
             day: 'numeric', 
@@ -33,63 +20,34 @@ export const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ setActiveView 
           })}
         </p>
         
-        <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ display: 'block', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-              €0
-            </div>
-            <div style={{ fontSize: '0.9rem', opacity: '0.8' }}>Omzet vandaag</div>
+        <div className="theater-dashboard-stats">
+          <div className="theater-stat-card">
+            <div className="theater-stat-value">€0</div>
+            <div className="theater-stat-label">Omzet vandaag</div>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ display: 'block', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-              0
-            </div>
-            <div style={{ fontSize: '0.9rem', opacity: '0.8' }}>Verwachte gasten</div>
+          <div className="theater-stat-card">
+            <div className="theater-stat-value">0</div>
+            <div className="theater-stat-label">Verwachte gasten</div>
           </div>
         </div>
       </div>
 
-      {/* Main Grid */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '2fr 1fr', 
-        gap: '2rem', 
-        marginBottom: '2rem' 
-      }}>
+      {/* Main Dashboard Grid */}
+      <div className="theater-dashboard-grid">
         
-        {/* Today's Show */}
-        <div style={{ 
-          backgroundColor: '#ffffff', 
-          borderRadius: '16px', 
-          padding: '2rem', 
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '3rem 2rem',
-            backgroundColor: '#f1f5f9',
-            borderRadius: '12px',
-            color: '#64748b'
-          }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎭</div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#334155' }}>
+        {/* Today's Show Card */}
+        <div className="theater-card theater-card--main">
+          <div className="theater-no-show-hero">
+            <div className="theater-no-show-icon">🎭</div>
+            <h2 className="theater-no-show-title">
               Geen voorstelling vandaag
             </h2>
-            <p style={{ marginBottom: '1.5rem', color: '#64748b' }}>
+            <p className="theater-no-show-description">
               Een perfecte dag voor planning en voorbereiding van komende shows.
             </p>
             <button 
               onClick={() => setActiveView('planning')}
-              style={{
-                backgroundColor: '#A00000',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '0.75rem 1.5rem',
-                cursor: 'pointer',
-                fontSize: '1rem'
-              }}
+              className="admin-btn admin-btn--primary admin-btn--lg"
             >
               📅 Bekijk Planning
             </button>
@@ -97,202 +55,85 @@ export const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ setActiveView 
         </div>
 
         {/* Action Center */}
-        <div style={{ 
-          backgroundColor: '#ffffff', 
-          borderRadius: '16px', 
-          padding: '1.5rem',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
-            marginBottom: '1rem' 
-          }}>
-            <span>⚠️</span>
-            <h3 style={{ margin: '0', color: '#334155' }}>Actie Centrum</h3>
+        <div className="theater-card">
+          <div className="theater-card-header">
+            <div className="theater-card-icon">⚠️</div>
+            <h3 className="theater-card-title">Actie Centrum</h3>
           </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div className="theater-action-list">
             <div 
               onClick={() => setActiveView('approvals')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                padding: '1rem',
-                backgroundColor: '#f8fafc',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                border: '1px solid #e2e8f0'
-              }}
+              className="theater-action-item"
             >
-              <div style={{
-                backgroundColor: '#ff4444',
-                color: '#ffffff',
-                borderRadius: '50%',
-                width: '2rem',
-                height: '2rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.9rem',
-                fontWeight: 'bold'
-              }}>0</div>
-              <div style={{ flex: '1' }}>
-                <div style={{ display: 'block', color: '#334155', fontWeight: '500' }}>
-                  Goedkeuringen
-                </div>
-                <div style={{ display: 'block', color: '#64748b', fontSize: '0.85rem' }}>
-                  Wachten op bevestiging
-                </div>
+              <div className="theater-action-badge theater-action-badge--danger">
+                0
               </div>
-              <span>→</span>
+              <div className="theater-action-content">
+                <div className="theater-action-title">Goedkeuringen</div>
+                <div className="theater-action-desc">Wachten op bevestiging</div>
+              </div>
+              <div className="theater-action-arrow">→</div>
             </div>
             
             <div 
               onClick={() => setActiveView('waitlist')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                padding: '1rem',
-                backgroundColor: '#f8fafc',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                border: '1px solid #e2e8f0'
-              }}
+              className="theater-action-item"
             >
-              <div style={{
-                backgroundColor: '#3498db',
-                color: '#ffffff',
-                borderRadius: '50%',
-                width: '2rem',
-                height: '2rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.9rem',
-                fontWeight: 'bold'
-              }}>0</div>
-              <div style={{ flex: '1' }}>
-                <div style={{ display: 'block', color: '#334155', fontWeight: '500' }}>
-                  Wachtlijst
-                </div>
-                <div style={{ display: 'block', color: '#64748b', fontSize: '0.85rem' }}>
-                  Actieve aanvragen
-                </div>
+              <div className="theater-action-badge theater-action-badge--warning">
+                0
               </div>
-              <span>→</span>
+              <div className="theater-action-content">
+                <div className="theater-action-title">Wachtlijst</div>
+                <div className="theater-action-desc">Actieve aanvragen</div>
+              </div>
+              <div className="theater-action-arrow">→</div>
             </div>
             
             <div 
               onClick={() => setActiveView('planning')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                padding: '1rem',
-                backgroundColor: '#f8fafc',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                border: '1px solid #e2e8f0'
-              }}
+              className="theater-action-item"
             >
-              <div style={{
-                backgroundColor: '#27ae60',
-                color: '#ffffff',
-                borderRadius: '50%',
-                width: '2rem',
-                height: '2rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.9rem',
-                fontWeight: 'bold'
-              }}>0</div>
-              <div style={{ flex: '1' }}>
-                <div style={{ display: 'block', color: '#334155', fontWeight: '500' }}>
-                  Komende Shows
-                </div>
-                <div style={{ display: 'block', color: '#64748b', fontSize: '0.85rem' }}>
-                  Geplande voorstellingen
-                </div>
+              <div className="theater-action-badge theater-action-badge--primary">
+                0
               </div>
-              <span>→</span>
+              <div className="theater-action-content">
+                <div className="theater-action-title">Komende Shows</div>
+                <div className="theater-action-desc">Geplande voorstellingen</div>
+              </div>
+              <div className="theater-action-arrow">→</div>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Bottom Row */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: '2rem' 
-      }}>
+
+      {/* Bottom Analytics Grid */}
+      <div className="theater-analytics-grid">
         
-        {/* Analytics Card */}
-        <div style={{ 
-          backgroundColor: '#ffffff', 
-          borderRadius: '16px', 
-          padding: '1.5rem',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
-            marginBottom: '1rem' 
-          }}>
-            <span>📈</span>
-            <h3 style={{ margin: '0', color: '#334155' }}>Prestatie Analytics</h3>
-            <span style={{ color: '#64748b', fontSize: '0.85rem', marginLeft: 'auto' }}>
-              Laatste 7 dagen
-            </span>
+        {/* Performance Analytics */}
+        <div className="theater-card">
+          <div className="theater-card-header">
+            <div className="theater-card-icon">📈</div>
+            <h3 className="theater-card-title">Prestatie Analytics</h3>
+            <div className="theater-card-badge">Laatste 7 dagen</div>
           </div>
-          <div style={{ 
-            height: '200px', 
-            backgroundColor: '#f1f5f9', 
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#64748b'
-          }}>
+          <div className="theater-analytics-content">
             📊 Analytics grafiek komt hier
           </div>
         </div>
 
-        {/* Activity Feed */}
-        <div style={{ 
-          backgroundColor: '#ffffff', 
-          borderRadius: '16px', 
-          padding: '1.5rem',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
-            marginBottom: '1rem' 
-          }}>
-            <span>⚡</span>
-            <h3 style={{ margin: '0', color: '#334155' }}>Live Activiteit</h3>
+        {/* Live Activity */}
+        <div className="theater-card">
+          <div className="theater-card-header">
+            <div className="theater-card-icon">⚡</div>
+            <h3 className="theater-card-title">Live Activiteit</h3>
           </div>
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '2rem',
-            color: '#64748b'
-          }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📥</div>
-            <p style={{ margin: '0.5rem 0', color: '#334155' }}>Geen recente activiteit</p>
-            <span style={{ fontSize: '0.9rem' }}>
-              Nieuwe boekingen verschijnen hier automatisch
-            </span>
+          <div className="theater-activity-content">
+            <div className="theater-activity-empty">
+              <div className="theater-activity-icon">📥</div>
+              <p className="theater-activity-message">Geen recente activiteit</p>
+              <div className="theater-activity-hint">Nieuwe boekingen verschijnen hier automatisch</div>
+            </div>
           </div>
         </div>
       </div>
